@@ -53,6 +53,8 @@ h3{font-size:15px;margin-bottom:10px;}
 .login-box label{font-size:12.5px;font-weight:600;display:block;margin:10px 0 4px;}
 .hint{background:var(--bg2);border-radius:8px;padding:10px;font-size:11.5px;color:var(--text2);margin-top:16px;line-height:1.6;}
 
+#qrGate{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg2);}
+
 /* STAFF LAYOUT */
 #staff{display:flex;min-height:100vh;}
 .sidebar{width:220px;background:#fff;border-right:1px solid var(--border);padding:20px 12px;flex-shrink:0;}
@@ -143,14 +145,14 @@ h3{font-size:15px;margin-bottom:10px;}
 
 /* horarios - calendario semanal */
 .cal-wrap{overflow-x:auto;}
-.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:680px;}
+.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:520px;font-size:12px;}
 .cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);}
-.cal-daylabel{grid-row:1;padding:8px 4px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
+.cal-daylabel{grid-row:1;padding:5px 4px;text-align:center;font-weight:600;font-size:11.5px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
 .cal-hours{border-right:1px solid var(--border);}
-.cal-hour{font-size:11px;color:var(--text2);padding:2px 4px;border-top:1px solid var(--border2);box-sizing:border-box;}
+.cal-hour{font-size:10px;color:var(--text2);padding:1px 4px;border-top:1px solid var(--border2);box-sizing:border-box;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-event{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 6px;font-size:11px;line-height:1.3;overflow:hidden;cursor:pointer;box-sizing:border-box;}
+.cal-event{position:absolute;left:2px;right:2px;border-radius:4px;padding:2px 4px;font-size:10px;line-height:1.25;overflow:hidden;cursor:pointer;box-sizing:border-box;}
 </style>
 </head>
 <body>
@@ -176,9 +178,14 @@ h3{font-size:15px;margin-bottom:10px;}
       Dueño: dueno@gym.com · Admin: admin@gym.com<br>
       Profesor: carlos@gym.com<br>
       Socios: maria@gym.com / lucas@gym.com / sofia@gym.com<br>
-      Simular QR: qr@gym.com
+      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="openQRGate()">📷 Simular escaneo del QR del gimnasio</button>
     </div>
   </div>
+</div>
+
+<!-- ===================== QR GATE (socio escanea el QR del gimnasio) ===================== -->
+<div id="qrGate" class="hidden">
+  <div class="login-box" id="qrGateContent"></div>
 </div>
 
 <!-- ===================== SCAN ===================== -->
@@ -450,12 +457,6 @@ function doLogin(){
   const email = $('#loginEmail').value.trim().toLowerCase();
   const role = $('.role-btn.active').dataset.role;
 
-  if(email === 'qr@gym.com'){
-    pendingQR = {tipo:'general'};
-    startScan();
-    return;
-  }
-
   currentRole = role;
   $('#login').classList.add('hidden');
 
@@ -487,6 +488,85 @@ function logout(){
   $('#staff').classList.add('hidden');
   $('#socio').classList.add('hidden');
   $('#scan').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+}
+
+/* ============ QR DEL GIMNASIO (socio escanea desde su celular) ============ */
+const QR_DEVICE_KEY = 'gymQrSocioEmail';
+
+function openQRGate(){
+  $('#login').classList.add('hidden');
+  $('#qrGate').classList.remove('hidden');
+  const savedEmail = localStorage.getItem(QR_DEVICE_KEY);
+  if(savedEmail && SOCIOS_LOGIN[savedEmail]){
+    renderQRGateLogin(savedEmail);
+  } else {
+    renderQRGateSignup();
+  }
+}
+
+function renderQRGateSignup(){
+  $('#qrGateContent').innerHTML = `
+    <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
+    <p class="sub" style="margin-bottom:0;">Es la primera vez que escaneás este QR. Creá tu cuenta de socio para registrar tu ingreso.</p>
+    <label>Nombre completo</label>
+    <input id="qrg_n" type="text" placeholder="Tu nombre">
+    <label>Email</label>
+    <input id="qrg_e" type="email" placeholder="tu@email.com">
+    <label>Teléfono</label>
+    <input id="qrg_t" type="tel" placeholder="11 1234-5678">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateCreateSocio()">Crear cuenta y registrar ingreso</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
+  `;
+}
+
+function qrGateCreateSocio(){
+  const n = $('#qrg_n').value.trim();
+  const e = $('#qrg_e').value.trim().toLowerCase();
+  const t = $('#qrg_t').value.trim();
+  if(!n || !e){ alert('Completá tu nombre y email para crear la cuenta.'); return; }
+  if(SOCIOS_LOGIN[e]){
+    localStorage.setItem(QR_DEVICE_KEY, e);
+    qrGateLoginAndCheckIn(e);
+    return;
+  }
+  const initials = n.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  const idx = SOCIOS.length;
+  SOCIOS.push({i:initials, n, email:e, tel:t, pl:'Sin plan asignado', es:'de', rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true});
+  SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
+  localStorage.setItem(QR_DEVICE_KEY, e);
+  qrGateLoginAndCheckIn(e);
+}
+
+function renderQRGateLogin(email){
+  const info = SOCIOS_LOGIN[email];
+  const socio = SOCIOS[info.idx];
+  $('#qrGateContent').innerHTML = `
+    <h1 style="font-size:20px;">👋 Hola, ${esc(socio.n)}</h1>
+    <p class="sub" style="margin-bottom:0;">Ingresá a tu cuenta para registrar tu entrada de hoy.</p>
+    <label>Contraseña</label>
+    <input id="qrg_p" type="password" placeholder="••••••••" value="123456">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginAndCheckIn('${email}')">Ingresar y marcar entrada</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>
+  `;
+}
+
+function qrGateUseOtherAccount(){
+  localStorage.removeItem(QR_DEVICE_KEY);
+  renderQRGateSignup();
+}
+
+function qrGateLoginAndCheckIn(email){
+  const info = SOCIOS_LOGIN[email];
+  currentRole = 'socio';
+  currentSocioIdx = info.idx;
+  pendingQR = {tipo:'general'};
+  $('#qrGate').classList.add('hidden');
+  startScan();
+}
+
+function closeQRGate(){
+  $('#qrGate').classList.add('hidden');
   $('#login').classList.remove('hidden');
 }
 
@@ -1001,7 +1081,7 @@ function saveRutina(){
 function canEditHorarios(){ return isSuperOwner() || hasPerm('horarios'); }
 const CAL_START = 6;   // 06:00
 const CAL_END = 23;    // 23:00
-const CAL_PXH = 52;    // px por hora
+const CAL_PXH = 36;    // px por hora
 function hToMin(h){ const [hh,mm]=h.split(':').map(Number); return hh*60+mm; }
 function staffColor(id){
   const idx = STAFF.findIndex(s=>s.id===id);
@@ -1052,9 +1132,11 @@ function pageHorarios(){
             ${turnos.map(t=>{
               const st = STAFF.find(s=>s.id===t.staffId);
               const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
-              const h = Math.max(22,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
+              const h = Math.max(18,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
               const col = staffColor(t.staffId);
-              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${col}22;border-left:3px solid ${col};color:${col};" ${canEdit?`onclick="event.stopPropagation();openTurnoModal(${t.id})"`:''}>
+              const bg = t.clase ? `${col}cc` : `${col}22`;
+              const fg = t.clase ? '#fff' : col;
+              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${bg};border-left:3px solid ${col};color:${fg};" ${canEdit?`onclick="event.stopPropagation();openTurnoModal(${t.id})"`:''}>
                 ${t.clase?`<b>${esc(t.clase)}</b><br>${esc(st?st.n:'-')}`:`<b>${esc(st?st.n:'-')}</b>`}<br>${t.desde}-${t.hasta}
               </div>`;
             }).join('')}
