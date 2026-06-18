@@ -252,6 +252,7 @@ h3{font-size:15px;margin-bottom:10px;}
 <!-- ===================== MODAL HOST ===================== -->
 <div id="modalHost"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============ DATA ============ */
 const SOCIOS = [
@@ -432,6 +433,63 @@ SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
 
 let collapsedGroups = {}; // group name -> bool collapsed
 
+/* ============ PERSISTENCIA EN SUPABASE ============ */
+const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RTCEUdI9e0Sl_WMzf5lE3w_xcezp9fx';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function fillArray(arr, data){ arr.length=0; if(Array.isArray(data)) arr.push(...data); }
+function fillObject(obj, data){ Object.keys(obj).forEach(k=>delete obj[k]); if(data) Object.assign(obj, data); }
+
+function snapshotState(){
+  return {
+    SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups,
+  };
+}
+
+function applyState(s){
+  if(!s) return;
+  fillArray(SOCIOS, s.SOCIOS);
+  fillArray(RUTINAS, s.RUTINAS);
+  fillArray(CLASES_HOY, s.CLASES_HOY);
+  fillArray(PAGOS, s.PAGOS);
+  fillArray(REGS, s.REGS);
+  fillObject(SOCIOS_LOGIN, s.SOCIOS_LOGIN);
+  fillObject(EJD, s.EJD);
+  fillObject(EJC, s.EJC);
+  fillObject(EJ_VIDEOS, s.EJ_VIDEOS);
+  fillObject(EJ_IMAGES, s.EJ_IMAGES);
+  if(Array.isArray(s.STAFF)) STAFF = s.STAFF;
+  if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
+  if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
+  if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
+  if(Array.isArray(s.notifStaff)) notifStaff = s.notifStaff;
+  if(s.notifSocio) notifSocio = s.notifSocio;
+  if(typeof s.entradasHoy==='number') entradasHoy = s.entradasHoy;
+  if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
+}
+
+let persistTimer = null;
+function persist(){
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(()=>{
+    sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
+      if(error) console.error('Error guardando en Supabase:', error);
+    });
+  }, 500);
+}
+
+async function loadState(){
+  try{
+    const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
+    if(error){ console.error('Error cargando de Supabase:', error); return; }
+    if(data && data.data) applyState(data.data);
+  }catch(e){
+    console.error('Error cargando de Supabase:', e);
+  }
+}
+
 /* ============ HELPERS ============ */
 function $(sel,root){return (root||document).querySelector(sel);}
 function $all(sel,root){return [...(root||document).querySelectorAll(sel)];}
@@ -534,6 +592,7 @@ function qrGateCreateSocio(){
   const idx = SOCIOS.length;
   SOCIOS.push({i:initials, n, email:e, tel:t, pl:'Sin plan asignado', es:'de', rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
+  persist();
   localStorage.setItem(QR_DEVICE_KEY, e);
   qrGateLoginAndCheckIn(e);
 }
@@ -606,6 +665,7 @@ function finishScan(){
   $('#scanTime').textContent = `Hora: ${hora}`;
 
   if(staffPage==='qr') renderStaff();
+  else persist();
   updateNotifDots();
 }
 
@@ -717,6 +777,7 @@ function renderStaff(){
   else if(staffPage==='qr') c.innerHTML = pageQR();
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
   bindStaffEvents();
+  persist();
 }
 
 /* ---- PANEL ---- */
@@ -824,6 +885,7 @@ function togglePerm(staffId,key,el){
   const st = STAFF.find(s=>s.id===staffId);
   st.perms[key]=!st.perms[key];
   el.classList.toggle('on');
+  persist();
 }
 
 /* ---- SOCIOS ---- */
@@ -938,7 +1000,7 @@ function openNotasModal(idx){
 }
 function addNota(idx){
   const v = $('#nt_new').value.trim();
-  if(v){SOCIOS[idx].nt.push(v);}
+  if(v){SOCIOS[idx].nt.push(v); persist();}
   openNotasModal(idx);
 }
 
@@ -1036,11 +1098,13 @@ function openAsignarModal(idx, search){
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
+  persist();
   openAsignarModal(idx, search);
 }
 function quitarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   s.rs = s.rs.filter(r=>r!==rname);
+  persist();
   openAsignarModal(idx, search);
 }
 
@@ -1147,7 +1211,7 @@ function pageHorarios(){
   </div>
   `;
 }
-function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; }
+function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
 function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); renderStaff(); }
 function removeGymTramo(dia,idx){ GYM_HOURS[dia].splice(idx,1); renderStaff(); }
 function openTurnoModal(turnoId,presetDia){
@@ -1217,7 +1281,7 @@ function toggleGroup(g){ collapsedGroups[g]=!collapsedGroups[g]; renderStaff(); 
 function editVideo(name){
   const cur = EJ_VIDEOS[name]||'';
   const v = prompt('Link de YouTube para "'+name+'":', cur);
-  if(v!==null) EJ_VIDEOS[name]=v;
+  if(v!==null){ EJ_VIDEOS[name]=v; persist(); }
 }
 function openImageModal(name){
   const cur = EJ_IMAGES[name]||'';
@@ -1231,6 +1295,7 @@ function openImageModal(name){
 function saveImage(name){
   const v = $('#img_url').value.trim();
   if(v) EJ_IMAGES[name]=v; else delete EJ_IMAGES[name];
+  persist();
   closeModal(); openImageModal(name);
 }
 function deleteEjercicio(g,name){
@@ -1367,6 +1432,7 @@ function renderSocio(){
   else if(socioPage==='asistencia') c.innerHTML = socioAsistencia();
   else if(socioPage==='cuenta') c.innerHTML = socioCuenta();
   updateNotifDots();
+  persist();
 }
 
 function calcAge(birthStr){
@@ -1523,6 +1589,14 @@ function socioCuenta(){
   </div>`;
 }
 
+/* ============ ARRANQUE: cargar datos guardados antes de mostrar el login ============ */
+(async function init(){
+  $('#login').classList.add('hidden');
+  document.body.insertAdjacentHTML('beforeend', '<div id="loadingOverlay" style="position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary);z-index:999;">Cargando datos...</div>');
+  await loadState();
+  $('#loadingOverlay').remove();
+  $('#login').classList.remove('hidden');
+})();
 </script>
 </body>
 </html>
