@@ -400,15 +400,15 @@ let STAFF = [
 let currentStaffId = null;
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-// cada día tiene un horario de mañana y uno de tarde (cualquiera de los dos puede quedar vacío)
+// cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
 let GYM_HOURS = {
-  Lunes:{abreM:'07:00',cierraM:'12:00',abreT:'16:00',cierraT:'22:00'},
-  Martes:{abreM:'07:00',cierraM:'12:00',abreT:'16:00',cierraT:'22:00'},
-  Miércoles:{abreM:'07:00',cierraM:'12:00',abreT:'16:00',cierraT:'22:00'},
-  Jueves:{abreM:'07:00',cierraM:'12:00',abreT:'16:00',cierraT:'22:00'},
-  Viernes:{abreM:'07:00',cierraM:'12:00',abreT:'16:00',cierraT:'22:00'},
-  Sábado:{abreM:'08:00',cierraM:'14:00',abreT:'',cierraT:''},
-  Domingo:{abreM:'',cierraM:'',abreT:'',cierraT:''},
+  Lunes:     [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
+  Martes:    [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
+  Miércoles: [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
+  Jueves:    [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
+  Viernes:   [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
+  Sábado:    [{desde:'08:00',hasta:'14:00'}],
+  Domingo:   [],
 };
 const TURNO_COLORS = ['#534AB7','#059669','#D85A30','#378ADD','#BA7517','#8B45C6','#D4537E','#2B9E9E'];
 // turnos de trabajo de profesores/admins, y clases (spinning, yoga, etc.) en la semana
@@ -1098,17 +1098,17 @@ function pageHorarios(){
     <tbody><tr>${DIAS_SEMANA.map(d=>{
       const h = GYM_HOURS[d];
       if(canEdit){
-        return `<td>
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Mañana</div>
-          <input type="time" value="${h.abreM}" style="width:90px;margin-bottom:4px;" onchange="saveGymHour('${d}','abreM',this.value)"><input type="time" value="${h.cierraM}" style="width:90px;margin-bottom:8px;" onchange="saveGymHour('${d}','cierraM',this.value)">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Tarde</div>
-          <input type="time" value="${h.abreT}" style="width:90px;margin-bottom:4px;" onchange="saveGymHour('${d}','abreT',this.value)"><input type="time" value="${h.cierraT}" style="width:90px;" onchange="saveGymHour('${d}','cierraT',this.value)">
+        return `<td style="min-width:150px;">
+          ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+            <input type="time" step="300" value="${tr.desde}" style="width:82px;" onchange="saveGymHour('${d}',${i},'desde',this.value)">
+            <span style="color:var(--text2);">-</span>
+            <input type="time" step="300" value="${tr.hasta}" style="width:82px;" onchange="saveGymHour('${d}',${i},'hasta',this.value)">
+            <button class="btn btn-outline btn-sm" style="padding:2px 7px;" onclick="removeGymTramo('${d}',${i})">×</button>
+          </div>`).join('')}
+          <button class="btn btn-outline btn-sm" onclick="addGymTramo('${d}')">+ tramo</button>
         </td>`;
       }
-      const tramos = [];
-      if(h.abreM&&h.cierraM) tramos.push(`${h.abreM} - ${h.cierraM}`);
-      if(h.abreT&&h.cierraT) tramos.push(`${h.abreT} - ${h.cierraT}`);
-      return `<td>${tramos.length?tramos.join('<br>'):'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
+      return `<td>${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join('<br>'):'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
     }).join('')}</tr></tbody></table>
   </div>
   <div class="card">
@@ -1147,7 +1147,9 @@ function pageHorarios(){
   </div>
   `;
 }
-function saveGymHour(dia,campo,val){ GYM_HOURS[dia][campo]=val; }
+function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; }
+function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); renderStaff(); }
+function removeGymTramo(dia,idx){ GYM_HOURS[dia].splice(idx,1); renderStaff(); }
 function openTurnoModal(turnoId,presetDia){
   const t = turnoId?TURNOS.find(x=>x.id===turnoId):null;
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
@@ -1156,8 +1158,8 @@ function openTurnoModal(turnoId,presetDia){
     <div class="field"><label>Nombre de la clase (opcional, ej: Spinning, Yoga)</label><input id="tn_cl" type="text" placeholder="Dejar vacío si es un turno de trabajo" value="${t&&t.clase?esc(t.clase):''}"></div>
     <div class="field"><label>Profesor/a a cargo</label><select id="tn_s">${profes.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
     <div class="field"><label>Día</label><select id="tn_d">${DIAS_SEMANA.map(d=>`<option ${ (t?t.dia:presetDia)===d?'selected':''}>${d}</option>`).join('')}</select></div>
-    <div class="field"><label>Desde</label><input id="tn_de" type="time" value="${t?t.desde:'08:00'}"></div>
-    <div class="field"><label>Hasta</label><input id="tn_ha" type="time" value="${t?t.hasta:'12:00'}"></div>
+    <div class="field"><label>Desde</label><input id="tn_de" type="time" step="300" value="${t?t.desde:'08:00'}"></div>
+    <div class="field"><label>Hasta</label><input id="tn_ha" type="time" step="300" value="${t?t.hasta:'12:00'}"></div>
     <div class="modal-actions">
       ${t?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteTurno(${t.id})">Eliminar</button>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
