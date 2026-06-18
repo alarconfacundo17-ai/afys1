@@ -667,7 +667,7 @@ function finishScan(){
   socio.hoy = true;
   socio.entradaHora = hora;
   entradasHoy++;
-  REGS.unshift({i:socio.i, n:socio.n, h:hora, cl:t.clase||null});
+  REGS.unshift({i:socio.i, n:socio.n, h:hora, cl:t.clase||null, f:new Date().toISOString()});
 
   const idx = SOCIOS.indexOf(socio);
   const detail = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
@@ -1644,17 +1644,37 @@ function openDiaModal(rIdx,dIdx){
   `);
 }
 
+function calcRacha(misRegs){
+  // racha = días consecutivos (contando desde hoy hacia atrás) con al menos una entrada
+  const dias = new Set(misRegs.filter(r=>r.f).map(r=>new Date(r.f).toDateString()));
+  let racha = 0;
+  const cursor = new Date();
+  while(dias.has(cursor.toDateString())){
+    racha++;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return racha;
+}
 function socioAsistencia(){
+  const s = SOCIOS[currentSocioIdx];
+  const misRegs = REGS.filter(r=>r.i===s.i);
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
+  const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
+  const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
+  const racha = calcRacha(misRegs);
   return `
   <h2>Asistencia</h2>
   <div class="grid-metrics">
-    <div class="metric"><div class="num">8</div><div class="lbl">Este mes</div></div>
-    <div class="metric"><div class="num">3</div><div class="lbl">Esta semana</div></div>
-    <div class="metric"><div class="num">142</div><div class="lbl">Total histórico</div></div>
+    <div class="metric"><div class="num">${racha}</div><div class="lbl">Racha (días seguidos)</div></div>
+    <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Esta semana</div></div>
+    <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Este mes</div></div>
+    <div class="metric"><div class="num">${misRegs.length}</div><div class="lbl">Total histórico</div></div>
   </div>
   <div class="card">
     <h3>Historial</h3>
-    ${REGS.filter(r=>r.i===SOCIOS[currentSocioIdx].i).map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin registros aún</p>'}
+    ${misRegs.map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin registros aún</p>'}
   </div>`;
 }
 
