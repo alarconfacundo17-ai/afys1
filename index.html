@@ -438,8 +438,8 @@ const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RTCEUdI9e0Sl_WMzf5lE3w_xcezp9fx';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-function fillArray(arr, data){ arr.length=0; if(Array.isArray(data)) arr.push(...data); }
-function fillObject(obj, data){ Object.keys(obj).forEach(k=>delete obj[k]); if(data) Object.assign(obj, data); }
+function fillArray(arr, data){ if(!Array.isArray(data)) return; arr.length=0; arr.push(...data); }
+function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; Object.keys(obj).forEach(k=>delete obj[k]); Object.assign(obj, data); }
 
 function snapshotState(){
   return {
@@ -449,7 +449,7 @@ function snapshotState(){
 }
 
 function applyState(s){
-  if(!s) return;
+  if(!s || !Object.keys(s).length) return;
   fillArray(SOCIOS, s.SOCIOS);
   fillArray(RUTINAS, s.RUTINAS);
   fillArray(CLASES_HOY, s.CLASES_HOY);
