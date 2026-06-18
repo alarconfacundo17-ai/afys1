@@ -242,7 +242,7 @@ const SOCIOS = [
   {i:'AR', n:'Alejandro Ruiz', pl:'Mensual',   es:'ok',   rs:[], nt:[], ed:22, pe:null, ob:null},
   {i:'VG', n:'Valeria García', pl:'Mensual',   es:'ok',   rs:['Cardio intenso'], nt:[], ed:27, pe:60, ob:'Tonificar'},
 ];
-SOCIOS.forEach(s=>{s.hoy=false; s.entradaHora=null;});
+SOCIOS.forEach(s=>{s.hoy=false; s.entradaHora=null; s.activo=true;});
 
 const RUTINAS = [
   {n:'Fuerza básica',  t:'Fuerza',   cr:'Carlos L.', ob:'Ganar fuerza y masa',
@@ -624,19 +624,38 @@ function pageCuentas(){
   const profs = STAFF.filter(s=>s.role==='profesor');
   return `
   <div class="card" style="margin-bottom:18px;">
-    <div class="section-head"><h3>Administradores</h3></div>
+    <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
     <tbody>
       ${admins.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
     </tbody></table>
   </div>
   <div class="card">
-    <div class="section-head"><h3>Profesores</h3></div>
+    <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
     <tbody>
       ${profs.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
     </tbody></table>
   </div>`;
+}
+
+function openNuevoStaffModal(role){
+  openModal(`
+    <div class="modal-head"><h3>Nuevo ${role==='admin'?'admin':'profesor'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="st_n" placeholder="Nombre completo"></div>
+    <div class="field"><label>Email</label><input id="st_email" type="email" placeholder="nombre@gym.com"></div>
+    ${role==='profesor'?`<div class="field"><label>Especialidad</label><input id="st_esp" placeholder="Funcional, Yoga, etc."></div>`:''}
+    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos".</p>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveNuevoStaff('${role}')">Guardar</button></div>
+  `);
+}
+function saveNuevoStaff(role){
+  const n = $('#st_n').value.trim()||(role==='admin'?'Nuevo admin':'Nuevo profesor');
+  const email = $('#st_email').value.trim()||`staff${STAFF.length+1}@gym.com`;
+  const esp = role==='profesor' ? ($('#st_esp').value.trim()||null) : null;
+  const id = 'st_'+Date.now();
+  STAFF.push({id, n, email, role, esp, perms:{socios:false,clases:false,rutinas:false,asignarRutinas:false,ejercicios:false,cargarPagos:false,verPagos:false}});
+  closeModal(); renderStaff();
 }
 
 function openPermModal(staffId){
@@ -662,28 +681,61 @@ function togglePerm(staffId,key,el){
 /* ---- SOCIOS ---- */
 function pageSocios(){
   const showPay = currentRole==='dueno' || hasPerm('verPagos');
+  const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
+  const ordered = withIdx
+    .filter(o=>o.s.activo!==false)
+    .sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'))
+    .concat(withIdx.filter(o=>o.s.activo===false).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')));
   return `
   <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Plan</th><th>Rutinas</th>${showPay?'<th>Pago</th>':''}<th>Hoy</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th><th>Plan</th><th>Rutinas</th>${showPay?'<th>Pago</th>':''}<th>Hoy</th><th>Estado</th><th></th></tr></thead>
   <tbody>
-  ${SOCIOS.map((s,idx)=>`
-    <tr>
+  ${ordered.map(({s,idx})=>`
+    <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       <td>${esc(s.pl)}</td>
       <td>${s.rs.map(r=>`<span class="badge b-purple">${esc(r)}</span>`).join(' ')||'-'}</td>
       ${showPay?`<td>${payBadge(s.es)}</td>`:''}
       <td>${s.hoy?`<span class="badge b-ok">✓ ${s.entradaHora}</span>`:'-'}</td>
+      <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
       <td style="display:flex;gap:6px;">
         ${hasPerm('cargarPagos')||currentRole==='dueno'?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
         <button class="btn btn-outline btn-sm" title="Notas" onclick="openNotasModal(${idx})">📝</button>
+        ${currentRole==='dueno'?(s.activo===false
+          ?`<button class="btn btn-outline btn-sm" title="Reactivar socio" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i></button>`
+          :`<button class="btn btn-outline btn-sm" title="Dar de baja" onclick="openBajaModal(${idx})">✕</button>`):''}
       </td>
     </tr>
   `).join('')}
   </tbody></table>
   </div>`;
+}
+function openBajaModal(idx){
+  const s = SOCIOS[idx];
+  openModal(`
+    <div class="modal-head"><h3>Dar de baja a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">El socio quedará inactivo pero sus datos permanecen guardados en la nube por si retoma en el futuro.</p>
+    <div class="field"><label>Motivo</label><select id="bj_m"><option>No pago</option><option>Decisión propia</option><option>Mudanza</option><option>Otro</option></select></div>
+    <div class="field"><label>Nota adicional (opcional)</label><textarea id="bj_n" rows="2"></textarea></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="confirmBaja(${idx})">Dar de baja</button></div>
+  `);
+}
+function confirmBaja(idx){
+  const s = SOCIOS[idx];
+  s.activo = false;
+  const motivo = $('#bj_m').value;
+  const nota = $('#bj_n').value.trim();
+  s.nt.push(`Dado de baja — Motivo: ${motivo}${nota?'. '+nota:''} (${new Date().toLocaleDateString('es-AR')})`);
+  closeModal(); renderStaff();
+}
+function reactivarSocio(idx){
+  const s = SOCIOS[idx];
+  s.activo = true;
+  s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
+  renderStaff();
 }
 function hasPermSocios(){
   if(currentRole==='dueno') return true;
@@ -703,7 +755,7 @@ function saveSocio(){
   const n = $('#ns_n').value.trim()||'Nuevo Socio';
   const pl = $('#ns_pl').value;
   const ed = parseInt($('#ns_ed').value)||null;
-  SOCIOS.push({i:initials(n), n, pl, es:'ok', rs:[], nt:[], ed, pe:null, ob:null, hoy:false, entradaHora:null});
+  SOCIOS.push({i:initials(n), n, pl, es:'ok', rs:[], nt:[], ed, pe:null, ob:null, hoy:false, entradaHora:null, activo:true});
   notifSocio[SOCIOS.length-1]=[];
   closeModal(); renderStaff();
 }
