@@ -140,6 +140,17 @@ h3{font-size:15px;margin-bottom:10px;}
   .sidebar{display:none;}
   #staff{flex-direction:column;}
 }
+
+/* horarios - calendario semanal */
+.cal-wrap{overflow-x:auto;}
+.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:680px;}
+.cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);}
+.cal-daylabel{grid-row:1;padding:8px 4px;text-align:center;font-weight:600;font-size:13px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
+.cal-hours{border-right:1px solid var(--border);}
+.cal-hour{font-size:11px;color:var(--text2);padding:2px 4px;border-top:1px solid var(--border2);box-sizing:border-box;}
+.cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;}
+.cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
+.cal-event{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 6px;font-size:11px;line-height:1.3;overflow:hidden;cursor:pointer;box-sizing:border-box;}
 </style>
 </head>
 <body>
@@ -386,11 +397,17 @@ let GYM_HOURS = {
   Lunes:{abre:'07:00',cierra:'22:00'}, Martes:{abre:'07:00',cierra:'22:00'}, Miércoles:{abre:'07:00',cierra:'22:00'},
   Jueves:{abre:'07:00',cierra:'22:00'}, Viernes:{abre:'07:00',cierra:'22:00'}, Sábado:{abre:'08:00',cierra:'14:00'}, Domingo:{abre:'',cierra:''},
 };
-// id de staff (profesor/admin) -> horario por día {desde,hasta} (vacío = no trabaja ese día)
-let STAFF_HOURS = {
-  carlos:{Lunes:{desde:'08:00',hasta:'12:00'}, Martes:{desde:'',hasta:''}, Miércoles:{desde:'08:00',hasta:'12:00'}, Jueves:{desde:'',hasta:''}, Viernes:{desde:'08:00',hasta:'12:00'}, Sábado:{desde:'',hasta:''}, Domingo:{desde:'',hasta:''}},
-  ana:{Lunes:{desde:'18:00',hasta:'21:00'}, Martes:{desde:'18:00',hasta:'21:00'}, Miércoles:{desde:'',hasta:''}, Jueves:{desde:'18:00',hasta:'21:00'}, Viernes:{desde:'',hasta:''}, Sábado:{desde:'',hasta:''}, Domingo:{desde:'',hasta:''}},
-};
+const TURNO_COLORS = ['#534AB7','#059669','#D85A30','#378ADD','#BA7517','#8B45C6','#D4537E','#2B9E9E'];
+// turnos de trabajo de profesores/admins en la semana
+let TURNOS = [
+  {id:1, dia:'Lunes',     staffId:'carlos', desde:'08:00', hasta:'12:00'},
+  {id:2, dia:'Miércoles', staffId:'carlos', desde:'08:00', hasta:'12:00'},
+  {id:3, dia:'Viernes',   staffId:'carlos', desde:'08:00', hasta:'12:00'},
+  {id:4, dia:'Lunes',     staffId:'ana',    desde:'18:00', hasta:'21:00'},
+  {id:5, dia:'Martes',    staffId:'ana',    desde:'18:00', hasta:'21:00'},
+  {id:6, dia:'Jueves',    staffId:'ana',    desde:'18:00', hasta:'21:00'},
+];
+let turnoSeq = 7;
 
 let notifStaff = [
   {txt:'Valeria García registró su entrada por QR', new:true},
@@ -973,42 +990,97 @@ function saveRutina(){
   closeModal(); renderStaff();
 }
 
-/* ---- HORARIOS ---- */
+/* ---- HORARIOS (vista semanal tipo calendario) ---- */
 function canEditHorarios(){ return isSuperOwner() || hasPerm('horarios'); }
+const CAL_START = 6;   // 06:00
+const CAL_END = 23;    // 23:00
+const CAL_PXH = 52;    // px por hora
+function hToMin(h){ const [hh,mm]=h.split(':').map(Number); return hh*60+mm; }
+function staffColor(id){
+  const idx = STAFF.findIndex(s=>s.id===id);
+  return TURNO_COLORS[idx>=0?idx%TURNO_COLORS.length:0];
+}
 function pageHorarios(){
   const canEdit = canEditHorarios();
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
+  const totalH = CAL_END-CAL_START;
   return `
   <div class="card" style="margin-bottom:18px;">
     <h3>Horario del gimnasio</h3>
-    <table><thead><tr><th>Día</th><th>Abre</th><th>Cierra</th></tr></thead>
-    <tbody>${DIAS_SEMANA.map(d=>{
+    <table><thead><tr>${DIAS_SEMANA.map(d=>`<th>${d}</th>`).join('')}</tr></thead>
+    <tbody><tr>${DIAS_SEMANA.map(d=>{
       const h = GYM_HOURS[d];
-      return `<tr>
-        <td>${d}</td>
-        <td>${canEdit?`<input type="time" value="${h.abre}" onchange="saveGymHour('${d}','abre',this.value)">`:(h.abre||'<span style="color:var(--text2)">Cerrado</span>')}</td>
-        <td>${canEdit?`<input type="time" value="${h.cierra}" onchange="saveGymHour('${d}','cierra',this.value)">`:(h.cierra||'<span style="color:var(--text2)">Cerrado</span>')}</td>
-      </tr>`;
-    }).join('')}</tbody></table>
+      if(canEdit){
+        return `<td><input type="time" value="${h.abre}" style="width:90px;margin-bottom:4px;" onchange="saveGymHour('${d}','abre',this.value)"><input type="time" value="${h.cierra}" style="width:90px;" onchange="saveGymHour('${d}','cierra',this.value)"></td>`;
+      }
+      return `<td>${h.abre&&h.cierra?`${h.abre} - ${h.cierra}`:'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
+    }).join('')}</tr></tbody></table>
   </div>
   <div class="card">
-    <h3>Horario de profesores y administradores</h3>
-    <table><thead><tr><th>Nombre</th>${DIAS_SEMANA.map(d=>`<th>${d.slice(0,3)}</th>`).join('')}</tr></thead>
-    <tbody>${profes.map(p=>{
-      const h = STAFF_HOURS[p.id] || (STAFF_HOURS[p.id]={});
-      return `<tr><td>${esc(p.n)}</td>${DIAS_SEMANA.map(d=>{
-        const dh = h[d] || (h[d]={desde:'',hasta:''});
-        if(canEdit){
-          return `<td><input type="time" style="width:78px;margin-bottom:2px;" value="${dh.desde}" onchange="saveStaffHour('${p.id}','${d}','desde',this.value)"><input type="time" style="width:78px;" value="${dh.hasta}" onchange="saveStaffHour('${p.id}','${d}','hasta',this.value)"></td>`;
-        }
-        return `<td>${dh.desde&&dh.hasta?`${dh.desde}-${dh.hasta}`:'<span style="color:var(--text2)">-</span>'}</td>`;
-      }).join('')}</tr>`;
-    }).join('')}</tbody></table>
+    <div class="section-head"><h3 style="margin:0;">Semana — turnos de profesores</h3>
+      ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno</button>`:''}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      ${profes.map(p=>`<span class="badge" style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
+    </div>
+    <div class="cal-wrap">
+      <div class="cal-grid" style="grid-template-columns:54px repeat(7,1fr);">
+        <div class="cal-corner"></div>
+        ${DIAS_SEMANA.map(d=>`<div class="cal-daylabel">${d}</div>`).join('')}
+        <div class="cal-hours" style="grid-row:2;grid-column:1;height:${totalH*CAL_PXH}px;">
+          ${Array.from({length:totalH+1},(_,i)=>`<div class="cal-hour" style="height:${CAL_PXH}px;">${String(CAL_START+i).padStart(2,'0')}:00</div>`).join('')}
+        </div>
+        ${DIAS_SEMANA.map((d,di)=>{
+          const turnos = TURNOS.filter(t=>t.dia===d);
+          return `<div class="cal-daycol" style="grid-row:2;grid-column:${di+2};height:${totalH*CAL_PXH}px;" ${canEdit?`onclick="if(event.target===this) openTurnoModal(null,'${d}')"`:''}>
+            ${Array.from({length:totalH},()=>`<div class="cal-hourline" style="height:${CAL_PXH}px;"></div>`).join('')}
+            ${turnos.map(t=>{
+              const st = STAFF.find(s=>s.id===t.staffId);
+              const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
+              const h = Math.max(22,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
+              const col = staffColor(t.staffId);
+              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${col}22;border-left:3px solid ${col};color:${col};" ${canEdit?`onclick="event.stopPropagation();openTurnoModal(${t.id})"`:''}>
+                <b>${esc(st?st.n:'-')}</b><br>${t.desde}-${t.hasta}
+              </div>`;
+            }).join('')}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
   </div>
   `;
 }
 function saveGymHour(dia,campo,val){ GYM_HOURS[dia][campo]=val; }
-function saveStaffHour(id,dia,campo,val){ STAFF_HOURS[id][dia][campo]=val; }
+function openTurnoModal(turnoId,presetDia){
+  const t = turnoId?TURNOS.find(x=>x.id===turnoId):null;
+  const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
+  openModal(`
+    <div class="modal-head"><h3>${t?'Editar turno':'Nuevo turno'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Profesor/a</label><select id="tn_s">${profes.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Día</label><select id="tn_d">${DIAS_SEMANA.map(d=>`<option ${ (t?t.dia:presetDia)===d?'selected':''}>${d}</option>`).join('')}</select></div>
+    <div class="field"><label>Desde</label><input id="tn_de" type="time" value="${t?t.desde:'08:00'}"></div>
+    <div class="field"><label>Hasta</label><input id="tn_ha" type="time" value="${t?t.hasta:'12:00'}"></div>
+    <div class="modal-actions">
+      ${t?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteTurno(${t.id})">Eliminar</button>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTurno(${t?t.id:'null'})">Guardar</button>
+    </div>
+  `);
+}
+function saveTurno(turnoId){
+  const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:$('#tn_de').value, hasta:$('#tn_ha').value};
+  if(turnoId){
+    const t = TURNOS.find(x=>x.id===turnoId);
+    Object.assign(t,data);
+  } else {
+    TURNOS.push({id:turnoSeq++, ...data});
+  }
+  closeModal(); renderStaff();
+}
+function deleteTurno(turnoId){
+  TURNOS = TURNOS.filter(t=>t.id!==turnoId);
+  closeModal(); renderStaff();
+}
 
 /* ---- EJERCICIOS ---- */
 function pageEjercicios(){
