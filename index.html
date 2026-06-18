@@ -159,28 +159,7 @@ h3{font-size:15px;margin-bottom:10px;}
 
 <!-- ===================== LOGIN ===================== -->
 <div id="login">
-  <div class="login-box">
-    <h1>🏋️ Gimnasio Afys</h1>
-    <p class="sub">Actividad Fisica y Salud</p>
-    <div class="role-grid" id="roleGrid">
-      <div class="role-btn active" data-role="dueno">Dueño</div>
-      <div class="role-btn" data-role="admin">Admin</div>
-      <div class="role-btn" data-role="profesor">Profesor</div>
-      <div class="role-btn" data-role="socio">Socio</div>
-    </div>
-    <label>Email</label>
-    <input id="loginEmail" type="email" placeholder="tu@email.com" value="dueno@gym.com">
-    <label>Contraseña</label>
-    <input id="loginPass" type="password" placeholder="••••••••" value="123456">
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
-    <div class="hint">
-      <b>Usuarios de prueba:</b><br>
-      Dueño: dueno@gym.com · Admin: admin@gym.com<br>
-      Profesor: carlos@gym.com<br>
-      Socios: maria@gym.com / lucas@gym.com / sofia@gym.com<br>
-      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="openQRGate()">📷 Simular escaneo del QR del gimnasio</button>
-    </div>
-  </div>
+  <div class="login-box" id="loginBox"></div>
 </div>
 
 <!-- ===================== QR GATE (socio escanea el QR del gimnasio) ===================== -->
@@ -406,6 +385,7 @@ let STAFF = [
     perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:false,cargarEjercicios:true,horarios:false,cuentas:false}},
 ];
 let currentStaffId = null;
+let DUENO_EMAIL = null;
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 // cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
@@ -451,7 +431,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL,
   };
 }
 
@@ -475,6 +455,7 @@ function applyState(s){
   if(s.notifSocio) notifSocio = s.notifSocio;
   if(typeof s.entradasHoy==='number') entradasHoy = s.entradasHoy;
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
+  if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
 }
 
 let persistTimer = null;
@@ -509,51 +490,147 @@ function payBadge(es){
 }
 function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
 
-/* ============ LOGIN ============ */
-$all('.role-btn').forEach(b=>b.addEventListener('click',()=>{
-  $all('.role-btn').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
-  const role = b.dataset.role;
-  const emails = {dueno:'dueno@gym.com',admin:'admin@gym.com',profesor:'carlos@gym.com',socio:'maria@gym.com'};
-  $('#loginEmail').value = emails[role];
-}));
+/* ============ LOGIN (cuentas reales con Supabase Auth) ============ */
+let loginView = 'login'; // login | signupSocio | signupDueno
+let loginError = '';
 
-function doLogin(){
-  const email = $('#loginEmail').value.trim().toLowerCase();
-  const role = $('.role-btn.active').dataset.role;
-
-  currentRole = role;
-  $('#login').classList.add('hidden');
-
-  if(role==='socio'){
-    const info = SOCIOS_LOGIN[email] || SOCIOS_LOGIN['maria@gym.com'];
-    currentSocioIdx = info.idx;
-    $('#socio').classList.remove('hidden');
-    socioPage='inicio';
-    renderSocio();
+function renderLogin(){
+  const box = $('#loginBox');
+  if(loginView==='signupSocio'){
+    box.innerHTML = `
+      <h1 style="font-size:20px;">Crear cuenta de socio</h1>
+      <p class="sub" style="margin-bottom:0;">Completá tus datos para empezar.</p>
+      <label>Nombre y apellido</label><input id="su_n" type="text" placeholder="Tu nombre completo">
+      <label>Email (Gmail)</label><input id="su_e" type="email" placeholder="tu@gmail.com">
+      <label>Contraseña</label><input id="su_p" type="password" placeholder="Mínimo 6 caracteres">
+      <label>Teléfono</label><input id="su_t" type="tel" placeholder="11 1234-5678">
+      <label>Fecha de nacimiento</label><input id="su_cumple" type="date">
+      <label>Peso (kg, opcional)</label><input id="su_pe" type="number" placeholder="70">
+      <label>Objetivo de entrenamiento</label><input id="su_ob" type="text" placeholder="Bajar peso, ganar músculo, etc.">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitSignupSocio()">Crear cuenta</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">Volver</button>
+    `;
+  } else if(loginView==='signupDueno'){
+    box.innerHTML = `
+      <h1 style="font-size:20px;">Crear cuenta de dueño</h1>
+      <p class="sub" style="margin-bottom:0;">Esto solo se hace una vez, para el dueño principal del gimnasio.</p>
+      <label>Nombre</label><input id="sd_n" type="text" placeholder="Tu nombre">
+      <label>Email</label><input id="sd_e" type="email" placeholder="tu@email.com">
+      <label>Contraseña</label><input id="sd_p" type="password" placeholder="Mínimo 6 caracteres">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitSignupDueno()">Crear cuenta</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">Volver</button>
+    `;
   } else {
-    if(role==='admin' || role==='profesor'){
-      const found = STAFF.find(s=>s.email===email && s.role===role);
-      currentStaffId = found ? found.id : STAFF.find(s=>s.role===role).id;
-    } else if(role==='dueno' && email!=='dueno@gym.com'){
-      // dueño secundario agregado por el dueño original: usa permisos asignados
-      const found = STAFF.find(s=>s.email===email && s.role==='dueno');
-      currentStaffId = found ? found.id : null;
-    } else {
-      currentStaffId = null; // dueño original: acceso total
-    }
-    $('#staff').classList.remove('hidden');
-    staffPage='panel';
-    renderStaffSidebar();
-    renderStaff();
+    box.innerHTML = `
+      <h1>🏋️ Gimnasio Afys</h1>
+      <p class="sub">Actividad Fisica y Salud</p>
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="tu@email.com">
+      <label>Contraseña</label>
+      <input id="loginPass" type="password" placeholder="••••••••">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
+      <div class="hint">
+        ${DUENO_EMAIL?'':`<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='signupDueno';loginError='';renderLogin();">Soy el dueño del gimnasio, crear cuenta</button>`}
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="loginView='signupSocio';loginError='';renderLogin();">Soy socio nuevo, crear mi cuenta</button>
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="openQRGate()">📷 Simular escaneo del QR del gimnasio</button>
+      </div>
+    `;
   }
 }
 
+async function doLogin(){
+  const email = $('#loginEmail').value.trim().toLowerCase();
+  const password = $('#loginPass').value;
+  if(!email || !password){ loginError='Completá email y contraseña.'; renderLogin(); return; }
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ loginError='Email o contraseña incorrectos, o todavía no confirmaste tu email (revisá tu casilla).'; renderLogin(); return; }
+  loginError='';
+  await routeLoggedInUser(email);
+}
+
+async function routeLoggedInUser(email){
+  $('#login').classList.add('hidden');
+  if(DUENO_EMAIL && email===DUENO_EMAIL){
+    currentRole='dueno'; currentStaffId=null;
+    enterStaff();
+    return;
+  }
+  const st = STAFF.find(s=>s.email===email);
+  if(st){
+    currentRole = st.role; currentStaffId = st.id;
+    enterStaff();
+    return;
+  }
+  const info = SOCIOS_LOGIN[email];
+  if(info){
+    currentRole='socio'; currentSocioIdx=info.idx;
+    $('#socio').classList.remove('hidden');
+    socioPage='inicio'; renderSocio();
+    return;
+  }
+  await sb.auth.signOut();
+  loginError='No encontramos tu perfil en este gimnasio. Contactá al dueño.';
+  $('#login').classList.remove('hidden');
+  renderLogin();
+}
+
+function enterStaff(){
+  $('#staff').classList.remove('hidden');
+  staffPage='panel';
+  renderStaffSidebar();
+  renderStaff();
+}
+
+async function submitSignupDueno(){
+  const n = $('#sd_n').value.trim();
+  const e = $('#sd_e').value.trim().toLowerCase();
+  const p = $('#sd_p').value;
+  if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
+  if(DUENO_EMAIL){ loginError='Ya existe una cuenta de dueño.'; renderLogin(); return; }
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'dueno'}}});
+  if(error){ loginError=error.message; renderLogin(); return; }
+  DUENO_EMAIL = e;
+  persist();
+  loginView='login'; loginError='';
+  alert('Cuenta creada. Revisá tu email para confirmarla y después iniciá sesión.');
+  renderLogin();
+}
+
+async function submitSignupSocio(){
+  const n = $('#su_n').value.trim();
+  const e = $('#su_e').value.trim().toLowerCase();
+  const p = $('#su_p').value;
+  const t = $('#su_t').value.trim();
+  const cumple = $('#su_cumple').value || null;
+  const pe = parseInt($('#su_pe').value)||null;
+  const ob = $('#su_ob').value.trim()||null;
+  if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
+  if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}}});
+  if(error){ loginError=error.message; renderLogin(); return; }
+  const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const idx = SOCIOS.length;
+  const ed = cumple ? calcAge(cumple) : null;
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
+  notifSocio[idx]=[];
+  persist();
+  loginView='login'; loginError='';
+  alert('Cuenta creada. Revisá tu email para confirmarla y después iniciá sesión.');
+  renderLogin();
+}
+
 function logout(){
+  sb.auth.signOut();
   $('#staff').classList.add('hidden');
   $('#socio').classList.add('hidden');
   $('#scan').classList.add('hidden');
+  loginView='login'; loginError='';
   $('#login').classList.remove('hidden');
+  renderLogin();
 }
 
 /* ============ QR DEL GIMNASIO (socio escanea desde su celular) ============ */
@@ -570,7 +647,7 @@ function openQRGate(){
   }
 }
 
-function renderQRGateSignup(){
+function renderQRGateSignup(qrError){
   $('#qrGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
     <p class="sub" style="margin-bottom:0;">Es la primera vez que escaneás este QR. Creá tu cuenta de socio para registrar tu ingreso.</p>
@@ -578,6 +655,8 @@ function renderQRGateSignup(){
     <input id="qrg_n" type="text" placeholder="Tu nombre completo">
     <label>Email (Gmail)</label>
     <input id="qrg_e" type="email" placeholder="tu@gmail.com">
+    <label>Contraseña</label>
+    <input id="qrg_p" type="password" placeholder="Mínimo 6 caracteres">
     <label>Teléfono</label>
     <input id="qrg_t" type="tel" placeholder="11 1234-5678">
     <label>Fecha de nacimiento</label>
@@ -586,32 +665,33 @@ function renderQRGateSignup(){
     <input id="qrg_pe" type="number" placeholder="70">
     <label>Objetivo de entrenamiento</label>
     <input id="qrg_ob" type="text" placeholder="Bajar peso, ganar músculo, etc.">
+    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateCreateSocio()">Crear cuenta y registrar ingreso</button>
     <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
   `;
 }
 
-function qrGateCreateSocio(){
+async function qrGateCreateSocio(){
   const n = $('#qrg_n').value.trim();
   const e = $('#qrg_e').value.trim().toLowerCase();
+  const p = $('#qrg_p').value;
   const t = $('#qrg_t').value.trim();
   const cumple = $('#qrg_cumple').value || null;
   const pe = parseInt($('#qrg_pe').value)||null;
   const ob = $('#qrg_ob').value.trim()||null;
-  if(!n || !e){ alert('Completá tu nombre y email para crear la cuenta.'); return; }
-  if(SOCIOS_LOGIN[e]){
-    localStorage.setItem(QR_DEVICE_KEY, e);
-    qrGateLoginAndCheckIn(e);
-    return;
-  }
-  const initials = n.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
+  if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}}});
+  if(error){ renderQRGateSignup(error.message); return; }
+  const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initials, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
+  notifSocio[idx]=[];
   persist();
-  localStorage.setItem(QR_DEVICE_KEY, e);
-  qrGateLoginAndCheckIn(e);
+  alert('Cuenta creada. Revisá tu email para confirmarla. Una vez confirmada, volvé a escanear el QR para ingresar.');
+  closeQRGate();
 }
 
 function renderQRGateLogin(email){
@@ -621,7 +701,8 @@ function renderQRGateLogin(email){
     <h1 style="font-size:20px;">👋 Hola, ${esc(socio.n)}</h1>
     <p class="sub" style="margin-bottom:0;">Ingresá a tu cuenta para registrar tu entrada de hoy.</p>
     <label>Contraseña</label>
-    <input id="qrg_p" type="password" placeholder="••••••••" value="123456">
+    <input id="qrg_login_p" type="password" placeholder="••••••••">
+    <div id="qrLoginError" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginAndCheckIn('${email}')">Ingresar y marcar entrada</button>
     <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>
   `;
@@ -632,11 +713,15 @@ function qrGateUseOtherAccount(){
   renderQRGateSignup();
 }
 
-function qrGateLoginAndCheckIn(email){
+async function qrGateLoginAndCheckIn(email){
   const info = SOCIOS_LOGIN[email];
+  const password = $('#qrg_login_p').value;
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ $('#qrLoginError').textContent = 'Contraseña incorrecta o cuenta sin confirmar.'; return; }
   currentRole = 'socio';
   currentSocioIdx = info.idx;
   pendingQR = {tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY, email);
   $('#qrGate').classList.add('hidden');
   startScan();
 }
@@ -865,19 +950,31 @@ function openNuevoStaffModal(role){
     <div class="modal-head"><h3>Nuevo ${titles[role]}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="st_n" placeholder="Nombre completo"></div>
     <div class="field"><label>Email</label><input id="st_email" type="email" placeholder="nombre@gym.com"></div>
+    <div class="field"><label>Contraseña</label><input id="st_pass" type="password" placeholder="Mínimo 6 caracteres"></div>
     ${role==='profesor'?`<div class="field"><label>Especialidad</label><input id="st_esp" placeholder="Funcional, Yoga, etc."></div>`:''}
-    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos". ${role==='dueno'?'Un dueño agregado por vos no tiene acceso total automático: vos decidís qué puede ver y hacer.':''}</p>
+    <p id="st_err" style="color:#D85A30;font-size:12.5px;"></p>
+    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos". ${role==='dueno'?'Un dueño agregado por vos no tiene acceso total automático: vos decidís qué puede ver y hacer.':''} La persona deberá confirmar su email antes de poder ingresar.</p>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveNuevoStaff('${role}')">Guardar</button></div>
   `);
 }
-function saveNuevoStaff(role){
+async function saveNuevoStaff(role){
   const titles = {dueno:'Nuevo dueño', admin:'Nuevo admin', profesor:'Nuevo profesor'};
   const n = $('#st_n').value.trim()||titles[role];
-  const email = $('#st_email').value.trim()||`staff${STAFF.length+1}@gym.com`;
+  const email = $('#st_email').value.trim().toLowerCase();
+  const pass = $('#st_pass').value;
   const esp = role==='profesor' ? ($('#st_esp').value.trim()||null) : null;
+  const err = $('#st_err');
+  if(!email){ err.textContent='Ingresá un email válido.'; return; }
+  if(!pass || pass.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
+  if(STAFF.find(s=>s.email===email)){ err.textContent='Ya existe una cuenta con ese email.'; return; }
+  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}}});
+  if(error){ err.textContent = error.message; return; }
   const id = 'st_'+Date.now();
   STAFF.push({id, n, email, role, esp, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
-  closeModal(); renderStaff();
+  persist();
+  closeModal();
+  alert(`Cuenta creada. ${n} debe confirmar su email (${email}) antes de poder ingresar.`);
+  renderStaff();
 }
 
 function openPermModal(staffId){
@@ -1697,7 +1794,13 @@ function socioCuenta(){
   document.body.insertAdjacentHTML('beforeend', '<div id="loadingOverlay" style="position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary);z-index:999;">Cargando datos...</div>');
   await loadState();
   $('#loadingOverlay').remove();
-  $('#login').classList.remove('hidden');
+  const {data:{session}} = await sb.auth.getSession();
+  if(session && session.user && session.user.email){
+    await routeLoggedInUser(session.user.email);
+  } else {
+    $('#login').classList.remove('hidden');
+    renderLogin();
+  }
 })();
 </script>
 </body>
