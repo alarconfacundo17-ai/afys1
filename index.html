@@ -358,8 +358,20 @@ let socioActiveRutinaIdx = 0;
 let entradasHoy = REGS.length;
 let pendingQR = null; // {tipo:'general'|'clase', clase}
 
-let PERM_ADMIN = {socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true,cuentas:false};
-let PERM_PROF = {clases:true,rutinas:true,alumnos:true,asignarRutinas:true,cargarPagos:false,verEjercicios:true,verPagos:false};
+// Permisos unificados: admins y profesores comparten las mismas opciones.
+// El dueño decide individualmente, por persona, cuáles activar.
+const PERM_LABELS = {socios:'Socios',clases:'Clases',rutinas:'Rutinas',asignarRutinas:'Asignar rutinas',ejercicios:'Ejercicios',cargarPagos:'Cargar pagos',verPagos:'Ver pagos'};
+let STAFF = [
+  {id:'valentina', n:'Valentina A.', email:'admin@gym.com',  role:'admin',    esp:null,
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true}},
+  {id:'roberto',   n:'Roberto M.',   email:'rob@gym.com',    role:'admin',    esp:null,
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true}},
+  {id:'carlos',    n:'Carlos L.',    email:'carlos@gym.com', role:'profesor', esp:'Funcional',
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:false,verPagos:false}},
+  {id:'ana',       n:'Ana N.',       email:'ana@gym.com',    role:'profesor', esp:'Yoga',
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:false,ejercicios:true,cargarPagos:false,verPagos:false}},
+];
+let currentStaffId = null;
 
 let notifStaff = [
   {txt:'Valeria García registró su entrada por QR', new:true},
@@ -411,6 +423,12 @@ function doLogin(){
     socioPage='inicio';
     renderSocio();
   } else {
+    if(role==='admin' || role==='profesor'){
+      const found = STAFF.find(s=>s.email===email && s.role===role);
+      currentStaffId = found ? found.id : STAFF.find(s=>s.role===role).id;
+    } else {
+      currentStaffId = null;
+    }
     $('#staff').classList.remove('hidden');
     staffPage='panel';
     renderStaffSidebar();
@@ -514,32 +532,28 @@ function staffMenu(){
   items.push({id:'rutinas', icon:'ti-barbell', label:'Rutinas'});
   items.push({id:'ejercicios', icon:'ti-list', label:'Ejercicios'});
   items.push({id:'qr', icon:'ti-qrcode', label:'QR y Asistencia'});
-  if(currentRole!=='profesor') items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
+  items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
   return items;
+}
+
+function currentStaff(){
+  return STAFF.find(s=>s.id===currentStaffId) || null;
 }
 
 function hasPerm(key){
   if(currentRole==='dueno') return true;
-  if(currentRole==='admin') return !!PERM_ADMIN[key];
-  if(currentRole==='profesor') return !!PERM_PROF[key];
-  return false;
+  const st = currentStaff();
+  return !!(st && st.perms[key]);
 }
 
 function renderStaffSidebar(){
   const items = staffMenu().filter(it=>{
-    if(currentRole==='admin'){
-      if(it.id==='socios') return hasPerm('socios');
-      if(it.id==='clases') return hasPerm('clases');
-      if(it.id==='rutinas') return hasPerm('rutinas');
-      if(it.id==='ejercicios') return hasPerm('ejercicios');
-      if(it.id==='pagos') return hasPerm('verPagos')||hasPerm('cargarPagos');
-    }
-    if(currentRole==='profesor'){
-      if(it.id==='socios') return hasPerm('alumnos');
-      if(it.id==='clases') return hasPerm('clases');
-      if(it.id==='rutinas') return hasPerm('rutinas');
-      if(it.id==='ejercicios') return hasPerm('verEjercicios');
-    }
+    if(currentRole==='dueno') return true;
+    if(it.id==='socios') return hasPerm('socios');
+    if(it.id==='clases') return hasPerm('clases');
+    if(it.id==='rutinas') return hasPerm('rutinas');
+    if(it.id==='ejercicios') return hasPerm('ejercicios');
+    if(it.id==='pagos') return hasPerm('verPagos')||hasPerm('cargarPagos');
     return true;
   });
   $('#staffSidebar').innerHTML = `
@@ -552,7 +566,8 @@ function renderStaffSidebar(){
     renderStaff();
   }));
   const tags={dueno:'Dueño',admin:'Admin',profesor:'Profesor'};
-  $('#staffRoleTag').textContent = tags[currentRole];
+  const st = currentStaff();
+  $('#staffRoleTag').textContent = tags[currentRole] + (st?` · ${st.n}`:'');
 }
 
 /* ============ STAFF ROUTER ============ */
@@ -605,50 +620,48 @@ function pagePanel(){
 
 /* ---- CUENTAS Y PERMISOS (dueño only) ---- */
 function pageCuentas(){
+  const admins = STAFF.filter(s=>s.role==='admin');
+  const profs = STAFF.filter(s=>s.role==='profesor');
   return `
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3>Administradores</h3></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
     <tbody>
-      <tr><td>Valentina A.</td><td>admin@gym.com</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('admin')">Editar permisos</button></td></tr>
-      <tr><td>Roberto M.</td><td>rob@gym.com</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('admin')">Editar permisos</button></td></tr>
+      ${admins.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
     </tbody></table>
   </div>
   <div class="card">
     <div class="section-head"><h3>Profesores</h3></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
     <tbody>
-      <tr><td>Carlos L.</td><td>carlos@gym.com</td><td>Funcional</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('profesor')">Editar permisos</button></td></tr>
-      <tr><td>Ana N.</td><td>ana@gym.com</td><td>Yoga</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('profesor')">Editar permisos</button></td></tr>
+      ${profs.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
     </tbody></table>
   </div>`;
 }
 
-function openPermModal(type){
-  const perms = type==='admin'?PERM_ADMIN:PERM_PROF;
-  const locked = type==='profesor' ? {clases:true,rutinas:true,alumnos:true,verPagos:true} : {};
-  const labels = type==='admin'
-    ? {socios:'Socios',clases:'Clases',rutinas:'Rutinas',asignarRutinas:'Asignar rutinas',ejercicios:'Ejercicios',cargarPagos:'Cargar pagos',verPagos:'Ver pagos',cuentas:'Cuentas'}
-    : {clases:'Clases',rutinas:'Rutinas',alumnos:'Alumnos',asignarRutinas:'Asignar rutinas',cargarPagos:'Cargar pagos',verEjercicios:'Ver ejercicios',verPagos:'Ver pagos'};
+function openPermModal(staffId){
+  const st = STAFF.find(s=>s.id===staffId);
+  if(!st) return;
   openModal(`
-    <div class="modal-head"><h3>Permisos de ${type==='admin'?'Admin':'Profesor'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Permisos de ${esc(st.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">${st.role==='admin'?'Admin':'Profesor'} · El dueño puede habilitar o deshabilitar cualquier permiso individualmente.</p>
     <div id="permRows">
-      ${Object.keys(labels).map(k=>`
-        <div class="toggle-row"><span>${labels[k]}</span><div class="toggle ${perms[k]?'on':''} ${locked[k]?'locked':''}" data-key="${k}" onclick="${locked[k]?'':`togglePerm('${type}','${k}',this)`}"></div></div>
+      ${Object.keys(PERM_LABELS).map(k=>`
+        <div class="toggle-row"><span>${PERM_LABELS[k]}</span><div class="toggle ${st.perms[k]?'on':''}" data-key="${k}" onclick="togglePerm('${st.id}','${k}',this)"></div></div>
       `).join('')}
     </div>
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Guardar</button></div>
   `);
 }
-function togglePerm(type,key,el){
-  const perms = type==='admin'?PERM_ADMIN:PERM_PROF;
-  perms[key]=!perms[key];
+function togglePerm(staffId,key,el){
+  const st = STAFF.find(s=>s.id===staffId);
+  st.perms[key]=!st.perms[key];
   el.classList.toggle('on');
 }
 
 /* ---- SOCIOS ---- */
 function pageSocios(){
-  const showPay = currentRole!=='profesor';
+  const showPay = currentRole==='dueno' || hasPerm('verPagos');
   return `
   <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
@@ -674,8 +687,7 @@ function pageSocios(){
 }
 function hasPermSocios(){
   if(currentRole==='dueno') return true;
-  if(currentRole==='admin') return hasPerm('socios');
-  return false;
+  return hasPerm('socios');
 }
 
 function openSocioModal(){
@@ -1037,10 +1049,23 @@ function renderSocio(){
   updateNotifDots();
 }
 
+function calcAge(birthStr){
+  const b = new Date(birthStr+'T00:00:00');
+  if(isNaN(b)) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const hadBirthdayThisYear = (now.getMonth()>b.getMonth()) || (now.getMonth()===b.getMonth() && now.getDate()>=b.getDate());
+  if(!hadBirthdayThisYear) age--;
+  return age;
+}
+function getEdad(s){
+  return s.cumple ? calcAge(s.cumple) : s.ed;
+}
 function socioInicio(){
   const s = SOCIOS[currentSocioIdx];
   const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
   const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  const edad = getEdad(s);
   return `
   <div class="profile-card">
     <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:16px;" onclick="openEditPerfil()">✏️</button>
@@ -1048,7 +1073,7 @@ function socioInicio(){
     <h2 style="color:#fff;">${esc(s.n)}</h2>
     <div style="font-size:12.5px;opacity:.9;margin-bottom:8px;">${esc(s.pl)}</div>
     <div>
-      ${s.ed?`<span class="chip">${s.ed} años</span>`:''}
+      ${edad?`<span class="chip">${edad} años</span>`:''}
       ${s.pe?`<span class="chip">${s.pe} kg</span>`:''}
       ${s.ob?`<span class="chip">${esc(s.ob)}</span>`:''}
     </div>
@@ -1076,18 +1101,31 @@ function socioInicio(){
 
 function openEditPerfil(){
   const s = SOCIOS[currentSocioIdx];
+  const hasCumple = !!s.cumple;
   openModal(`
     <div class="modal-head"><h3>Editar perfil</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Peso (kg)</label><input id="ep_pe" type="number" value="${s.pe||''}"></div>
-    <div class="field"><label>Edad</label><input id="ep_ed" type="number" value="${s.ed||''}"></div>
+    <div class="field"><label>Fecha de cumpleaños</label><input id="ep_cumple" type="date" value="${s.cumple||''}" oninput="onCumpleInput()"></div>
+    <div class="field"><label>Edad${hasCumple?' (calculada automáticamente)':''}</label><input id="ep_ed" type="number" value="${getEdad(s)||''}" ${hasCumple?'disabled':''}></div>
     <div class="field"><label>Objetivo</label><input id="ep_ob" value="${esc(s.ob||'')}"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePerfil()">Guardar</button></div>
   `);
 }
+function onCumpleInput(){
+  const v = $('#ep_cumple').value;
+  const edInput = $('#ep_ed');
+  if(v){
+    edInput.value = calcAge(v)||'';
+    edInput.disabled = true;
+  } else {
+    edInput.disabled = false;
+  }
+}
 function savePerfil(){
   const s = SOCIOS[currentSocioIdx];
   s.pe = parseInt($('#ep_pe').value)||s.pe;
-  s.ed = parseInt($('#ep_ed').value)||s.ed;
+  s.cumple = $('#ep_cumple').value || null;
+  s.ed = s.cumple ? calcAge(s.cumple) : (parseInt($('#ep_ed').value)||s.ed);
   s.ob = $('#ep_ob').value||s.ob;
   closeModal(); renderSocio();
 }
