@@ -42,7 +42,8 @@ h3{font-size:15px;margin-bottom:10px;}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
 
 /* LOGIN */
-#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#534AB7,#7c3aed);}
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg2);}
+.login-box{box-shadow:0 4px 24px rgba(0,0,0,.08);}
 .login-box{background:#fff;border-radius:16px;padding:36px;width:380px;}
 .login-box h1{font-size:24px;text-align:center;margin-bottom:4px;}
 .login-box p.sub{text-align:center;color:var(--text2);font-size:13px;margin-bottom:20px;}
@@ -360,16 +361,16 @@ let pendingQR = null; // {tipo:'general'|'clase', clase}
 
 // Permisos unificados: admins y profesores comparten las mismas opciones.
 // El dueño decide individualmente, por persona, cuáles activar.
-const PERM_LABELS = {socios:'Socios',clases:'Clases',rutinas:'Rutinas',asignarRutinas:'Asignar rutinas',ejercicios:'Ejercicios',cargarPagos:'Cargar pagos',verPagos:'Ver pagos'};
+const PERM_LABELS = {socios:'Socios',clases:'Clases',rutinas:'Rutinas',asignarRutinas:'Asignar rutinas',ejercicios:'Ejercicios',cargarPagos:'Cargar pagos',verPagos:'Ver pagos',cuentas:'Gestionar cuentas y permisos'};
 let STAFF = [
   {id:'valentina', n:'Valentina A.', email:'admin@gym.com',  role:'admin',    esp:null,
-    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true}},
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true,cuentas:false}},
   {id:'roberto',   n:'Roberto M.',   email:'rob@gym.com',    role:'admin',    esp:null,
-    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true}},
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true,cuentas:false}},
   {id:'carlos',    n:'Carlos L.',    email:'carlos@gym.com', role:'profesor', esp:'Funcional',
-    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:false,verPagos:false}},
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:false,verPagos:false,cuentas:false}},
   {id:'ana',       n:'Ana N.',       email:'ana@gym.com',    role:'profesor', esp:'Yoga',
-    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:false,ejercicios:true,cargarPagos:false,verPagos:false}},
+    perms:{socios:true,clases:true,rutinas:true,asignarRutinas:false,ejercicios:true,cargarPagos:false,verPagos:false,cuentas:false}},
 ];
 let currentStaffId = null;
 
@@ -426,8 +427,12 @@ function doLogin(){
     if(role==='admin' || role==='profesor'){
       const found = STAFF.find(s=>s.email===email && s.role===role);
       currentStaffId = found ? found.id : STAFF.find(s=>s.role===role).id;
+    } else if(role==='dueno' && email!=='dueno@gym.com'){
+      // dueño secundario agregado por el dueño original: usa permisos asignados
+      const found = STAFF.find(s=>s.email===email && s.role==='dueno');
+      currentStaffId = found ? found.id : null;
     } else {
-      currentStaffId = null;
+      currentStaffId = null; // dueño original: acceso total
     }
     $('#staff').classList.remove('hidden');
     staffPage='panel';
@@ -522,11 +527,14 @@ document.addEventListener('click',e=>{
 });
 
 /* ============ STAFF SIDEBAR ============ */
+function isSuperOwner(){
+  return currentRole==='dueno' && currentStaffId===null;
+}
 function staffMenu(){
   let items = [
     {id:'panel', icon:'ti-layout-dashboard', label:'Panel'},
   ];
-  if(currentRole==='dueno') items.push({id:'cuentas', icon:'ti-shield-lock', label:'Cuentas y permisos'});
+  if(isSuperOwner() || hasPerm('cuentas')) items.push({id:'cuentas', icon:'ti-shield-lock', label:'Cuentas y permisos'});
   items.push({id:'socios', icon:'ti-users', label: currentRole==='profesor'?'Alumnos':'Socios'});
   items.push({id:'clases', icon:'ti-calendar', label:'Clases'});
   items.push({id:'rutinas', icon:'ti-barbell', label:'Rutinas'});
@@ -541,14 +549,15 @@ function currentStaff(){
 }
 
 function hasPerm(key){
-  if(currentRole==='dueno') return true;
+  if(isSuperOwner()) return true;
   const st = currentStaff();
   return !!(st && st.perms[key]);
 }
 
 function renderStaffSidebar(){
   const items = staffMenu().filter(it=>{
-    if(currentRole==='dueno') return true;
+    if(isSuperOwner()) return true;
+    if(it.id==='cuentas') return hasPerm('cuentas');
     if(it.id==='socios') return hasPerm('socios');
     if(it.id==='clases') return hasPerm('clases');
     if(it.id==='rutinas') return hasPerm('rutinas');
@@ -618,11 +627,24 @@ function pagePanel(){
   `;
 }
 
-/* ---- CUENTAS Y PERMISOS (dueño only) ---- */
+/* ---- CUENTAS Y PERMISOS ---- */
 function pageCuentas(){
+  const duenos = STAFF.filter(s=>s.role==='dueno');
   const admins = STAFF.filter(s=>s.role==='admin');
   const profs = STAFF.filter(s=>s.role==='profesor');
   return `
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-head"><h3 style="margin:0;">Dueño principal</h3></div>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <tbody><tr><td>Dueño</td><td>dueno@gym.com</td><td><span class="badge b-purple">Acceso total</span></td></tr></tbody></table>
+  </div>
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-head"><h3 style="margin:0;">Otros dueños</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('dueno')"><i class="ti ti-plus"></i>Nuevo dueño</button></div>
+    ${duenos.length?`<table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <tbody>
+      ${duenos.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
+    </tbody></table>`:`<p style="color:var(--text2);font-size:13px;">Aún no agregaste otros dueños.</p>`}
+  </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
@@ -640,21 +662,23 @@ function pageCuentas(){
 }
 
 function openNuevoStaffModal(role){
+  const titles = {dueno:'dueño', admin:'admin', profesor:'profesor'};
   openModal(`
-    <div class="modal-head"><h3>Nuevo ${role==='admin'?'admin':'profesor'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Nuevo ${titles[role]}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="st_n" placeholder="Nombre completo"></div>
     <div class="field"><label>Email</label><input id="st_email" type="email" placeholder="nombre@gym.com"></div>
     ${role==='profesor'?`<div class="field"><label>Especialidad</label><input id="st_esp" placeholder="Funcional, Yoga, etc."></div>`:''}
-    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos".</p>
+    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos". ${role==='dueno'?'Un dueño agregado por vos no tiene acceso total automático: vos decidís qué puede ver y hacer.':''}</p>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveNuevoStaff('${role}')">Guardar</button></div>
   `);
 }
 function saveNuevoStaff(role){
-  const n = $('#st_n').value.trim()||(role==='admin'?'Nuevo admin':'Nuevo profesor');
+  const titles = {dueno:'Nuevo dueño', admin:'Nuevo admin', profesor:'Nuevo profesor'};
+  const n = $('#st_n').value.trim()||titles[role];
   const email = $('#st_email').value.trim()||`staff${STAFF.length+1}@gym.com`;
   const esp = role==='profesor' ? ($('#st_esp').value.trim()||null) : null;
   const id = 'st_'+Date.now();
-  STAFF.push({id, n, email, role, esp, perms:{socios:false,clases:false,rutinas:false,asignarRutinas:false,ejercicios:false,cargarPagos:false,verPagos:false}});
+  STAFF.push({id, n, email, role, esp, perms:{socios:false,clases:false,rutinas:false,asignarRutinas:false,ejercicios:false,cargarPagos:false,verPagos:false,cuentas:false}});
   closeModal(); renderStaff();
 }
 
@@ -680,7 +704,7 @@ function togglePerm(staffId,key,el){
 
 /* ---- SOCIOS ---- */
 function pageSocios(){
-  const showPay = currentRole==='dueno' || hasPerm('verPagos');
+  const showPay = isSuperOwner() || hasPerm('verPagos');
   const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
   const ordered = withIdx
     .filter(o=>o.s.activo!==false)
@@ -702,9 +726,9 @@ function pageSocios(){
       <td>${s.hoy?`<span class="badge b-ok">✓ ${s.entradaHora}</span>`:'-'}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
       <td style="display:flex;gap:6px;">
-        ${hasPerm('cargarPagos')||currentRole==='dueno'?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
+        ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
         <button class="btn btn-outline btn-sm" title="Notas" onclick="openNotasModal(${idx})">📝</button>
-        ${currentRole==='dueno'?(s.activo===false
+        ${isSuperOwner()?(s.activo===false
           ?`<button class="btn btn-outline btn-sm" title="Reactivar socio" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i></button>`
           :`<button class="btn btn-outline btn-sm" title="Dar de baja" onclick="openBajaModal(${idx})">✕</button>`):''}
       </td>
@@ -738,7 +762,7 @@ function reactivarSocio(idx){
   renderStaff();
 }
 function hasPermSocios(){
-  if(currentRole==='dueno') return true;
+  if(isSuperOwner()) return true;
   return hasPerm('socios');
 }
 
@@ -796,7 +820,7 @@ function addNota(idx){
 
 /* ---- CLASES ---- */
 function pageClases(){
-  const canCreate = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('clases')) || (currentRole==='profesor'&&hasPerm('clases'));
+  const canCreate = isSuperOwner() || hasPerm('clases');
   return `
   <div class="section-head"><h2 style="margin:0;">Clases</h2>${canCreate?`<button class="btn btn-primary" onclick="openClaseModal()"><i class="ti ti-plus"></i>Nueva clase</button>`:''}</div>
   <div class="card" style="margin-bottom:18px;">
@@ -829,8 +853,8 @@ function saveClase(){
 
 /* ---- RUTINAS ---- */
 function pageRutinas(){
-  const canCreate = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('rutinas')) || (currentRole==='profesor'&&hasPerm('rutinas'));
-  const canAssign = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('asignarRutinas')) || (currentRole==='profesor'&&hasPerm('asignarRutinas'));
+  const canCreate = isSuperOwner() || hasPerm('rutinas');
+  const canAssign = isSuperOwner() || hasPerm('asignarRutinas');
   return `
   <div class="section-head"><h2 style="margin:0;">Rutinas</h2>${canCreate?`<button class="btn btn-primary" onclick="openRutinaModal()"><i class="ti ti-plus"></i>Nueva rutina</button>`:''}</div>
   <div class="card">
@@ -931,7 +955,7 @@ function saveRutina(){
 
 /* ---- EJERCICIOS ---- */
 function pageEjercicios(){
-  const canEdit = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('ejercicios'));
+  const canEdit = isSuperOwner();
   return `
   <div class="section-head"><h2 style="margin:0;">Ejercicios</h2>
     <div style="display:flex;gap:8px;">
@@ -1067,7 +1091,7 @@ function pagePagos(){
     <div class="metric"><div class="num">$2.8M</div><div class="lbl">Año</div></div>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
-  ${hasPerm('cargarPagos')||currentRole==='dueno'?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
+  ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
   </div>
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead>
