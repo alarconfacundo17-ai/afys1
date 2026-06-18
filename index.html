@@ -282,22 +282,25 @@ const SOCIOS_LOGIN = {
 };
 
 const EJD = {
-  'Pecho':     ['Press banca plano','Press inclinado mancuernas','Press declinado','Aperturas en polea','Fondos en paralelas','Pullover con mancuerna'],
-  'Espalda':   ['Dominadas con peso','Remo con barra','Remo en polea baja','Pulldown en polea','Face pull en polea','Peso muerto convencional'],
-  'Piernas':   ['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Hip thrust','Elevación pantorrillas'],
-  'Glúteos':   ['Hip thrust con barra','Patada de glúteo en polea','Abducción en máquina','Sentadilla sumo','Step up con mancuernas'],
-  'Hombros':   ['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Press Arnold'],
-  'Tríceps':   ['Press francés barra','Extensiones en polea','Fondos en banco','Patada de tríceps','Press cerrado'],
-  'Bíceps':    ['Curl con barra recta','Curl martillo','Curl concentrado','Curl predicador','Curl mancuernas alterno'],
-  'Core':      ['Plancha abdominal','Plancha lateral','Crunch en polea','Elevación de piernas','Russian twist','Rueda abdominal'],
-  'Full body': ['Burpees','Sentadilla + press','Peso muerto + remo','Clean y press','Thruster'],
+  'Pecho':     ['Press banca plano','Press inclinado mancuernas','Press declinado','Aperturas en polea','Fondos en paralelas','Pullover con mancuerna','Pectoral en máquina'],
+  'Espalda':   ['Dominadas con peso','Remo con barra','Remo en polea baja','Pulldown en polea','Face pull en polea','Peso muerto convencional','Remo con tensor','Gesto de remo','Dorsales con remo','Dorsales por delante','Rotación de tronco','Manguito rotador'],
+  'Piernas':   ['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Hip thrust','Elevación pantorrillas','Vasto externo derecho','Vasto interno derecho','Sentadilla por delante','Sentadilla por detrás','Sentadilla a una pierna','Estocada','Step isométrico','Tibial anterior','Tibial posterior','Peroneos','Aductores','Abductores','Gemelos de pie','Femorales y glúteos'],
+  'Glúteos':   ['Hip thrust con barra','Patada de glúteo en polea','Abducción en máquina','Sentadilla sumo','Step up con mancuernas','Abducción de cadera','Aducción de cadera','Extensión de cadera','Flexión de cadera','Flexión y extensión de cadera'],
+  'Hombros':   ['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Press Arnold','Press de hombros alternos','Press de hombros mecánico','Deltoides alternos','Deltoides posterior + tríceps','Gesto de drive','Isométrico MM pared','Rotación y extensión de hombro','Trapecio'],
+  'Tríceps':   ['Press francés barra','Extensiones en polea','Fondos en banco','Patada de tríceps','Press cerrado','Tríceps vertical','Extensiones de brazos'],
+  'Bíceps':    ['Curl con barra recta','Curl martillo','Curl concentrado','Curl predicador','Curl mancuernas alterno','Bíceps y gemelos','Bíceps + deltoides','Flexión de muñeca','Extensión de antebrazo'],
+  'Core':      ['Plancha abdominal','Plancha lateral','Crunch en polea','Elevación de piernas','Russian twist','Rueda abdominal','Abdominal inferior','Abdominales + oblicuos','Abd. superior + intercostales','Abd. c/obl. y trasero','Abd. inf. pasivo inclinado cruzado','Abd. inf. pasivo interno','Lumbares','Lumbares II','Lumbares + femorales','Relajación lumbar','Intercostales','Cervicales c/rolo','Extensión de cuello','Psoas','Psoas isométrico','Stability core','TRX sentadilla','TRX sentadilla a 1 mml','Mariposa anterior','Movilidad de caderas','Elasticidad psoas'],
+  'Full body': ['Burpees','Sentadilla + press','Peso muerto + remo','Clean y press','Thruster','Escalador','Minitrans','Romboides'],
+  'Cardio':    ['Cinta','Bicicleta','Elíptico','Elongación general','Retorno / vuelta a la calma'],
 };
 const EJC = {
   'Pecho':'#534AB7','Espalda':'#059669','Piernas':'#D85A30','Glúteos':'#D4537E',
-  'Hombros':'#378ADD','Tríceps':'#BA7517','Bíceps':'#8B45C6','Core':'#2B9E9E','Full body':'#666'
+  'Hombros':'#378ADD','Tríceps':'#BA7517','Bíceps':'#8B45C6','Core':'#2B9E9E','Full body':'#666','Cardio':'#0E7490'
 };
 // ejercicio -> link de video (editable)
 const EJ_VIDEOS = {};
+// ejercicio -> link de imagen (editable)
+const EJ_IMAGES = {};
 
 const RUTINAS_SOCIO = [
   {n:'Fuerza básica', sem:'Semana 4', dias:[
@@ -975,6 +978,7 @@ function pageEjercicios(){
             <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             ${canEdit?`<span>
               <button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')"><i class="ti ti-brand-youtube"></i></button>
+              <button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
               <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>
             </span>`:''}
           </div>`).join('')}
@@ -988,6 +992,20 @@ function editVideo(name){
   const cur = EJ_VIDEOS[name]||'';
   const v = prompt('Link de YouTube para "'+name+'":', cur);
   if(v!==null) EJ_VIDEOS[name]=v;
+}
+function openImageModal(name){
+  const cur = EJ_IMAGES[name]||'';
+  openModal(`
+    <div class="modal-head"><h3>Imagen — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
+    ${cur?`<img src="${esc(cur)}" style="width:100%;border-radius:8px;margin-bottom:12px;object-fit:contain;max-height:320px;background:var(--bg2);" onerror="this.style.display='none'">`:`<p style="color:var(--text2);font-size:13px;">Sin imagen cargada todavía.</p>`}
+    <div class="field"><label>Link de imagen</label><input id="img_url" placeholder="https://..." value="${esc(cur)}"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="saveImage('${esc(name)}')">Guardar</button></div>
+  `);
+}
+function saveImage(name){
+  const v = $('#img_url').value.trim();
+  if(v) EJ_IMAGES[name]=v; else delete EJ_IMAGES[name];
+  closeModal(); openImageModal(name);
 }
 function deleteEjercicio(g,name){
   EJD[g]=EJD[g].filter(e=>e!==name);
