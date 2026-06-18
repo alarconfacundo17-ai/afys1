@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>GymAdmin</title>
+<title>Gimnasio Afys</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
 <style>
@@ -160,8 +160,8 @@ h3{font-size:15px;margin-bottom:10px;}
 <!-- ===================== LOGIN ===================== -->
 <div id="login">
   <div class="login-box">
-    <h1>🏋️ GymAdmin</h1>
-    <p class="sub">Gestión integral de gimnasio</p>
+    <h1>🏋️ Gimnasio Afys</h1>
+    <p class="sub">Actividad Fisica y Salud</p>
     <div class="role-grid" id="roleGrid">
       <div class="role-btn active" data-role="dueno">Dueño</div>
       <div class="role-btn" data-role="admin">Admin</div>
@@ -230,7 +230,7 @@ h3{font-size:15px;margin-bottom:10px;}
 <!-- ===================== SOCIO ===================== -->
 <div id="socio" class="hidden">
   <div class="socio-topbar">
-    <b>🏋️ GymAdmin</b>
+    <b>🏋️ Gimnasio Afys</b>
     <div style="display:flex;gap:10px;align-items:center;">
       <div class="notif-wrap">
         <button class="bell" onclick="toggleNotif('socio')">🔔<span class="dot hidden" id="socioNotifDot"></span></button>
@@ -762,7 +762,7 @@ function renderStaffSidebar(){
     return true;
   });
   $('#staffSidebar').innerHTML = `
-    <div class="logo">🏋️ GymAdmin</div>
+    <div class="logo">🏋️ Gimnasio Afys</div>
     ${items.map(it=>`<div class="nav-item ${it.id===staffPage?'active':''}" data-page="${it.id}"><i class="ti ${it.icon}"></i>${it.label}</div>`).join('')}
   `;
   $all('.nav-item',$('#staffSidebar')).forEach(el=>el.addEventListener('click',()=>{
@@ -1093,19 +1093,29 @@ function pageClases(){
   </div>`;
 }
 function openClaseModal(){
+  const profes = STAFF.filter(s=>s.role==='profesor');
   openModal(`
     <div class="modal-head"><h3>Nueva clase</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="cl_n"></div>
     <div class="field"><label>Día</label><input id="cl_d" placeholder="Lunes"></div>
     <div class="field"><label>Hora</label><input id="cl_h" type="time"></div>
     <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="12"></div>
+    <div class="field"><label>Profesor a cargo</label>
+      <select id="cl_ins" onchange="$('#cl_ins_otro_wrap').classList.toggle('hidden', this.value!=='__otro__')">
+        ${profes.map(p=>`<option value="${esc(p.n)}">${esc(p.n)}</option>`).join('')}
+        <option value="__otro__">Otro / profesor externo...</option>
+      </select>
+    </div>
+    <div class="field hidden" id="cl_ins_otro_wrap"><label>Nombre del profesor</label><input id="cl_ins_otro" placeholder="Nombre completo"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveClase()">Guardar</button></div>
   `);
 }
 function saveClase(){
   const n=$('#cl_n').value.trim()||'Nueva clase';
   const h=$('#cl_h').value||'08:00';
-  CLASES_HOY.push({n,h,ins:'Carlos L.',cu:`0/${$('#cl_c').value||12}`});
+  const insSel = $('#cl_ins').value;
+  const ins = insSel==='__otro__' ? ($('#cl_ins_otro').value.trim()||'Sin asignar') : insSel;
+  CLASES_HOY.push({n,h,ins,cu:`0/${$('#cl_c').value||12}`});
   closeModal(); renderStaff();
 }
 
