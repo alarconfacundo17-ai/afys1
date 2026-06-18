@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>GymAdmin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --primary:#534AB7; --green:#059669; --red:#DC2626;
+  --bg:#fff; --bg2:#f9fafb; --border:#e5e7eb; --border2:#f0f0f0;
+  --text:#111; --text2:#6b7280;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg2);color:var(--text);}
+.hidden{display:none !important;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+input,select,textarea{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;width:100%;}
+.btn{padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-outline{background:#fff;border:1px solid var(--border);color:var(--text);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn:hover{opacity:.9;}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{text-align:left;padding:10px 8px;color:var(--text2);border-bottom:1px solid var(--border);font-weight:600;}
+td{padding:10px 8px;border-bottom:1px solid var(--border2);}
+.badge{padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-block;}
+.b-ok{background:#D1FAE5;color:#064E3B;}
+.b-warn{background:#FEF3C7;color:#92400E;}
+.b-err{background:#FEE2E2;color:#991B1B;}
+.b-info{background:#DBEAFE;color:#1E40AF;}
+.b-purple{background:#EDE9FE;color:#4C1D95;}
+.grid-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px;}
+.metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;}
+.metric .num{font-size:26px;font-weight:700;}
+.metric .lbl{font-size:12.5px;color:var(--text2);margin-top:4px;}
+h2{font-size:20px;margin-bottom:14px;}
+h3{font-size:15px;margin-bottom:10px;}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+
+/* LOGIN */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#534AB7,#7c3aed);}
+.login-box{background:#fff;border-radius:16px;padding:36px;width:380px;}
+.login-box h1{font-size:24px;text-align:center;margin-bottom:4px;}
+.login-box p.sub{text-align:center;color:var(--text2);font-size:13px;margin-bottom:20px;}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+.role-btn{padding:14px;border:2px solid var(--border);border-radius:10px;text-align:center;font-weight:600;font-size:13px;}
+.role-btn.active{border-color:var(--primary);background:#EDE9FE;color:var(--primary);}
+.login-box label{font-size:12.5px;font-weight:600;display:block;margin:10px 0 4px;}
+.hint{background:var(--bg2);border-radius:8px;padding:10px;font-size:11.5px;color:var(--text2);margin-top:16px;line-height:1.6;}
+
+/* STAFF LAYOUT */
+#staff{display:flex;min-height:100vh;}
+.sidebar{width:220px;background:#fff;border-right:1px solid var(--border);padding:20px 12px;flex-shrink:0;}
+.sidebar .logo{font-weight:700;font-size:18px;color:var(--primary);padding:0 10px 20px;display:flex;align-items:center;gap:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:var(--text2);margin-bottom:2px;}
+.nav-item.active{background:#EDE9FE;color:var(--primary);font-weight:600;}
+.nav-item:hover{background:var(--bg2);}
+.main{flex:1;padding:0;}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 26px;display:flex;justify-content:space-between;align-items:center;}
+.topbar .role-tag{font-size:12px;color:var(--text2);}
+.bell{position:relative;font-size:20px;}
+.bell .dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:var(--red);border-radius:50%;}
+.content{padding:24px 26px;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* notif dropdown */
+.notif-wrap{position:relative;}
+.notif-panel{position:absolute;right:0;top:34px;width:300px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.12);max-height:360px;overflow:auto;z-index:50;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--border2);font-size:13px;}
+.notif-item .new-tag{background:var(--green);color:#fff;font-size:10px;padding:2px 6px;border-radius:6px;margin-left:6px;}
+
+/* groups (ejercicios) */
+.group-block{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+.group-head{padding:12px 16px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;}
+.group-body{padding:10px 16px;}
+.ej-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
+.ej-row:last-child{border-bottom:none;}
+.dot-num{display:inline-flex;width:22px;height:22px;border-radius:50%;color:#fff;align-items:center;justify-content:center;font-size:11px;margin-right:8px;font-weight:700;}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;}
+.modal-box{background:#fff;border-radius:14px;padding:24px;width:460px;max-height:86vh;overflow:auto;}
+.modal-box.wide{width:600px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-head h3{margin:0;font-size:17px;}
+.field{margin-bottom:12px;}
+.field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+
+/* toggle */
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
+.toggle{width:42px;height:24px;border-radius:14px;background:#DC2626;position:relative;flex-shrink:0;}
+.toggle.on{background:var(--green);}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.15s;}
+.toggle.on::after{left:21px;}
+.toggle.locked{opacity:.5;cursor:not-allowed;}
+
+/* tags */
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;}
+.tag{background:#EDE9FE;color:#4C1D95;padding:3px 8px;border-radius:14px;font-size:11.5px;display:flex;align-items:center;gap:5px;}
+.tag .x{cursor:pointer;font-weight:700;}
+
+/* bars */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;}
+.bar-row .lbl{width:90px;flex-shrink:0;color:var(--text2);}
+.bar-track{flex:1;background:var(--bg2);border-radius:6px;height:18px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--primary);border-radius:6px;}
+
+/* socio app */
+#socio{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;display:flex;flex-direction:column;}
+.socio-topbar{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.socio-content{flex:1;padding:16px 18px;padding-bottom:80px;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#fff;border-top:1px solid var(--border);display:flex;}
+.bn-item{flex:1;text-align:center;padding:10px 0 8px;font-size:11px;color:var(--text2);}
+.bn-item i{display:block;font-size:20px;margin-bottom:2px;}
+.bn-item.active{color:var(--primary);}
+.s-page{display:none;}
+.s-page.active{display:block;}
+.profile-card{background:linear-gradient(135deg,#534AB7,#7c3aed);color:#fff;border-radius:16px;padding:20px;margin-bottom:16px;position:relative;}
+.avatar{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;margin-bottom:10px;}
+.chip{background:rgba(255,255,255,.2);padding:3px 10px;border-radius:14px;font-size:11.5px;margin-right:6px;}
+.pay-banner{padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.day-row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;}
+.day-row.rest{opacity:.55;}
+.class-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+
+/* scan screen */
+#scan{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;text-align:center;}
+.scan-box{width:340px;}
+.scan-spinner{font-size:60px;margin-bottom:20px;}
+.qr-box{display:flex;justify-content:center;margin:16px 0;}
+
+@media(max-width:760px){
+  .sidebar{display:none;}
+  #staff{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login">
+  <div class="login-box">
+    <h1>🏋️ GymAdmin</h1>
+    <p class="sub">Gestión integral de gimnasio</p>
+    <div class="role-grid" id="roleGrid">
+      <div class="role-btn active" data-role="dueno">Dueño</div>
+      <div class="role-btn" data-role="admin">Admin</div>
+      <div class="role-btn" data-role="profesor">Profesor</div>
+      <div class="role-btn" data-role="socio">Socio</div>
+    </div>
+    <label>Email</label>
+    <input id="loginEmail" type="email" placeholder="tu@email.com" value="dueno@gym.com">
+    <label>Contraseña</label>
+    <input id="loginPass" type="password" placeholder="••••••••" value="123456">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
+    <div class="hint">
+      <b>Usuarios de prueba:</b><br>
+      Dueño: dueno@gym.com · Admin: admin@gym.com<br>
+      Profesor: carlos@gym.com<br>
+      Socios: maria@gym.com / lucas@gym.com / sofia@gym.com<br>
+      Simular QR: qr@gym.com
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCAN ===================== -->
+<div id="scan" class="hidden">
+  <div class="scan-box">
+    <div id="scanStep1">
+      <div class="scan-spinner">⏳</div>
+      <h2>Verificando código QR...</h2>
+      <p style="color:#aaa;font-size:13px;">Por favor espera un momento</p>
+    </div>
+    <div id="scanStep2" class="hidden">
+      <div class="scan-spinner">✅</div>
+      <h2 id="scanName">Acceso registrado</h2>
+      <p id="scanDetail" style="color:#aaa;font-size:13px;margin:8px 0 4px;"></p>
+      <p id="scanTime" style="color:#fff;font-size:15px;font-weight:700;margin-bottom:20px;"></p>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeScan()">Ir a la app</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== STAFF (dueño/admin/profesor) ===================== -->
+<div id="staff" class="hidden">
+  <div class="sidebar" id="staffSidebar"></div>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <b id="staffTitle">Panel</b>
+        <div class="role-tag" id="staffRoleTag"></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div class="notif-wrap">
+          <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
+          <div class="notif-panel hidden" id="staffNotifPanel"></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Salir</button>
+      </div>
+    </div>
+    <div class="content" id="staffContent"></div>
+  </div>
+</div>
+
+<!-- ===================== SOCIO ===================== -->
+<div id="socio" class="hidden">
+  <div class="socio-topbar">
+    <b>🏋️ GymAdmin</b>
+    <div class="notif-wrap">
+      <button class="bell" onclick="toggleNotif('socio')">🔔<span class="dot hidden" id="socioNotifDot"></span></button>
+      <div class="notif-panel hidden" id="socioNotifPanel" style="right:-10px;"></div>
+    </div>
+  </div>
+  <div class="socio-content" id="socioContent"></div>
+  <div class="bottom-nav">
+    <div class="bn-item active" data-tab="inicio"><i class="ti ti-home"></i>Inicio</div>
+    <div class="bn-item" data-tab="clases"><i class="ti ti-calendar"></i>Clases</div>
+    <div class="bn-item" data-tab="rutina"><i class="ti ti-barbell"></i>Rutina</div>
+    <div class="bn-item" data-tab="asistencia"><i class="ti ti-check"></i>Asistencia</div>
+    <div class="bn-item" data-tab="cuenta"><i class="ti ti-user"></i>Cuenta</div>
+  </div>
+</div>
+
+<!-- ===================== MODAL HOST ===================== -->
+<div id="modalHost"></div>
+
+<script>
+/* ============ DATA ============ */
+const SOCIOS = [
+  {i:'MG', n:'María García',   pl:'Mensual',   es:'ok',   rs:['Fuerza básica','Cardio intenso'], nt:['Buena técnica en press. Aumentar peso próxima semana.'], ed:29, pe:62, ob:'Tonificación'},
+  {i:'LP', n:'Lucas Pérez',    pl:'Mensual',   es:'ve',   rs:['Cardio intenso'], nt:['Revisar técnica de sentadilla.'], ed:34, pe:null, ob:'Ganar músculo'},
+  {i:'RL', n:'Rosa López',     pl:'Trimestral',es:'ok',   rs:['Hipertrofia A/B','Flexibilidad'], nt:[], ed:28, pe:58, ob:'Tonificación'},
+  {i:'ST', n:'Sofía Torres',   pl:'Mensual',   es:'de',   rs:['Flexibilidad'], nt:['Adaptar por lesión de rodilla.'], ed:null, pe:null, ob:null},
+  {i:'JM', n:'Juan Méndez',    pl:'Mensual',   es:'ok',   rs:['Fuerza básica'], nt:[], ed:26, pe:80, ob:'Ganar fuerza'},
+  {i:'CP', n:'Camila Pino',    pl:'Semestral', es:'ok',   rs:[], nt:[], ed:31, pe:65, ob:'Bajar peso'},
+  {i:'AR', n:'Alejandro Ruiz', pl:'Mensual',   es:'ok',   rs:[], nt:[], ed:22, pe:null, ob:null},
+  {i:'VG', n:'Valeria García', pl:'Mensual',   es:'ok',   rs:['Cardio intenso'], nt:[], ed:27, pe:60, ob:'Tonificar'},
+];
+SOCIOS.forEach(s=>{s.hoy=false; s.entradaHora=null;});
+
+const RUTINAS = [
+  {n:'Fuerza básica',  t:'Fuerza',   cr:'Carlos L.', ob:'Ganar fuerza y masa',
+   ejs:[{n:'Press banca plano',s:4,r:'10-12',v:'https://youtube.com'},{n:'Sentadilla con barra',s:4,r:'8-10',v:''},{n:'Dominadas con peso',s:3,r:'6-8',v:'https://youtube.com'},{n:'Press militar con barra',s:3,r:'10',v:''},{n:'Curl con barra recta',s:3,r:'12',v:''},{n:'Extensiones en polea',s:3,r:'12',v:''}]},
+  {n:'Cardio intenso', t:'Cardio',   cr:'Carlos L.', ob:'Mejorar resistencia cardiovascular',
+   ejs:[{n:'Burpees',s:4,r:'15',v:'https://youtube.com'},{n:'Sentadilla + press',s:3,r:'12',v:''},{n:'Thruster',s:4,r:'10',v:''},{n:'Russian twist',s:3,r:'20',v:''},{n:'Plancha abdominal',s:3,r:'60s',v:''}]},
+  {n:'Flexibilidad',   t:'Movilidad',cr:'Ana N.',    ob:'Mejorar movilidad y postura',
+   ejs:[{n:'Plancha abdominal',s:3,r:'60s',v:''},{n:'Elevación de piernas',s:3,r:'15',v:''},{n:'Russian twist',s:3,r:'20',v:''}]},
+  {n:'Hipertrofia A/B',t:'Fuerza',   cr:'Admin',     ob:'',
+   ejs:[{n:'Press inclinado mancuernas',s:4,r:'10-12',v:''},{n:'Remo con barra',s:4,r:'8-10',v:'https://youtube.com'},{n:'Press Arnold',s:3,r:'12',v:''},{n:'Curl martillo',s:3,r:'12',v:''},{n:'Hip thrust',s:4,r:'10',v:'https://youtube.com'}]},
+];
+
+const CLASES_HOY = [
+  {n:'Spinning',  h:'10:00', ins:'Carlos L.', cu:'8/12'},
+  {n:'Yoga',      h:'11:30', ins:'Ana N.',    cu:'11/12'},
+  {n:'Funcional', h:'18:00', ins:'Carlos L.', cu:'5/15'},
+  {n:'Boxeo',     h:'19:30', ins:'Pablo G.',  cu:'12/12'},
+];
+
+const PAGOS = [
+  {n:'María García', m:'$8.000', f:'01/06', t:'Total',   nt:''},
+  {n:'Rosa López',   m:'$6.000', f:'01/06', t:'Total',   nt:''},
+  {n:'Lucas Pérez',  m:'$4.000', f:'03/06', t:'Parcial', nt:'Quedó debiendo $4.000'},
+];
+
+const REGS = [
+  {i:'RL', n:'Rosa López',    h:'09:45', cl:null},
+  {i:'JM', n:'Juan Méndez',   h:'09:52', cl:null},
+  {i:'VG', n:'Valeria García',h:'10:03', cl:'Spinning'},
+];
+
+const SOCIOS_LOGIN = {
+  'maria@gym.com': {idx:0, pe:'ok',  pm:'Vence el 20 de junio · $8.000'},
+  'lucas@gym.com': {idx:1, pe:'ve',  pm:'Vence el 15 de junio · $8.000'},
+  'sofia@gym.com': {idx:3, pe:'de',  pm:'Venció el 1 de junio · $8.000 pendiente'},
+};
+
+const EJD = {
+  'Pecho':     ['Press banca plano','Press inclinado mancuernas','Press declinado','Aperturas en polea','Fondos en paralelas','Pullover con mancuerna'],
+  'Espalda':   ['Dominadas con peso','Remo con barra','Remo en polea baja','Pulldown en polea','Face pull en polea','Peso muerto convencional'],
+  'Piernas':   ['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Hip thrust','Elevación pantorrillas'],
+  'Glúteos':   ['Hip thrust con barra','Patada de glúteo en polea','Abducción en máquina','Sentadilla sumo','Step up con mancuernas'],
+  'Hombros':   ['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Press Arnold'],
+  'Tríceps':   ['Press francés barra','Extensiones en polea','Fondos en banco','Patada de tríceps','Press cerrado'],
+  'Bíceps':    ['Curl con barra recta','Curl martillo','Curl concentrado','Curl predicador','Curl mancuernas alterno'],
+  'Core':      ['Plancha abdominal','Plancha lateral','Crunch en polea','Elevación de piernas','Russian twist','Rueda abdominal'],
+  'Full body': ['Burpees','Sentadilla + press','Peso muerto + remo','Clean y press','Thruster'],
+};
+const EJC = {
+  'Pecho':'#534AB7','Espalda':'#059669','Piernas':'#D85A30','Glúteos':'#D4537E',
+  'Hombros':'#378ADD','Tríceps':'#BA7517','Bíceps':'#8B45C6','Core':'#2B9E9E','Full body':'#666'
+};
+// ejercicio -> link de video (editable)
+const EJ_VIDEOS = {};
+
+const RUTINAS_SOCIO = [
+  {n:'Fuerza básica', sem:'Semana 4', dias:[
+    {d:'Lunes',    g:'Pecho + Tríceps',    e:['Press banca plano','Press inclinado mancuernas','Aperturas en polea','Fondos en paralelas','Press francés barra','Extensiones en polea'],         s:[4,4,3,4,3,4], r:['10-12','10-12','12-15','8-10','12','12'],      v:['https://youtube.com','','https://youtube.com','','','']},
+    {d:'Martes',   g:'Espalda + Bíceps',   e:['Dominadas con peso','Remo con barra','Remo en polea baja','Pulldown en polea','Curl con barra recta','Curl martillo'],                            s:[4,4,3,4,3,3], r:['6-8','10-12','12','10-12','12','12'],           v:['','https://youtube.com','','https://youtube.com','','']},
+    {d:'Miércoles',g:'Piernas + Core',     e:['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Plancha abdominal','Elevación de piernas'], s:[4,4,3,4,3,3,3],r:['8-10','12-15','15','12','10','60s','15'],      v:['https://youtube.com','','','','https://youtube.com','','']},
+    {d:'Jueves',   g:'Hombros + Trapecio', e:['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Face pull en polea'],          s:[4,4,3,4,3,3], r:['8-10','12-15','12','15','12','15'],            v:['','https://youtube.com','','','','https://youtube.com']},
+    {d:'Viernes',  g:'Full body',          e:['Sentadilla con barra','Press banca plano','Dominadas con peso','Press Arnold','Curl con barra recta','Extensiones en polea','Plancha abdominal'], s:[4,4,3,3,3,3,3],r:['8','10-12','6-8','12','12','12','60s'],       v:['https://youtube.com','','https://youtube.com','','https://youtube.com','','']},
+    {d:'Sábado',   g:'Descanso activo',    e:[], s:[], r:[], v:[]},
+  ]},
+  {n:'Cardio intenso', sem:'Semana 2', dias:[
+    {d:'Lunes',    g:'HIIT Full body',  e:['Burpees','Sentadilla + press','Thruster','Russian twist','Plancha abdominal'], s:[4,3,4,3,3], r:['15','12','10','20','60s'], v:['https://youtube.com','','https://youtube.com','','']},
+    {d:'Martes',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
+    {d:'Miércoles',g:'Cardio + Core',   e:['Burpees','Rueda abdominal','Elevación de piernas','Russian twist','Plancha lateral'], s:[4,3,3,3,3], r:['15','12','15','20','45s'], v:['','','https://youtube.com','','']},
+    {d:'Jueves',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
+    {d:'Viernes',  g:'HIIT avanzado',   e:['Thruster','Sentadilla + press','Peso muerto + remo','Clean y press','Burpees'], s:[4,4,3,4,3], r:['10','12','10','8','12'], v:['https://youtube.com','','','https://youtube.com','']},
+    {d:'Sábado',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
+  ]},
+];
+
+function qrSVG(size, color) {
+  const c = size / 21;
+  const p = [
+    [1,1,1,1,1,1,1,0,1,0,1,0,0,0,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,0,1,0,0,1,0,1,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,1,0,1,0,0,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,0,0,1,1,0,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0],
+    [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,0,1,1,0,1],
+    [0,1,0,0,1,1,0,1,1,0,0,1,0,1,1,0,0,1,0,1,0],
+    [1,0,1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,0,1],
+    [0,1,1,0,1,0,0,1,0,1,0,0,1,0,0,1,1,0,1,1,0],
+    [1,0,0,1,1,1,1,0,1,1,0,1,1,1,0,0,1,1,0,0,1],
+    [0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,1,1,0,1,0,0],
+    [1,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,1,0],
+    [1,0,0,0,0,0,1,0,1,0,0,1,0,1,0,1,0,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1,1,0,1,0],
+    [1,0,1,1,1,0,1,0,0,1,0,1,0,0,0,1,0,0,1,1,1],
+    [1,0,1,1,1,0,1,0,1,0,1,1,0,1,1,0,1,0,1,0,0],
+    [1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,1,1,1,0,1,0],
+    [1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,0,0,1,1,0,1],
+  ];
+  let rects = '';
+  p.forEach((row, ri) => row.forEach((v, ci) => {
+    if (v) rects += `<rect x="${ci*c+1}" y="${ri*c+1}" width="${c-.3}" height="${c-.3}" fill="${color||'#111'}" rx="1"/>`;
+  }));
+  return `<svg width="${size+2}" height="${size+2}" xmlns="http://www.w3.org/2000/svg" style="border-radius:8px"><rect width="${size+2}" height="${size+2}" fill="white" rx="8"/>${rects}</svg>`;
+}
+
+/* ============ STATE ============ */
+let currentRole = 'dueno'; // dueno | admin | profesor | socio
+let currentSocioIdx = 0;
+let staffPage = 'panel';
+let socioPage = 'inicio';
+let socioActiveRutinaIdx = 0;
+let entradasHoy = REGS.length;
+let pendingQR = null; // {tipo:'general'|'clase', clase}
+
+let PERM_ADMIN = {socios:true,clases:true,rutinas:true,asignarRutinas:true,ejercicios:true,cargarPagos:true,verPagos:true,cuentas:false};
+let PERM_PROF = {clases:true,rutinas:true,alumnos:true,asignarRutinas:true,cargarPagos:false,verEjercicios:true,verPagos:false};
+
+let notifStaff = [
+  {txt:'Valeria García registró su entrada por QR', new:true},
+];
+let notifSocio = {}; // by socio idx -> array
+
+SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
+
+let collapsedGroups = {}; // group name -> bool collapsed
+
+/* ============ HELPERS ============ */
+function $(sel,root){return (root||document).querySelector(sel);}
+function $all(sel,root){return [...(root||document).querySelectorAll(sel)];}
+function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
+function payBadge(es){
+  if(es==='ok') return '<span class="badge b-ok">Al día</span>';
+  if(es==='ve') return '<span class="badge b-warn">Por vencer</span>';
+  return '<span class="badge b-err">Vencido</span>';
+}
+function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+
+/* ============ LOGIN ============ */
+$all('.role-btn').forEach(b=>b.addEventListener('click',()=>{
+  $all('.role-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const role = b.dataset.role;
+  const emails = {dueno:'dueno@gym.com',admin:'admin@gym.com',profesor:'carlos@gym.com',socio:'maria@gym.com'};
+  $('#loginEmail').value = emails[role];
+}));
+
+function doLogin(){
+  const email = $('#loginEmail').value.trim().toLowerCase();
+  const role = $('.role-btn.active').dataset.role;
+
+  if(email === 'qr@gym.com'){
+    pendingQR = {tipo:'general'};
+    startScan();
+    return;
+  }
+
+  currentRole = role;
+  $('#login').classList.add('hidden');
+
+  if(role==='socio'){
+    const info = SOCIOS_LOGIN[email] || SOCIOS_LOGIN['maria@gym.com'];
+    currentSocioIdx = info.idx;
+    $('#socio').classList.remove('hidden');
+    socioPage='inicio';
+    renderSocio();
+  } else {
+    $('#staff').classList.remove('hidden');
+    staffPage='panel';
+    renderStaffSidebar();
+    renderStaff();
+  }
+}
+
+function logout(){
+  $('#staff').classList.add('hidden');
+  $('#socio').classList.add('hidden');
+  $('#scan').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+}
+
+/* ============ QR SCAN FLOW ============ */
+function startScan(){
+  $('#scan').classList.remove('hidden');
+  $('#scanStep1').classList.remove('hidden');
+  $('#scanStep2').classList.add('hidden');
+  setTimeout(()=>finishScan(), 1800);
+}
+
+function finishScan(){
+  const t = pendingQR || {tipo:'general'};
+  const hora = nowTime();
+  let socio;
+  if(currentRole==='socio'){
+    socio = SOCIOS[currentSocioIdx];
+  } else {
+    // staff simulating: pick a random socio that hasn't entered, fallback first
+    socio = SOCIOS.find(s=>!s.hoy) || SOCIOS[0];
+  }
+  socio.hoy = true;
+  socio.entradaHora = hora;
+  entradasHoy++;
+  REGS.unshift({i:socio.i, n:socio.n, h:hora, cl:t.clase||null});
+
+  const idx = SOCIOS.indexOf(socio);
+  const detail = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
+  notifStaff.unshift({txt:`${socio.n} registró su entrada (${detail}) a las ${hora}`, new:true});
+  notifSocio[idx] = notifSocio[idx]||[];
+  notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. ${detail}`, new:true});
+
+  $('#scanStep1').classList.add('hidden');
+  $('#scanStep2').classList.remove('hidden');
+  $('#scanName').textContent = `✅ ${socio.n}`;
+  $('#scanDetail').textContent = detail;
+  $('#scanTime').textContent = `Hora: ${hora}`;
+
+  if(staffPage==='qr') renderStaff();
+  updateNotifDots();
+}
+
+function closeScan(){
+  $('#scan').classList.add('hidden');
+  pendingQR = null;
+  if(currentRole==='socio'){
+    $('#socio').classList.remove('hidden');
+    renderSocio();
+  } else if($('#staff').classList.contains('hidden') && $('#login').classList.contains('hidden')){
+    // came from login qr@gym.com simulation -> go to login
+    $('#login').classList.remove('hidden');
+  } else {
+    renderStaff();
+  }
+}
+
+/* ============ NOTIFICATIONS ============ */
+function updateNotifDots(){
+  $('#staffNotifDot').classList.toggle('hidden', !notifStaff.some(n=>n.new));
+  const mine = notifSocio[currentSocioIdx]||[];
+  $('#socioNotifDot').classList.toggle('hidden', !mine.some(n=>n.new));
+}
+
+function toggleNotif(who){
+  const panel = who==='staff' ? $('#staffNotifPanel') : $('#socioNotifPanel');
+  const open = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  if(open){
+    const list = who==='staff' ? notifStaff : (notifSocio[currentSocioIdx]||[]);
+    panel.innerHTML = list.length ? list.map(n=>`<div class="notif-item">${esc(n.txt)} ${n.new?'<span class="new-tag">Nuevo</span>':''}</div>`).join('') : '<div class="notif-item">Sin notificaciones</div>';
+    list.forEach(n=>n.new=false);
+    updateNotifDots();
+  }
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.notif-wrap')){
+    $('#staffNotifPanel')?.classList.add('hidden');
+    $('#socioNotifPanel')?.classList.add('hidden');
+  }
+});
+
+/* ============ STAFF SIDEBAR ============ */
+function staffMenu(){
+  let items = [
+    {id:'panel', icon:'ti-layout-dashboard', label:'Panel'},
+  ];
+  if(currentRole==='dueno') items.push({id:'cuentas', icon:'ti-shield-lock', label:'Cuentas y permisos'});
+  items.push({id:'socios', icon:'ti-users', label: currentRole==='profesor'?'Alumnos':'Socios'});
+  items.push({id:'clases', icon:'ti-calendar', label:'Clases'});
+  items.push({id:'rutinas', icon:'ti-barbell', label:'Rutinas'});
+  items.push({id:'ejercicios', icon:'ti-list', label:'Ejercicios'});
+  items.push({id:'qr', icon:'ti-qrcode', label:'QR y Asistencia'});
+  if(currentRole!=='profesor') items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
+  return items;
+}
+
+function hasPerm(key){
+  if(currentRole==='dueno') return true;
+  if(currentRole==='admin') return !!PERM_ADMIN[key];
+  if(currentRole==='profesor') return !!PERM_PROF[key];
+  return false;
+}
+
+function renderStaffSidebar(){
+  const items = staffMenu().filter(it=>{
+    if(currentRole==='admin'){
+      if(it.id==='socios') return hasPerm('socios');
+      if(it.id==='clases') return hasPerm('clases');
+      if(it.id==='rutinas') return hasPerm('rutinas');
+      if(it.id==='ejercicios') return hasPerm('ejercicios');
+      if(it.id==='pagos') return hasPerm('verPagos')||hasPerm('cargarPagos');
+    }
+    if(currentRole==='profesor'){
+      if(it.id==='socios') return hasPerm('alumnos');
+      if(it.id==='clases') return hasPerm('clases');
+      if(it.id==='rutinas') return hasPerm('rutinas');
+      if(it.id==='ejercicios') return hasPerm('verEjercicios');
+    }
+    return true;
+  });
+  $('#staffSidebar').innerHTML = `
+    <div class="logo">🏋️ GymAdmin</div>
+    ${items.map(it=>`<div class="nav-item ${it.id===staffPage?'active':''}" data-page="${it.id}"><i class="ti ${it.icon}"></i>${it.label}</div>`).join('')}
+  `;
+  $all('.nav-item',$('#staffSidebar')).forEach(el=>el.addEventListener('click',()=>{
+    staffPage = el.dataset.page;
+    renderStaffSidebar();
+    renderStaff();
+  }));
+  const tags={dueno:'Dueño',admin:'Admin',profesor:'Profesor'};
+  $('#staffRoleTag').textContent = tags[currentRole];
+}
+
+/* ============ STAFF ROUTER ============ */
+function renderStaff(){
+  const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',qr:'QR y Asistencia',pagos:'Pagos'};
+  $('#staffTitle').textContent = titles[staffPage]||'Panel';
+  const c = $('#staffContent');
+  if(staffPage==='panel') c.innerHTML = pagePanel();
+  else if(staffPage==='cuentas') c.innerHTML = pageCuentas();
+  else if(staffPage==='socios') c.innerHTML = pageSocios();
+  else if(staffPage==='clases') c.innerHTML = pageClases();
+  else if(staffPage==='rutinas') c.innerHTML = pageRutinas();
+  else if(staffPage==='ejercicios') c.innerHTML = pageEjercicios();
+  else if(staffPage==='qr') c.innerHTML = pageQR();
+  else if(staffPage==='pagos') c.innerHTML = pagePagos();
+  bindStaffEvents();
+}
+
+/* ---- PANEL ---- */
+function pagePanel(){
+  const vencidos = SOCIOS.filter(s=>s.es==='de').length;
+  let metrics = `
+    <div class="metric"><div class="num">47</div><div class="lbl">Socios activos</div></div>
+    <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
+    <div class="metric"><div class="num">6</div><div class="lbl">Clases hoy</div></div>
+    <div class="metric"><div class="num">8</div><div class="lbl">Pagos vencidos</div></div>
+  `;
+  if(currentRole==='profesor'){
+    metrics = `
+    <div class="metric"><div class="num">4</div><div class="lbl">Clases esta semana</div></div>
+    <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
+    `;
+  }
+  return `
+  <div class="grid-metrics">${metrics}</div>
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Últimas entradas por QR</h3>
+    <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
+    <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')}</tbody></table>
+  </div>
+  ${currentRole!=='profesor'?`
+  <div class="card">
+    <h3>Ingresos</h3>
+    <div class="bar-row"><div class="lbl">Junio</div><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><div>$312K</div></div>
+    <div class="bar-row"><div class="lbl">Mayo</div><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><div>$368K</div></div>
+    <div class="bar-row"><div class="lbl">Abril</div><div class="bar-track"><div class="bar-fill" style="width:76%"></div></div><div>$280K</div></div>
+  </div>`:''}
+  `;
+}
+
+/* ---- CUENTAS Y PERMISOS (dueño only) ---- */
+function pageCuentas(){
+  return `
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-head"><h3>Administradores</h3></div>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Valentina A.</td><td>admin@gym.com</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('admin')">Editar permisos</button></td></tr>
+      <tr><td>Roberto M.</td><td>rob@gym.com</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('admin')">Editar permisos</button></td></tr>
+    </tbody></table>
+  </div>
+  <div class="card">
+    <div class="section-head"><h3>Profesores</h3></div>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Carlos L.</td><td>carlos@gym.com</td><td>Funcional</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('profesor')">Editar permisos</button></td></tr>
+      <tr><td>Ana N.</td><td>ana@gym.com</td><td>Yoga</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('profesor')">Editar permisos</button></td></tr>
+    </tbody></table>
+  </div>`;
+}
+
+function openPermModal(type){
+  const perms = type==='admin'?PERM_ADMIN:PERM_PROF;
+  const locked = type==='profesor' ? {clases:true,rutinas:true,alumnos:true,verPagos:true} : {};
+  const labels = type==='admin'
+    ? {socios:'Socios',clases:'Clases',rutinas:'Rutinas',asignarRutinas:'Asignar rutinas',ejercicios:'Ejercicios',cargarPagos:'Cargar pagos',verPagos:'Ver pagos',cuentas:'Cuentas'}
+    : {clases:'Clases',rutinas:'Rutinas',alumnos:'Alumnos',asignarRutinas:'Asignar rutinas',cargarPagos:'Cargar pagos',verEjercicios:'Ver ejercicios',verPagos:'Ver pagos'};
+  openModal(`
+    <div class="modal-head"><h3>Permisos de ${type==='admin'?'Admin':'Profesor'}</h3><button onclick="closeModal()">✕</button></div>
+    <div id="permRows">
+      ${Object.keys(labels).map(k=>`
+        <div class="toggle-row"><span>${labels[k]}</span><div class="toggle ${perms[k]?'on':''} ${locked[k]?'locked':''}" data-key="${k}" onclick="${locked[k]?'':`togglePerm('${type}','${k}',this)`}"></div></div>
+      `).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Guardar</button></div>
+  `);
+}
+function togglePerm(type,key,el){
+  const perms = type==='admin'?PERM_ADMIN:PERM_PROF;
+  perms[key]=!perms[key];
+  el.classList.toggle('on');
+}
+
+/* ---- SOCIOS ---- */
+function pageSocios(){
+  const showPay = currentRole!=='profesor';
+  return `
+  <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
+  ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
+  </div>
+  <div class="card">
+  <table><thead><tr><th>Nombre</th><th>Plan</th><th>Rutinas</th>${showPay?'<th>Pago</th>':''}<th>Hoy</th><th></th></tr></thead>
+  <tbody>
+  ${SOCIOS.map((s,idx)=>`
+    <tr>
+      <td>${esc(s.n)}</td>
+      <td>${esc(s.pl)}</td>
+      <td>${s.rs.map(r=>`<span class="badge b-purple">${esc(r)}</span>`).join(' ')||'-'}</td>
+      ${showPay?`<td>${payBadge(s.es)}</td>`:''}
+      <td>${s.hoy?`<span class="badge b-ok">✓ ${s.entradaHora}</span>`:'-'}</td>
+      <td style="display:flex;gap:6px;">
+        ${hasPerm('cargarPagos')||currentRole==='dueno'?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
+        <button class="btn btn-outline btn-sm" title="Notas" onclick="openNotasModal(${idx})">📝</button>
+      </td>
+    </tr>
+  `).join('')}
+  </tbody></table>
+  </div>`;
+}
+function hasPermSocios(){
+  if(currentRole==='dueno') return true;
+  if(currentRole==='admin') return hasPerm('socios');
+  return false;
+}
+
+function openSocioModal(){
+  openModal(`
+    <div class="modal-head"><h3>Nuevo socio</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="ns_n" placeholder="Nombre completo"></div>
+    <div class="field"><label>Plan</label><select id="ns_pl"><option>Mensual</option><option>Trimestral</option><option>Semestral</option></select></div>
+    <div class="field"><label>Edad</label><input id="ns_ed" type="number"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
+  `);
+}
+function saveSocio(){
+  const n = $('#ns_n').value.trim()||'Nuevo Socio';
+  const pl = $('#ns_pl').value;
+  const ed = parseInt($('#ns_ed').value)||null;
+  SOCIOS.push({i:initials(n), n, pl, es:'ok', rs:[], nt:[], ed, pe:null, ob:null, hoy:false, entradaHora:null});
+  notifSocio[SOCIOS.length-1]=[];
+  closeModal(); renderStaff();
+}
+
+function openPagoModal(idx){
+  openModal(`
+    <div class="modal-head"><h3>Registrar pago</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Socio</label><select id="pg_s">${SOCIOS.map((s,i)=>`<option value="${i}" ${i===idx?'selected':''}>${esc(s.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000"></div>
+    <div class="field"><label>Fecha</label><input id="pg_f" type="date"></div>
+    <div class="field"><label>Tipo</label><select id="pg_t"><option>Total</option><option>Parcial</option></select></div>
+    <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Guardar</button></div>
+  `);
+}
+function savePago(){
+  const i = parseInt($('#pg_s').value);
+  const s = SOCIOS[i];
+  s.es='ok';
+  PAGOS.unshift({n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value});
+  closeModal(); renderStaff();
+}
+
+function openNotasModal(idx){
+  const s = SOCIOS[idx];
+  openModal(`
+    <div class="modal-head"><h3>Notas de staff — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div id="notasList">${s.nt.map(n=>`<div class="card" style="margin-bottom:8px;">${esc(n)}</div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin notas</p>'}</div>
+    <div class="field"><label>Nueva nota</label><textarea id="nt_new" rows="3"></textarea></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="addNota(${idx})">Agregar</button></div>
+  `);
+}
+function addNota(idx){
+  const v = $('#nt_new').value.trim();
+  if(v){SOCIOS[idx].nt.push(v);}
+  openNotasModal(idx);
+}
+
+/* ---- CLASES ---- */
+function pageClases(){
+  const canCreate = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('clases')) || (currentRole==='profesor'&&hasPerm('clases'));
+  return `
+  <div class="section-head"><h2 style="margin:0;">Clases</h2>${canCreate?`<button class="btn btn-primary" onclick="openClaseModal()"><i class="ti ti-plus"></i>Nueva clase</button>`:''}</div>
+  <div class="card" style="margin-bottom:18px;">
+  <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}</tr></thead>
+  <tbody>
+  ${CLASES_HOY.map(c=>`<tr><td>${esc(c.n)}</td><td>Hoy ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}</tr>`).join('')}
+  </tbody></table>
+  </div>
+  <div class="card">
+    <h3>Asistencia por clase (mes)</h3>
+    ${CLASES_HOY.map(c=>{const pct=Math.round(Math.random()*40+50);return `<div class="bar-row"><div class="lbl">${esc(c.n)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div>${pct}%</div></div>`}).join('')}
+  </div>`;
+}
+function openClaseModal(){
+  openModal(`
+    <div class="modal-head"><h3>Nueva clase</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="cl_n"></div>
+    <div class="field"><label>Día</label><input id="cl_d" placeholder="Lunes"></div>
+    <div class="field"><label>Hora</label><input id="cl_h" type="time"></div>
+    <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="12"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveClase()">Guardar</button></div>
+  `);
+}
+function saveClase(){
+  const n=$('#cl_n').value.trim()||'Nueva clase';
+  const h=$('#cl_h').value||'08:00';
+  CLASES_HOY.push({n,h,ins:'Carlos L.',cu:`0/${$('#cl_c').value||12}`});
+  closeModal(); renderStaff();
+}
+
+/* ---- RUTINAS ---- */
+function pageRutinas(){
+  const canCreate = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('rutinas')) || (currentRole==='profesor'&&hasPerm('rutinas'));
+  const canAssign = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('asignarRutinas')) || (currentRole==='profesor'&&hasPerm('asignarRutinas'));
+  return `
+  <div class="section-head"><h2 style="margin:0;">Rutinas</h2>${canCreate?`<button class="btn btn-primary" onclick="openRutinaModal()"><i class="ti ti-plus"></i>Nueva rutina</button>`:''}</div>
+  <div class="card">
+  <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Objetivo</th><th>Ejercicios</th><th>Socios</th><th></th></tr></thead>
+  <tbody>
+  ${RUTINAS.map((r,idx)=>{
+    const socCount = SOCIOS.filter(s=>s.rs.includes(r.n)).length;
+    return `<tr>
+      <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
+      <td>${r.ejs.length}</td><td>${socCount}</td>
+      <td style="display:flex;gap:6px;">
+        ${canAssign?`<button class="btn btn-green btn-sm" onclick="openAsignarModal(${idx})">Asignar</button>`:''}
+        <button class="btn btn-outline btn-sm" onclick="openVerRutinaModal(${idx})">👁</button>
+      </td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>
+  </div>`;
+}
+function openVerRutinaModal(idx){
+  const r = RUTINAS[idx];
+  openModal(`
+    <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">${esc(r.ob)||''}</p>
+    <table><thead><tr><th>Ejercicio</th><th>Series</th><th>Reps</th></tr></thead>
+    <tbody>${r.ejs.map(e=>`<tr><td>${esc(e.n)}</td><td>${e.s}</td><td>${esc(e.r)}</td></tr>`).join('')}</tbody></table>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+  `,'wide');
+}
+function openAsignarModal(idx, search){
+  const r = RUTINAS[idx];
+  search = search||'';
+  const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
+  openModal(`
+    <div class="modal-head"><h3>Asignar — ${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <input placeholder="Buscar socio..." value="${esc(search)}" oninput="openAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
+    <div style="max-height:340px;overflow:auto;">
+    ${list.map(s=>{
+      const si = SOCIOS.indexOf(s);
+      const has = s.rs.includes(r.n);
+      const maxed = s.rs.length>=4;
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <b style="font-size:13.5px;">${esc(s.n)}</b>
+          ${has?`<button class="btn btn-outline btn-sm" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>`
+                :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
+        </div>
+        <div class="tag-list" style="margin-top:6px;">${s.rs.map(t=>`<span class="tag">${esc(t)}<span class="x" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>
+      </div>`;
+    }).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
+  `,'wide');
+}
+function asignarRutina(si, rname, idx, search){
+  const s = SOCIOS[si];
+  if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
+  openAsignarModal(idx, search);
+}
+function quitarRutina(si, rname, idx, search){
+  const s = SOCIOS[si];
+  s.rs = s.rs.filter(r=>r!==rname);
+  openAsignarModal(idx, search);
+}
+
+let newRutinaEjs = [{n:'',s:3,r:'10'}];
+function openRutinaModal(){
+  newRutinaEjs = [{n:'',s:3,r:'10'}];
+  renderRutinaModalBody();
+}
+function renderRutinaModalBody(){
+  openModal(`
+    <div class="modal-head"><h3>Nueva rutina</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="rt_n"></div>
+    <div class="field"><label>Tipo</label><select id="rt_t"><option>Fuerza</option><option>Cardio</option><option>Movilidad</option><option>Full body</option><option>Personal</option></select></div>
+    <div class="field"><label>Objetivo (opcional)</label><input id="rt_ob"></div>
+    <h3>Ejercicios</h3>
+    <div id="rtEjs">
+    ${newRutinaEjs.map((e,i)=>`
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <input placeholder="Nombre" value="${esc(e.n)}" oninput="newRutinaEjs[${i}].n=this.value" style="flex:2;">
+        <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
+        <input placeholder="Reps" value="${esc(e.r)}" oninput="newRutinaEjs[${i}].r=this.value" style="flex:1;">
+        <button class="btn btn-outline btn-sm" onclick="removeRutinaEj(${i})">×</button>
+      </div>`).join('')}
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="addRutinaEj()">+ Agregar ejercicio</button>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveRutina()">Guardar</button></div>
+  `,'wide');
+}
+function addRutinaEj(){ newRutinaEjs.push({n:'',s:3,r:'10'}); renderRutinaModalBody(); }
+function removeRutinaEj(i){ newRutinaEjs.splice(i,1); renderRutinaModalBody(); }
+function saveRutina(){
+  const n = $('#rt_n').value.trim()||'Nueva rutina';
+  RUTINAS.push({n, t:$('#rt_t').value, ob:$('#rt_ob').value, cr:'Tú', ejs:newRutinaEjs.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:''}))});
+  closeModal(); renderStaff();
+}
+
+/* ---- EJERCICIOS ---- */
+function pageEjercicios(){
+  const canEdit = currentRole==='dueno' || (currentRole==='admin'&&hasPerm('ejercicios'));
+  return `
+  <div class="section-head"><h2 style="margin:0;">Ejercicios</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" onclick="openCrearDesdeBateria()">Crear rutina desde la batería</button>
+      ${canEdit?`<button class="btn btn-primary" onclick="openNuevoEjercicio()"><i class="ti ti-plus"></i>Nuevo ejercicio</button>`:''}
+    </div>
+  </div>
+  ${Object.keys(EJD).map(g=>`
+    <div class="group-block">
+      <div class="group-head" onclick="toggleGroup('${g}')">
+        <span>${g} <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${EJD[g].length}</span></span>
+        <span>${collapsedGroups[g]?'▸':'▾'}</span>
+      </div>
+      <div class="group-body ${collapsedGroups[g]?'hidden':''}">
+        ${EJD[g].map((e,i)=>`
+          <div class="ej-row">
+            <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
+            ${canEdit?`<span>
+              <button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')"><i class="ti ti-brand-youtube"></i></button>
+              <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>
+            </span>`:''}
+          </div>`).join('')}
+      </div>
+    </div>
+  `).join('')}
+  `;
+}
+function toggleGroup(g){ collapsedGroups[g]=!collapsedGroups[g]; renderStaff(); }
+function editVideo(name){
+  const cur = EJ_VIDEOS[name]||'';
+  const v = prompt('Link de YouTube para "'+name+'":', cur);
+  if(v!==null) EJ_VIDEOS[name]=v;
+}
+function deleteEjercicio(g,name){
+  EJD[g]=EJD[g].filter(e=>e!==name);
+  renderStaff();
+}
+function openNuevoEjercicio(){
+  openModal(`
+    <div class="modal-head"><h3>Nuevo ejercicio</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="ej_n"></div>
+    <div class="field"><label>Grupo muscular</label><select id="ej_g">${Object.keys(EJD).map(g=>`<option>${g}</option>`).join('')}</select></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveEjercicio()">Guardar</button></div>
+  `);
+}
+function saveEjercicio(){
+  const n = $('#ej_n').value.trim();
+  const g = $('#ej_g').value;
+  if(n) EJD[g].push(n);
+  closeModal(); renderStaff();
+}
+
+let bateriaSel = [];
+let bateriaFilter = null;
+function openCrearDesdeBateria(){
+  openModal(`
+    <div class="modal-head"><h3>Crear rutina desde la batería</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      ${Object.keys(EJD).map(g=>`<button class="btn btn-sm ${bateriaFilter===g?'btn-primary':'btn-outline'}" onclick="bateriaFilter='${g}';openCrearDesdeBateria()">${g}</button>`).join('')}
+      <button class="btn btn-sm ${!bateriaFilter?'btn-primary':'btn-outline'}" onclick="bateriaFilter=null;openCrearDesdeBateria()">Todos</button>
+    </div>
+    <div style="max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:14px;">
+      ${(bateriaFilter?[bateriaFilter]:Object.keys(EJD)).flatMap(g=>EJD[g]).map(e=>`<div class="ej-row" style="cursor:pointer;" onclick="addBateriaEj('${esc(e)}')">${esc(e)} <span style="color:var(--primary);">+</span></div>`).join('')}
+    </div>
+    <h3>Ejercicios seleccionados</h3>
+    ${bateriaSel.map((e,i)=>`
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <span style="flex:2;">${esc(e.n)}</span>
+        <input placeholder="Series" value="${e.s}" oninput="bateriaSel[${i}].s=this.value" style="flex:1;">
+        <input placeholder="Reps" value="${esc(e.r)}" oninput="bateriaSel[${i}].r=this.value" style="flex:1;">
+        <input placeholder="Video (opcional)" value="${esc(e.v)}" oninput="bateriaSel[${i}].v=this.value" style="flex:2;">
+        <button class="btn btn-outline btn-sm" onclick="bateriaSel.splice(${i},1);openCrearDesdeBateria()">×</button>
+      </div>`).join('')}
+    <div class="field"><label>Nombre de la rutina</label><input id="bat_n"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBateriaRutina()">Guardar rutina</button></div>
+  `,'wide');
+}
+function addBateriaEj(name){
+  if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10',v:''});
+  openCrearDesdeBateria();
+}
+function saveBateriaRutina(){
+  const n = $('#bat_n').value.trim()||'Rutina personalizada';
+  RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:e.v}))});
+  bateriaSel=[]; closeModal(); renderStaff();
+}
+
+/* ---- QR Y ASISTENCIA ---- */
+function pageQR(){
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+    <div class="card" style="text-align:center;">
+      <h3>QR del gimnasio</h3>
+      <div class="qr-box">${qrSVG(150,'#111')}</div>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button class="btn btn-primary" onclick="simulateScanStaff(null)">Simular escaneo</button>
+        <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>QR por clase</h3>
+      ${CLASES_HOY.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);">
+        <span>${esc(c.n)} · ${c.h}</span><button class="btn btn-outline btn-sm" onclick="openClaseQR('${esc(c.n)}')">Ver QR</button>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-head"><h3>Registro de entradas del día (${REGS.length})</h3></div>
+    <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
+    <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
+  </div>`;
+}
+function openClaseQR(name){
+  openModal(`
+    <div class="modal-head"><h3>QR — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="qr-box">${qrSVG(140,'#059669')}</div>
+    <div class="modal-actions"><button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal();simulateScanStaff('${name.replace(/'/g,"\\'")}')">Simular escaneo</button></div>
+  `);
+}
+function simulateScanStaff(clase){
+  closeModal();
+  pendingQR = {tipo: clase?'clase':'general', clase};
+  startScan();
+}
+
+/* ---- PAGOS ---- */
+function pagePagos(){
+  return `
+  <div class="grid-metrics">
+    <div class="metric"><div class="num">$312K</div><div class="lbl">Junio</div></div>
+    <div class="metric"><div class="num">8</div><div class="lbl">Vencidos</div></div>
+    <div class="metric"><div class="num">47</div><div class="lbl">Activos</div></div>
+    <div class="metric"><div class="num">$2.8M</div><div class="lbl">Año</div></div>
+  </div>
+  <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
+  ${hasPerm('cargarPagos')||currentRole==='dueno'?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
+  </div>
+  <div class="card">
+  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead>
+  <tbody>${PAGOS.map(p=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td></tr>`).join('')}</tbody></table>
+  </div>`;
+}
+
+function bindStaffEvents(){}
+
+/* ============ MODAL ============ */
+function openModal(html, size){
+  $('#modalHost').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box ${size==='wide'?'wide':''}">${html}</div></div>`;
+}
+function closeModal(){ $('#modalHost').innerHTML=''; }
+
+/* ============ SOCIO APP ============ */
+$all('.bn-item').forEach(el=>el.addEventListener('click',()=>{
+  $all('.bn-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  socioPage = el.dataset.tab;
+  renderSocio();
+}));
+
+function renderSocio(){
+  const c = $('#socioContent');
+  if(socioPage==='inicio') c.innerHTML = socioInicio();
+  else if(socioPage==='clases') c.innerHTML = socioClases();
+  else if(socioPage==='rutina') c.innerHTML = socioRutina();
+  else if(socioPage==='asistencia') c.innerHTML = socioAsistencia();
+  else if(socioPage==='cuenta') c.innerHTML = socioCuenta();
+  updateNotifDots();
+}
+
+function socioInicio(){
+  const s = SOCIOS[currentSocioIdx];
+  const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
+  const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  return `
+  <div class="profile-card">
+    <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:16px;" onclick="openEditPerfil()">✏️</button>
+    <div class="avatar">${s.i}</div>
+    <h2 style="color:#fff;">${esc(s.n)}</h2>
+    <div style="font-size:12.5px;opacity:.9;margin-bottom:8px;">${esc(s.pl)}</div>
+    <div>
+      ${s.ed?`<span class="chip">${s.ed} años</span>`:''}
+      ${s.pe?`<span class="chip">${s.pe} kg</span>`:''}
+      ${s.ob?`<span class="chip">${esc(s.ob)}</span>`:''}
+    </div>
+  </div>
+  <div class="pay-banner ${payClass}">${payTxt}</div>
+  <div class="grid-metrics">
+    <div class="metric"><div class="num">8</div><div class="lbl">Clases este mes</div></div>
+    <div class="metric"><div class="num">3</div><div class="lbl">Entradas semana</div></div>
+    <div class="metric"><div class="num">🔥 5</div><div class="lbl">Racha de días</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h3>Estado de hoy</h3>
+    ${s.hoy?`<p style="color:var(--green);font-weight:600;">✅ Presente hoy — ${s.entradaHora}</p>`
+           :`<button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="pendingQR={tipo:'general'};startScan();">Simular escaneo QR</button>`}
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h3>Próximas clases reservadas</h3>
+    <p style="color:var(--text2);font-size:13px;">Spinning — Hoy 10:00</p>
+  </div>
+  <div class="card">
+    <h3>Rutinas activas</h3>
+    ${s.rs.map(r=>`<div class="badge b-purple" style="margin-right:6px;cursor:pointer;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();">${esc(r)}</div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin rutinas asignadas</p>'}
+  </div>`;
+}
+
+function openEditPerfil(){
+  const s = SOCIOS[currentSocioIdx];
+  openModal(`
+    <div class="modal-head"><h3>Editar perfil</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Peso (kg)</label><input id="ep_pe" type="number" value="${s.pe||''}"></div>
+    <div class="field"><label>Edad</label><input id="ep_ed" type="number" value="${s.ed||''}"></div>
+    <div class="field"><label>Objetivo</label><input id="ep_ob" value="${esc(s.ob||'')}"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePerfil()">Guardar</button></div>
+  `);
+}
+function savePerfil(){
+  const s = SOCIOS[currentSocioIdx];
+  s.pe = parseInt($('#ep_pe').value)||s.pe;
+  s.ed = parseInt($('#ep_ed').value)||s.ed;
+  s.ob = $('#ep_ob').value||s.ob;
+  closeModal(); renderSocio();
+}
+
+let reservas = {};
+function socioClases(){
+  return `
+  <h2>Clases disponibles</h2>
+  ${CLASES_HOY.map((c,i)=>{
+    const [act,tot] = c.cu.split('/').map(Number);
+    const full = act>=tot;
+    const booked = reservas[i];
+    return `<div class="class-card">
+      <div><b>${esc(c.n)}</b><div style="font-size:12px;color:var(--text2);">${c.h} · ${esc(c.ins)} · ${c.cu}</div></div>
+      <button class="btn btn-sm ${booked?'btn-outline':full?'btn-outline':'btn-primary'}" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${booked?'Reservada':full?'Sin cupo':'Reservar'}</button>
+    </div>`;
+  }).join('')}`;
+}
+function toggleReserva(i){ reservas[i]=!reservas[i]; renderSocio(); }
+
+function socioRutina(){
+  const s = SOCIOS[currentSocioIdx];
+  const misRutinas = RUTINAS_SOCIO.filter(r=>s.rs.includes(r.n));
+  if(!misRutinas.length) return `<h2>Rutina</h2><p style="color:var(--text2);">No tienes rutinas asignadas.</p>`;
+  if(socioActiveRutinaIdx>=misRutinas.length) socioActiveRutinaIdx=0;
+  const r = misRutinas[socioActiveRutinaIdx];
+  return `
+  <h2>Rutina</h2>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    ${misRutinas.map((m,i)=>`<button class="btn btn-sm ${i===socioActiveRutinaIdx?'btn-primary':'btn-outline'}" onclick="socioActiveRutinaIdx=${i};renderSocio();">${esc(m.n)}</button>`).join('')}
+  </div>
+  <p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${r.sem}</p>
+  ${r.dias.map((d,i)=>{
+    const rest = !d.e.length;
+    return `<div class="day-row ${rest?'rest':''}" ${rest?'':`onclick="openDiaModal(${socioActiveRutinaIdx},${i})"`} style="cursor:${rest?'default':'pointer'};">
+      <div><b>${d.d}</b><div style="font-size:12px;color:var(--text2);">${esc(d.g)}</div></div>
+      <div>${rest?'🌙':'→'}</div>
+    </div>`;
+  }).join('')}`;
+}
+function openDiaModal(rIdx,dIdx){
+  const misRutinas = RUTINAS_SOCIO.filter(r=>SOCIOS[currentSocioIdx].rs.includes(r.n));
+  const d = misRutinas[rIdx].dias[dIdx];
+  openModal(`
+    <div class="modal-head"><h3>${d.d} — ${esc(d.g)}</h3><button onclick="closeModal()">✕</button></div>
+    ${d.e.map((e,i)=>`<div class="ej-row"><span>${esc(e)} <span style="color:var(--text2);">(${d.s[i]}x${esc(d.r[i])})</span></span>${d.v[i]?`<a href="${esc(d.v[i])}" target="_blank"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}</div>`).join('')}
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+  `);
+}
+
+function socioAsistencia(){
+  return `
+  <h2>Asistencia</h2>
+  <div class="grid-metrics">
+    <div class="metric"><div class="num">8</div><div class="lbl">Este mes</div></div>
+    <div class="metric"><div class="num">3</div><div class="lbl">Esta semana</div></div>
+    <div class="metric"><div class="num">142</div><div class="lbl">Total histórico</div></div>
+  </div>
+  <div class="card">
+    <h3>Historial</h3>
+    ${REGS.filter(r=>r.i===SOCIOS[currentSocioIdx].i).map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin registros aún</p>'}
+  </div>`;
+}
+
+function socioCuenta(){
+  const s = SOCIOS[currentSocioIdx];
+  const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
+  const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  return `
+  <h2>Cuenta</h2>
+  <div class="pay-banner ${payClass}">${payTxt}</div>
+  <div class="card">
+    <h3>Historial de pagos</h3>
+    ${PAGOS.filter(p=>p.n===s.n).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:12px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin pagos registrados</p>'}
+  </div>`;
+}
+
+</script>
+</body>
+</html>
