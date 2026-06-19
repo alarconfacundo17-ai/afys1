@@ -566,7 +566,7 @@ async function routeLoggedInUser(email){
     return;
   }
   const info = SOCIOS_LOGIN[email];
-  if(info){
+  if(info && SOCIOS[info.idx]){
     currentRole='socio'; currentSocioIdx=info.idx;
     $('#socio').classList.remove('hidden');
     socioPage='inicio'; renderSocio();
@@ -992,10 +992,21 @@ function renderStaffSidebar(){
 }
 
 /* ============ STAFF ROUTER ============ */
+function staffBlocked(){
+  const st = currentStaff();
+  return !!(st && st.activo===false);
+}
 function renderStaff(){
   const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos'};
   $('#staffTitle').textContent = titles[staffPage]||'Panel';
   const c = $('#staffContent');
+  if(staffBlocked()){
+    c.innerHTML = `<div class="card" style="max-width:480px;margin:40px auto;text-align:center;">
+      <h2 style="margin-bottom:10px;">Cuenta dada de baja</h2>
+      <p style="color:var(--text2);font-size:13.5px;">Tu cuenta fue dada de baja por el dueño del gimnasio y ya no tenés acceso a las funciones de la app. Si creés que esto es un error, contactalo directamente.</p>
+    </div>`;
+    return;
+  }
   if(staffPage==='panel') c.innerHTML = pagePanel();
   else if(staffPage==='cuentas') c.innerHTML = pageCuentas();
   else if(staffPage==='socios') c.innerHTML = pageSocios();
@@ -1073,32 +1084,78 @@ function pageCuentas(){
   </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Otros dueños</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('dueno')"><i class="ti ti-plus"></i>Nuevo dueño</button></div>
-    ${duenos.length?`<table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    ${duenos.length?`<table><thead><tr><th>Nombre</th><th>Email</th><th>Estado</th><th></th></tr></thead>
     <tbody>
-      ${duenos.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
+      ${duenos.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
+        ${isSuperOwner()?staffBajaButtons(s):''}
+      </td></tr>`).join('')}
     </tbody></table>`:`<p style="color:var(--text2);font-size:13px;">Aún no agregaste otros dueños.</p>`}
   </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th>Estado</th><th></th></tr></thead>
     <tbody>
-      ${admins.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>
+      ${admins.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
         ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+        ${(isSuperOwner()||hasPerm('cuentas'))?staffBajaButtons(s):''}
       </td></tr>`).join('')}
     </tbody></table>
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th>Estado</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td>
+      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
         ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','admin')">Ascender a admin</button>
         <button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+        ${(isSuperOwner()||hasPerm('cuentas'))?staffBajaButtons(s):''}
       </td></tr>`).join('')}
     </tbody></table>
   </div>`;
+}
+function staffBajaButtons(s){
+  return `${s.activo===false
+    ?`<button class="btn btn-outline btn-sm" title="Reactivar" onclick="reactivarStaff('${s.id}')"><i class="ti ti-rotate"></i></button>`
+    :`<button class="btn btn-outline btn-sm" title="Dar de baja" onclick="openBajaStaffModal('${s.id}')">✕</button>`}
+  <button class="btn btn-outline btn-sm" style="color:var(--red);" title="Eliminar completamente" onclick="openEliminarStaffModal('${s.id}')"><i class="ti ti-trash"></i></button>`;
+}
+function openBajaStaffModal(id){
+  const s = STAFF.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-head"><h3>Dar de baja a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Va a poder seguir entrando a la app, pero sin acceso a ninguna función — va a ver un aviso de cuenta dada de baja. Sus datos quedan guardados por si lo reactivás más adelante.</p>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="confirmBajaStaff('${id}')">Dar de baja</button></div>
+  `);
+}
+function confirmBajaStaff(id){
+  const s = STAFF.find(x=>x.id===id);
+  s.activo = false;
+  persist();
+  closeModal(); renderStaff();
+}
+function reactivarStaff(id){
+  const s = STAFF.find(x=>x.id===id);
+  s.activo = true;
+  persist();
+  renderStaff();
+}
+function openEliminarStaffModal(id){
+  const s = STAFF.find(x=>x.id===id);
+  openModal(`
+    <div class="modal-head"><h3>Eliminar a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--red);font-size:13px;margin-bottom:10px;"><b>Esta acción no se puede deshacer.</b> Se va a borrar completamente del sistema y no va a poder volver a entrar a la app con esa cuenta. Sus turnos asignados también se eliminan.</p>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Si preferís conservar sus datos, usá "Dar de baja" en lugar de eliminar.</p>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="eliminarStaffCompleto('${id}')">Eliminar definitivamente</button></div>
+  `);
+}
+function eliminarStaffCompleto(id){
+  STAFF = STAFF.filter(s=>s.id!==id);
+  TURNOS = TURNOS.filter(t=>t.staffId!==id);
+  persist();
+  closeModal(); renderStaff();
 }
 
 function promoteStaff(id, newRole){
@@ -1197,6 +1254,7 @@ function pageSocios(){
         ${hasPerm('removerSocios')||isSuperOwner()?(s.activo===false
           ?`<button class="btn btn-outline btn-sm" title="Reactivar socio" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i></button>`
           :`<button class="btn btn-outline btn-sm" title="Dar de baja" onclick="openBajaModal(${idx})">✕</button>`):''}
+        ${hasPerm('removerSocios')||isSuperOwner()?`<button class="btn btn-outline btn-sm" style="color:var(--red);" title="Eliminar completamente" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash"></i></button>`:''}
       </td>
     </tr>
   `).join('')}
@@ -1219,13 +1277,50 @@ function confirmBaja(idx){
   const motivo = $('#bj_m').value;
   const nota = $('#bj_n').value.trim();
   s.nt.push(`Dado de baja — Motivo: ${motivo}${nota?'. '+nota:''} (${new Date().toLocaleDateString('es-AR')})`);
+  persist();
   closeModal(); renderStaff();
 }
 function reactivarSocio(idx){
   const s = SOCIOS[idx];
   s.activo = true;
   s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
+  persist();
   renderStaff();
+}
+function openEliminarSocioModal(idx){
+  const s = SOCIOS[idx];
+  openModal(`
+    <div class="modal-head"><h3>Eliminar a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--red);font-size:13px;margin-bottom:10px;"><b>Esta acción no se puede deshacer.</b> Se va a borrar completamente del sistema: ficha, notas, pagos asociados, reservas y no va a poder volver a entrar a la app con esa cuenta.</p>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Si preferís conservar su historial, usá "Dar de baja" en lugar de eliminar.</p>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="eliminarSocioCompleto(${idx})">Eliminar definitivamente</button></div>
+  `);
+}
+function eliminarSocioCompleto(idx){
+  SOCIOS.splice(idx,1);
+  Object.keys(SOCIOS_LOGIN).forEach(email=>{
+    const info = SOCIOS_LOGIN[email];
+    if(info.idx===idx) delete SOCIOS_LOGIN[email];
+    else if(info.idx>idx) info.idx--;
+  });
+  const newNotif = {};
+  Object.keys(notifSocio).map(Number).forEach(k=>{
+    if(k===idx) return;
+    newNotif[k>idx?k-1:k] = notifSocio[k];
+  });
+  Object.keys(notifSocio).forEach(k=>delete notifSocio[k]);
+  Object.assign(notifSocio, newNotif);
+  const newRes = {};
+  Object.keys(RESERVAS).map(Number).forEach(k=>{
+    if(k===idx) return;
+    newRes[k>idx?k-1:k] = RESERVAS[k];
+  });
+  Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]);
+  Object.assign(RESERVAS, newRes);
+  if(currentSocioIdx===idx) currentSocioIdx=null;
+  else if(currentSocioIdx>idx) currentSocioIdx--;
+  persist();
+  closeModal(); renderStaff();
 }
 function hasPermSocios(){
   if(isSuperOwner()) return true;
@@ -2131,6 +2226,14 @@ $all('.bn-item').forEach(el=>el.addEventListener('click',()=>{
 
 function renderSocio(){
   const c = $('#socioContent');
+  const s = SOCIOS[currentSocioIdx];
+  if(!s || s.activo===false){
+    c.innerHTML = `<div class="card" style="max-width:480px;margin:40px auto;text-align:center;">
+      <h2 style="margin-bottom:10px;">Cuenta dada de baja</h2>
+      <p style="color:var(--text2);font-size:13.5px;">Tu cuenta fue dada de baja en el gimnasio y ya no tenés acceso a la app. Si creés que esto es un error, contactá al gimnasio.</p>
+    </div>`;
+    return;
+  }
   if(socioPage==='inicio') c.innerHTML = socioInicio();
   else if(socioPage==='clases') c.innerHTML = socioClases();
   else if(socioPage==='rutina') c.innerHTML = socioRutina();
