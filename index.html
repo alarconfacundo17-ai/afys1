@@ -1244,22 +1244,44 @@ function saveEditSocio(idx){
   closeModal(); renderStaff();
 }
 
-function openPagoModal(idx){
+let editPagoIdx = null;
+function openPagoModal(idx, payIdx){
+  editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
+  const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
+  const selIdx = p ? SOCIOS.findIndex(s=>s.n===p.n) : idx;
   openModal(`
-    <div class="modal-head"><h3>Registrar pago</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Socio</label><select id="pg_s">${SOCIOS.map((s,i)=>`<option value="${i}" ${i===idx?'selected':''}>${esc(s.n)}</option>`).join('')}</select></div>
-    <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000"></div>
-    <div class="field"><label>Fecha</label><input id="pg_f" type="date"></div>
-    <div class="field"><label>Tipo</label><select id="pg_t"><option>Total</option><option>Parcial</option></select></div>
-    <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional"></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Guardar</button></div>
+    <div class="modal-head"><h3>${p?'Editar pago':'Registrar pago'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Socio</label><select id="pg_s">${SOCIOS.map((s,i)=>`<option value="${i}" ${i===selIdx?'selected':''}>${esc(s.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
+    <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
+    <div class="field"><label>Tipo</label><select id="pg_t"><option ${p&&p.t==='Total'?'selected':''}>Total</option><option ${p&&p.t==='Parcial'?'selected':''}>Parcial</option></select></div>
+    <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional" value="${p?esc(p.nt||''):''}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      ${p?`<button class="btn btn-outline" style="color:var(--red);" onclick="deletePago(${editPagoIdx})">Eliminar</button>`:''}
+      <button class="btn btn-primary" onclick="savePago()">Guardar</button>
+    </div>
   `);
 }
 function savePago(){
   const i = parseInt($('#pg_s').value);
   const s = SOCIOS[i];
-  s.es='ok';
-  PAGOS.unshift({n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value});
+  const data = {n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value};
+  if(editPagoIdx!==null){
+    PAGOS[editPagoIdx] = data;
+  } else {
+    s.es='ok';
+    PAGOS.unshift(data);
+  }
+  editPagoIdx = null;
+  persist();
+  closeModal(); renderStaff();
+}
+function deletePago(payIdx){
+  if(!confirm('¿Eliminar este pago? No se modificará el estado del socio.')) return;
+  PAGOS.splice(payIdx,1);
+  editPagoIdx = null;
+  persist();
   closeModal(); renderStaff();
 }
 
@@ -1900,6 +1922,7 @@ function openClaseQR(name){
 
 /* ---- PAGOS ---- */
 function pagePagos(){
+  const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
   const activos = SOCIOS.filter(s=>s.activo).length;
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
   const hoy = new Date();
@@ -1916,8 +1939,8 @@ function pagePagos(){
   ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead>
-  <tbody>${PAGOS.map(p=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--text2);">Sin pagos registrados todavía</td></tr>'}</tbody></table>
+  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
+  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||`<tr><td colspan="${canEditPagos?5:4}" style="color:var(--text2);">Sin pagos registrados todavía</td></tr>`}</tbody></table>
   </div>`;
 }
 
