@@ -232,19 +232,10 @@ h3{font-size:15px;margin-bottom:10px;}
 <div id="modalHost"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 /* ============ DATA ============ */
-const SOCIOS = [
-  {i:'MG', n:'María García',   pl:'Mensual',   es:'ok',   rs:['Fuerza básica','Cardio intenso'], nt:['Buena técnica en press. Aumentar peso próxima semana.'], ed:29, pe:62, ob:'Tonificación'},
-  {i:'LP', n:'Lucas Pérez',    pl:'Mensual',   es:'ve',   rs:['Cardio intenso'], nt:['Revisar técnica de sentadilla.'], ed:34, pe:null, ob:'Ganar músculo'},
-  {i:'RL', n:'Rosa López',     pl:'Trimestral',es:'ok',   rs:['Hipertrofia A/B','Flexibilidad'], nt:[], ed:28, pe:58, ob:'Tonificación'},
-  {i:'ST', n:'Sofía Torres',   pl:'Mensual',   es:'de',   rs:['Flexibilidad'], nt:['Adaptar por lesión de rodilla.'], ed:null, pe:null, ob:null},
-  {i:'JM', n:'Juan Méndez',    pl:'Mensual',   es:'ok',   rs:['Fuerza básica'], nt:[], ed:26, pe:80, ob:'Ganar fuerza'},
-  {i:'CP', n:'Camila Pino',    pl:'Semestral', es:'ok',   rs:[], nt:[], ed:31, pe:65, ob:'Bajar peso'},
-  {i:'AR', n:'Alejandro Ruiz', pl:'Mensual',   es:'ok',   rs:[], nt:[], ed:22, pe:null, ob:null},
-  {i:'VG', n:'Valeria García', pl:'Mensual',   es:'ok',   rs:['Cardio intenso'], nt:[], ed:27, pe:60, ob:'Tonificar'},
-];
-SOCIOS.forEach(s=>{s.hoy=false; s.entradaHora=null; s.activo=true;});
+const SOCIOS = [];
 
 const RUTINAS = [
   {n:'Fuerza básica',  t:'Fuerza',   cr:'Carlos L.', ob:'Ganar fuerza y masa',
@@ -257,30 +248,13 @@ const RUTINAS = [
    ejs:[{n:'Press inclinado mancuernas',s:4,r:'10-12',v:''},{n:'Remo con barra',s:4,r:'8-10',v:'https://youtube.com'},{n:'Press Arnold',s:3,r:'12',v:''},{n:'Curl martillo',s:3,r:'12',v:''},{n:'Hip thrust',s:4,r:'10',v:'https://youtube.com'}]},
 ];
 
-const CLASES_HOY = [
-  {n:'Spinning',  h:'10:00', ins:'Carlos L.', cu:'8/12'},
-  {n:'Yoga',      h:'11:30', ins:'Ana N.',    cu:'11/12'},
-  {n:'Funcional', h:'18:00', ins:'Carlos L.', cu:'5/15'},
-  {n:'Boxeo',     h:'19:30', ins:'Pablo G.',  cu:'12/12'},
-];
+const CLASES_HOY = [];
 
-const PAGOS = [
-  {n:'María García', m:'$8.000', f:'01/06', t:'Total',   nt:''},
-  {n:'Rosa López',   m:'$6.000', f:'01/06', t:'Total',   nt:''},
-  {n:'Lucas Pérez',  m:'$4.000', f:'03/06', t:'Parcial', nt:'Quedó debiendo $4.000'},
-];
+const PAGOS = [];
 
-const REGS = [
-  {i:'RL', n:'Rosa López',    h:'09:45', cl:null},
-  {i:'JM', n:'Juan Méndez',   h:'09:52', cl:null},
-  {i:'VG', n:'Valeria García',h:'10:03', cl:'Spinning'},
-];
+const REGS = [];
 
-const SOCIOS_LOGIN = {
-  'maria@gym.com': {idx:0, pe:'ok',  pm:'Vence el 20 de junio · $8.000'},
-  'lucas@gym.com': {idx:1, pe:'ve',  pm:'Vence el 15 de junio · $8.000'},
-  'sofia@gym.com': {idx:3, pe:'de',  pm:'Venció el 1 de junio · $8.000 pendiente'},
-};
+const SOCIOS_LOGIN = {};
 
 const EJD = {
   'Pecho':     ['Press banca plano','Press inclinado mancuernas','Press declinado','Aperturas en polea','Fondos en paralelas','Pullover con mancuerna','Pectoral en máquina'],
@@ -323,38 +297,6 @@ const RUTINAS_SOCIO = [
   ]},
 ];
 
-function qrSVG(size, color) {
-  const c = size / 21;
-  const p = [
-    [1,1,1,1,1,1,1,0,1,0,1,0,0,0,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,1,0,0,1,0,0,1,0,1,0,0,0,0,0,1],
-    [1,0,1,1,1,0,1,0,1,0,1,0,0,0,1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1,0,1,0,0,1,1,0,1,0,1,1,1,0,1],
-    [1,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
-    [0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0],
-    [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,0,1,1,0,1],
-    [0,1,0,0,1,1,0,1,1,0,0,1,0,1,1,0,0,1,0,1,0],
-    [1,0,1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,0,1],
-    [0,1,1,0,1,0,0,1,0,1,0,0,1,0,0,1,1,0,1,1,0],
-    [1,0,0,1,1,1,1,0,1,1,0,1,1,1,0,0,1,1,0,0,1],
-    [0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,1,1,0,1,0,0],
-    [1,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,0,0,1,0],
-    [1,0,0,0,0,0,1,0,1,0,0,1,0,1,0,1,0,1,1,0,1],
-    [1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1,1,0,1,0],
-    [1,0,1,1,1,0,1,0,0,1,0,1,0,0,0,1,0,0,1,1,1],
-    [1,0,1,1,1,0,1,0,1,0,1,1,0,1,1,0,1,0,1,0,0],
-    [1,0,0,0,0,0,1,0,0,1,1,0,1,0,0,1,1,1,0,1,0],
-    [1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,0,0,1,1,0,1],
-  ];
-  let rects = '';
-  p.forEach((row, ri) => row.forEach((v, ci) => {
-    if (v) rects += `<rect x="${ci*c+1}" y="${ri*c+1}" width="${c-.3}" height="${c-.3}" fill="${color||'#111'}" rx="1"/>`;
-  }));
-  return `<svg width="${size+2}" height="${size+2}" xmlns="http://www.w3.org/2000/svg" style="border-radius:8px"><rect width="${size+2}" height="${size+2}" fill="white" rx="8"/>${rects}</svg>`;
-}
-
 /* ============ STATE ============ */
 let currentRole = 'dueno'; // dueno | admin | profesor | socio
 let currentSocioIdx = 0;
@@ -374,16 +316,7 @@ const PERM_LABELS = {
   cargarEjercicios:'Cargar/editar ejercicios',
   horarios:'Editar horarios del gimnasio', cuentas:'Gestionar cuentas y permisos',
 };
-let STAFF = [
-  {id:'valentina', n:'Valentina A.', email:'admin@gym.com',  role:'admin',    esp:null,
-    perms:{verPagos:true,cargarPagos:true,cargarSocios:true,removerSocios:true,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:false,cuentas:false}},
-  {id:'roberto',   n:'Roberto M.',   email:'rob@gym.com',    role:'admin',    esp:null,
-    perms:{verPagos:true,cargarPagos:true,cargarSocios:true,removerSocios:true,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:false,cuentas:false}},
-  {id:'carlos',    n:'Carlos L.',    email:'carlos@gym.com', role:'profesor', esp:'Funcional',
-    perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:false,cuentas:false}},
-  {id:'ana',       n:'Ana N.',       email:'ana@gym.com',    role:'profesor', esp:'Yoga',
-    perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:false,cargarEjercicios:true,horarios:false,cuentas:false}},
-];
+let STAFF = [];
 let currentStaffId = null;
 let DUENO_EMAIL = null;
 
@@ -400,20 +333,10 @@ let GYM_HOURS = {
 };
 const TURNO_COLORS = ['#534AB7','#059669','#D85A30','#378ADD','#BA7517','#8B45C6','#D4537E','#2B9E9E'];
 // turnos de trabajo de profesores/admins, y clases (spinning, yoga, etc.) en la semana
-let TURNOS = [
-  {id:1, dia:'Lunes',     staffId:'carlos', desde:'08:00', hasta:'12:00', clase:''},
-  {id:2, dia:'Miércoles', staffId:'carlos', desde:'08:00', hasta:'12:00', clase:''},
-  {id:3, dia:'Viernes',   staffId:'carlos', desde:'08:00', hasta:'12:00', clase:''},
-  {id:4, dia:'Lunes',     staffId:'ana',    desde:'18:00', hasta:'21:00', clase:''},
-  {id:5, dia:'Martes',    staffId:'ana',    desde:'18:00', hasta:'21:00', clase:''},
-  {id:6, dia:'Jueves',    staffId:'ana',    desde:'18:00', hasta:'21:00', clase:''},
-  {id:7, dia:'Martes',    staffId:'ana',    desde:'19:00', hasta:'20:00', clase:'Yoga'},
-];
-let turnoSeq = 8;
+let TURNOS = [];
+let turnoSeq = 1;
 
-let notifStaff = [
-  {txt:'Valeria García registró su entrada por QR', new:true},
-];
+let notifStaff = [];
 let notifSocio = {}; // by socio idx -> array
 
 SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
@@ -596,8 +519,7 @@ async function submitSignupDueno(){
   DUENO_EMAIL = e;
   persist();
   loginView='login'; loginError='';
-  alert('Cuenta creada. Revisá tu email para confirmarla y después iniciá sesión.');
-  renderLogin();
+  await routeLoggedInUser(e);
 }
 
 async function submitSignupSocio(){
@@ -620,8 +542,7 @@ async function submitSignupSocio(){
   notifSocio[idx]=[];
   persist();
   loginView='login'; loginError='';
-  alert('Cuenta creada. Revisá tu email para confirmarla y después iniciá sesión.');
-  renderLogin();
+  await routeLoggedInUser(e);
 }
 
 function logout(){
@@ -691,8 +612,12 @@ async function qrGateCreateSocio(){
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   persist();
-  alert('Cuenta creada. Revisá tu email para confirmarla. Una vez confirmada, volvé a escanear el QR para ingresar.');
-  closeQRGate();
+  currentRole = 'socio';
+  currentSocioIdx = idx;
+  pendingQR = pendingQR || {tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY, e);
+  $('#qrGate').classList.add('hidden');
+  startScan();
 }
 
 function renderQRGateLogin(email){
@@ -721,7 +646,7 @@ async function qrGateLoginAndCheckIn(email){
   if(error){ $('#qrLoginError').textContent = 'Contraseña incorrecta o cuenta sin confirmar.'; return; }
   currentRole = 'socio';
   currentSocioIdx = info.idx;
-  pendingQR = {tipo:'general'};
+  pendingQR = pendingQR || {tipo:'general'};
   localStorage.setItem(QR_DEVICE_KEY, email);
   $('#qrGate').classList.add('hidden');
   startScan();
@@ -873,24 +798,42 @@ function renderStaff(){
   else if(staffPage==='rutinas') c.innerHTML = pageRutinas();
   else if(staffPage==='ejercicios') c.innerHTML = pageEjercicios();
   else if(staffPage==='horarios') c.innerHTML = pageHorarios();
-  else if(staffPage==='qr') c.innerHTML = pageQR();
+  else if(staffPage==='qr') { c.innerHTML = pageQR(); mountQRCodes(); }
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
   bindStaffEvents();
   persist();
 }
 
 /* ---- PANEL ---- */
+function parseMonto(m){
+  const n = parseInt(String(m||'').replace(/[^\d]/g,''),10);
+  return isNaN(n) ? 0 : n;
+}
+function fmtMonto(n){ return '$'+n.toLocaleString('es-AR'); }
+function ingresosUltimosMeses(n){
+  const out = [];
+  const now = new Date();
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const total = PAGOS.filter(p=>{ const pd=new Date(p.f); return !isNaN(pd) && pd.getMonth()===d.getMonth() && pd.getFullYear()===d.getFullYear(); }).reduce((a,p)=>a+parseMonto(p.m),0);
+    out.push({label: d.toLocaleDateString('es-AR',{month:'long'}), total});
+  }
+  return out;
+}
 function pagePanel(){
+  const activos = SOCIOS.filter(s=>s.activo).length;
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
   let metrics = `
-    <div class="metric"><div class="num">47</div><div class="lbl">Socios activos</div></div>
+    <div class="metric"><div class="num">${activos}</div><div class="lbl">Socios activos</div></div>
     <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
-    <div class="metric"><div class="num">6</div><div class="lbl">Clases hoy</div></div>
-    <div class="metric"><div class="num">8</div><div class="lbl">Pagos vencidos</div></div>
+    <div class="metric"><div class="num">${CLASES_HOY.length}</div><div class="lbl">Clases hoy</div></div>
+    <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Pagos vencidos</div></div>
   `;
   if(currentRole==='profesor'){
+    const st = currentStaff();
+    const misClases = st ? CLASES_HOY.filter(c=>c.ins===st.n).length : 0;
     metrics = `
-    <div class="metric"><div class="num">4</div><div class="lbl">Clases esta semana</div></div>
+    <div class="metric"><div class="num">${misClases}</div><div class="lbl">Clases hoy</div></div>
     <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
     `;
   }
@@ -899,15 +842,17 @@ function pagePanel(){
   <div class="card" style="margin-bottom:18px;">
     <h3>Últimas entradas por QR</h3>
     <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
-    <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')}</tbody></table>
+    <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--text2);">Sin entradas todavía</td></tr>'}</tbody></table>
   </div>
-  ${currentRole!=='profesor'?`
+  ${currentRole!=='profesor'?(()=>{
+    const meses = ingresosUltimosMeses(3);
+    const max = Math.max(1, ...meses.map(x=>x.total));
+    return `
   <div class="card">
     <h3>Ingresos</h3>
-    <div class="bar-row"><div class="lbl">Junio</div><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><div>$312K</div></div>
-    <div class="bar-row"><div class="lbl">Mayo</div><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><div>$368K</div></div>
-    <div class="bar-row"><div class="lbl">Abril</div><div class="bar-track"><div class="bar-fill" style="width:76%"></div></div><div>$280K</div></div>
-  </div>`:''}
+    ${meses.map(m=>`<div class="bar-row"><div class="lbl">${m.label}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(m.total/max*100)}%"></div></div><div>${fmtMonto(m.total)}</div></div>`).join('')}
+  </div>`;
+  })():''}
   `;
 }
 
@@ -920,7 +865,7 @@ function pageCuentas(){
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Dueño principal</h3></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
-    <tbody><tr><td>Dueño</td><td>dueno@gym.com</td><td><span class="badge b-purple">Acceso total</span></td></tr></tbody></table>
+    <tbody><tr><td>Dueño</td><td>${esc(DUENO_EMAIL||'-')}</td><td><span class="badge b-purple">Acceso total</span></td></tr></tbody></table>
   </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Otros dueños</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('dueno')"><i class="ti ti-plus"></i>Nuevo dueño</button></div>
@@ -968,13 +913,15 @@ async function saveNuevoStaff(role){
   if(!email){ err.textContent='Ingresá un email válido.'; return; }
   if(!pass || pass.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
   if(STAFF.find(s=>s.email===email)){ err.textContent='Ya existe una cuenta con ese email.'; return; }
+  const {data:{session:adminSession}} = await sb.auth.getSession();
   const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
   if(error){ err.textContent = error.message; return; }
+  if(adminSession) await sb.auth.setSession({access_token:adminSession.access_token, refresh_token:adminSession.refresh_token});
   const id = 'st_'+Date.now();
   STAFF.push({id, n, email, role, esp, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
   persist();
   closeModal();
-  alert(`Cuenta creada. ${n} debe confirmar su email (${email}) antes de poder ingresar.`);
+  alert(`Cuenta creada. ${n} ya puede ingresar con su email (${email}) y la contraseña que definiste.`);
   renderStaff();
 }
 
@@ -1533,14 +1480,17 @@ function saveBateriaRutina(){
 }
 
 /* ---- QR Y ASISTENCIA ---- */
+function qrUrlFor(clase){
+  return clase ? `${APP_URL}?qr=clase&nombre=${encodeURIComponent(clase)}` : `${APP_URL}?qr=general`;
+}
 function pageQR(){
   return `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
     <div class="card" style="text-align:center;">
       <h3>QR del gimnasio</h3>
-      <div class="qr-box">${qrSVG(150,'#111')}</div>
+      <div class="qr-box" id="qrGeneralBox"></div>
+      <p style="color:var(--text2);font-size:12px;margin:6px 0 10px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso.</p>
       <div style="display:flex;gap:8px;justify-content:center;">
-        <button class="btn btn-primary" onclick="simulateScanStaff(null)">Simular escaneo</button>
         <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
       </div>
     </div>
@@ -1557,34 +1507,41 @@ function pageQR(){
     <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
   </div>`;
 }
+function mountQRCodes(){
+  const box = document.getElementById('qrGeneralBox');
+  if(box) QRCode.toCanvas(box, qrUrlFor(null), {width:150, margin:1}, ()=>{});
+}
 function openClaseQR(name){
   openModal(`
     <div class="modal-head"><h3>QR — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="qr-box">${qrSVG(140,'#059669')}</div>
-    <div class="modal-actions"><button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal();simulateScanStaff('${name.replace(/'/g,"\\'")}')">Simular escaneo</button></div>
+    <div class="qr-box" id="qrClaseBox"></div>
+    <p style="color:var(--text2);font-size:12px;margin-top:6px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso a esta clase.</p>
+    <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="closeModal()">Cerrar</button></div>
   `);
-}
-function simulateScanStaff(clase){
-  closeModal();
-  pendingQR = {tipo: clase?'clase':'general', clase};
-  startScan();
+  const box = document.getElementById('qrClaseBox');
+  if(box) QRCode.toCanvas(box, qrUrlFor(name), {width:140, margin:1, color:{dark:'#059669'}}, ()=>{});
 }
 
 /* ---- PAGOS ---- */
 function pagePagos(){
+  const activos = SOCIOS.filter(s=>s.activo).length;
+  const vencidos = SOCIOS.filter(s=>s.es==='de').length;
+  const hoy = new Date();
+  const esteMes = PAGOS.filter(p=>{ const d=new Date(p.f); return !isNaN(d) && d.getMonth()===hoy.getMonth() && d.getFullYear()===hoy.getFullYear(); }).reduce((a,p)=>a+parseMonto(p.m),0);
+  const totalAnio = PAGOS.filter(p=>{ const d=new Date(p.f); return !isNaN(d) && d.getFullYear()===hoy.getFullYear(); }).reduce((a,p)=>a+parseMonto(p.m),0);
   return `
   <div class="grid-metrics">
-    <div class="metric"><div class="num">$312K</div><div class="lbl">Junio</div></div>
-    <div class="metric"><div class="num">8</div><div class="lbl">Vencidos</div></div>
-    <div class="metric"><div class="num">47</div><div class="lbl">Activos</div></div>
-    <div class="metric"><div class="num">$2.8M</div><div class="lbl">Año</div></div>
+    <div class="metric"><div class="num">${fmtMonto(esteMes)}</div><div class="lbl">Este mes</div></div>
+    <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Vencidos</div></div>
+    <div class="metric"><div class="num">${activos}</div><div class="lbl">Activos</div></div>
+    <div class="metric"><div class="num">${fmtMonto(totalAnio)}</div><div class="lbl">Año</div></div>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
   ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
   </div>
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead>
-  <tbody>${PAGOS.map(p=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td></tr>`).join('')}</tbody></table>
+  <tbody>${PAGOS.map(p=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--text2);">Sin pagos registrados todavía</td></tr>'}</tbody></table>
   </div>`;
 }
 
@@ -1632,6 +1589,13 @@ function socioInicio(){
   const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
   const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const edad = getEdad(s);
+  const misRegs = REGS.filter(r=>r.i===s.i);
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
+  const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
+  const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
+  const racha = calcRacha(misRegs);
   return `
   <div class="profile-card">
     <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:16px;" onclick="openEditPerfil()">✏️</button>
@@ -1646,9 +1610,9 @@ function socioInicio(){
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="grid-metrics">
-    <div class="metric"><div class="num">8</div><div class="lbl">Clases este mes</div></div>
-    <div class="metric"><div class="num">3</div><div class="lbl">Entradas semana</div></div>
-    <div class="metric"><div class="num">🔥 5</div><div class="lbl">Racha de días</div></div>
+    <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Clases este mes</div></div>
+    <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Entradas semana</div></div>
+    <div class="metric"><div class="num">🔥 ${racha}</div><div class="lbl">Racha de días</div></div>
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Estado de hoy</h3>
@@ -1657,7 +1621,7 @@ function socioInicio(){
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Próximas clases reservadas</h3>
-    <p style="color:var(--text2);font-size:13px;">Spinning — Hoy 10:00</p>
+    ${CLASES_HOY.map((c,i)=>reservas[i]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||'<p style="color:var(--text2);font-size:13px;">Sin clases reservadas</p>'}
   </div>
   <div class="card">
     <h3>Rutinas activas</h3>
@@ -1795,9 +1759,20 @@ function socioCuenta(){
   document.body.insertAdjacentHTML('beforeend', '<div id="loadingOverlay" style="position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary);z-index:999;">Cargando datos...</div>');
   await loadState();
   $('#loadingOverlay').remove();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
+  if(qrType){
+    pendingQR = {tipo: qrType, clase: urlParams.get('nombre')||null};
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
   const {data:{session}} = await sb.auth.getSession();
   if(session && session.user && session.user.email){
     await routeLoggedInUser(session.user.email);
+    if(pendingQR && currentRole==='socio') startScan();
+  } else if(pendingQR){
+    openQRGate();
   } else {
     $('#login').classList.remove('hidden');
     renderLogin();
