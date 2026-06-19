@@ -214,7 +214,7 @@ h3{font-size:15px;margin-bottom:10px;}
 <!-- ===================== SOCIO ===================== -->
 <div id="socio" class="hidden">
   <div class="socio-topbar">
-    <b>🏋️ Gimnasio Afys</b>
+    <b>Gimnasio Afys</b>
     <div style="display:flex;gap:10px;align-items:center;">
       <div class="notif-wrap">
         <button class="bell" onclick="toggleNotif('socio')">🔔<span class="dot hidden" id="socioNotifDot"></span></button>
@@ -453,7 +453,7 @@ function renderLogin(){
     `;
   } else {
     box.innerHTML = `
-      <h1>🏋️ Gimnasio Afys</h1>
+      <h1>Gimnasio Afys</h1>
       <p class="sub">Actividad Fisica y Salud</p>
       <label>Email</label>
       <input id="loginEmail" type="email" placeholder="tu@email.com">
@@ -847,7 +847,7 @@ function renderStaffSidebar(){
     return true;
   });
   $('#staffSidebar').innerHTML = `
-    <div class="logo">🏋️ Gimnasio Afys</div>
+    <div class="logo">Gimnasio Afys</div>
     ${items.map(it=>`<div class="nav-item ${it.id===staffPage?'active':''}" data-page="${it.id}"><i class="ti ${it.icon}"></i>${it.label}</div>`).join('')}
   `;
   $all('.nav-item',$('#staffSidebar')).forEach(el=>el.addEventListener('click',()=>{
@@ -1218,9 +1218,12 @@ function pageClases(){
   return `
   <div class="section-head"><h2 style="margin:0;">Clases</h2>${canCreate?`<button class="btn btn-primary" onclick="openClaseModal()"><i class="ti ti-plus"></i>Nueva clase</button>`:''}</div>
   <div class="card" style="margin-bottom:18px;">
-  <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}</tr></thead>
+  <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
   <tbody>
-  ${CLASES_HOY.map(c=>`<tr><td>${esc(c.n)}</td><td>Hoy ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}</tr>`).join('')}
+  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>Hoy ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td style="display:flex;gap:6px;">
+    <button class="btn btn-outline btn-sm" title="Editar clase" onclick="openClaseModal(${idx})"><i class="ti ti-edit"></i></button>
+    <button class="btn btn-outline btn-sm" title="Eliminar clase" onclick="deleteClase(${idx})">✕</button>
+  </td>`:''}</tr>`).join('')}
   </tbody></table>
   </div>
   <div class="card">
@@ -1228,31 +1231,52 @@ function pageClases(){
     ${CLASES_HOY.map(c=>{const pct=Math.round(Math.random()*40+50);return `<div class="bar-row"><div class="lbl">${esc(c.n)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div>${pct}%</div></div>`}).join('')}
   </div>`;
 }
-function openClaseModal(){
+let editClaseIdx = null;
+function openClaseModal(idx){
+  editClaseIdx = (typeof idx==='number') ? idx : null;
+  const c = editClaseIdx!==null ? CLASES_HOY[editClaseIdx] : null;
   const profes = STAFF.filter(s=>s.role==='profesor');
+  const cupoMax = c ? (c.cu.split('/')[1]||12) : 12;
+  const isOtro = c && !profes.find(p=>p.n===c.ins);
   openModal(`
-    <div class="modal-head"><h3>Nueva clase</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre</label><input id="cl_n"></div>
-    <div class="field"><label>Día</label><input id="cl_d" placeholder="Lunes"></div>
-    <div class="field"><label>Hora</label><input id="cl_h" type="time"></div>
-    <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="12"></div>
+    <div class="modal-head"><h3>${c?'Editar clase':'Nueva clase'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="cl_n" value="${c?esc(c.n):''}"></div>
+    <div class="field"><label>Día</label><input id="cl_d" placeholder="Lunes" value="${c?esc(c.d||''):''}"></div>
+    <div class="field"><label>Hora</label><input id="cl_h" type="time" value="${c?esc(c.h):''}"></div>
+    <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="${cupoMax}"></div>
     <div class="field"><label>Profesor a cargo</label>
       <select id="cl_ins" onchange="$('#cl_ins_otro_wrap').classList.toggle('hidden', this.value!=='__otro__')">
-        ${profes.map(p=>`<option value="${esc(p.n)}">${esc(p.n)}</option>`).join('')}
-        <option value="__otro__">Otro / profesor externo...</option>
+        ${profes.map(p=>`<option value="${esc(p.n)}" ${c&&c.ins===p.n?'selected':''}>${esc(p.n)}</option>`).join('')}
+        <option value="__otro__" ${isOtro?'selected':''}>Otro / profesor externo...</option>
       </select>
     </div>
-    <div class="field hidden" id="cl_ins_otro_wrap"><label>Nombre del profesor</label><input id="cl_ins_otro" placeholder="Nombre completo"></div>
+    <div class="field ${isOtro?'':'hidden'}" id="cl_ins_otro_wrap"><label>Nombre del profesor</label><input id="cl_ins_otro" placeholder="Nombre completo" value="${isOtro?esc(c.ins):''}"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveClase()">Guardar</button></div>
   `);
 }
 function saveClase(){
   const n=$('#cl_n').value.trim()||'Nueva clase';
+  const d=$('#cl_d').value.trim();
   const h=$('#cl_h').value||'08:00';
   const insSel = $('#cl_ins').value;
   const ins = insSel==='__otro__' ? ($('#cl_ins_otro').value.trim()||'Sin asignar') : insSel;
-  CLASES_HOY.push({n,h,ins,cu:`0/${$('#cl_c').value||12}`});
+  const cupo = $('#cl_c').value||12;
+  if(editClaseIdx!==null){
+    const c = CLASES_HOY[editClaseIdx];
+    const entradas = (c.cu.split('/')[0])||0;
+    Object.assign(c, {n,d,h,ins,cu:`${entradas}/${cupo}`});
+  } else {
+    CLASES_HOY.push({n,d,h,ins,cu:`0/${cupo}`});
+  }
+  persist();
   closeModal(); renderStaff();
+}
+function deleteClase(idx){
+  const c = CLASES_HOY[idx];
+  if(!confirm(`¿Eliminar la clase "${c.n}"?`)) return;
+  CLASES_HOY.splice(idx,1);
+  persist();
+  renderStaff();
 }
 
 /* ---- RUTINAS ---- */
@@ -1272,11 +1296,21 @@ function pageRutinas(){
       <td style="display:flex;gap:6px;">
         ${canAssign?`<button class="btn btn-green btn-sm" onclick="openAsignarModal(${idx})">Asignar</button>`:''}
         <button class="btn btn-outline btn-sm" onclick="openVerRutinaModal(${idx})">👁</button>
+        ${canCreate?`<button class="btn btn-outline btn-sm" title="Editar rutina" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-outline btn-sm" title="Eliminar rutina" onclick="deleteRutina(${idx})">✕</button>`:''}
       </td>
     </tr>`;
   }).join('')}
   </tbody></table>
   </div>`;
+}
+function deleteRutina(idx){
+  const r = RUTINAS[idx];
+  if(!confirm(`¿Eliminar la rutina "${r.n}"? Se quitará también de los socios que la tengan asignada.`)) return;
+  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); });
+  RUTINAS.splice(idx,1);
+  persist();
+  renderStaff();
 }
 function openVerRutinaModal(idx){
   const r = RUTINAS[idx];
@@ -1327,16 +1361,24 @@ function quitarRutina(si, rname, idx, search){
 }
 
 let newRutinaEjs = [{n:'',s:3,r:'10'}];
-function openRutinaModal(){
-  newRutinaEjs = [{n:'',s:3,r:'10'}];
+let editRutinaIdx = null;
+function openRutinaModal(idx){
+  editRutinaIdx = (typeof idx==='number') ? idx : null;
+  if(editRutinaIdx!==null){
+    const r = RUTINAS[editRutinaIdx];
+    newRutinaEjs = r.ejs.length ? r.ejs.map(e=>({n:e.n,s:e.s,r:e.r})) : [{n:'',s:3,r:'10'}];
+  } else {
+    newRutinaEjs = [{n:'',s:3,r:'10'}];
+  }
   renderRutinaModalBody();
 }
 function renderRutinaModalBody(){
+  const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
   openModal(`
-    <div class="modal-head"><h3>Nueva rutina</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre</label><input id="rt_n"></div>
-    <div class="field"><label>Tipo</label><select id="rt_t"><option>Fuerza</option><option>Cardio</option><option>Movilidad</option><option>Full body</option><option>Personal</option></select></div>
-    <div class="field"><label>Objetivo (opcional)</label><input id="rt_ob"></div>
+    <div class="modal-head"><h3>${r?'Editar rutina':'Nueva rutina'}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="rt_n" value="${r?esc(r.n):''}"></div>
+    <div class="field"><label>Tipo</label><select id="rt_t">${['Fuerza','Cardio','Movilidad','Full body','Personal'].map(t=>`<option ${r&&r.t===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="field"><label>Objetivo (opcional)</label><input id="rt_ob" value="${r?esc(r.ob||''):''}"></div>
     <h3>Ejercicios</h3>
     <div id="rtEjs">
     ${newRutinaEjs.map((e,i)=>`
@@ -1355,7 +1397,17 @@ function addRutinaEj(){ newRutinaEjs.push({n:'',s:3,r:'10'}); renderRutinaModalB
 function removeRutinaEj(i){ newRutinaEjs.splice(i,1); renderRutinaModalBody(); }
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
-  RUTINAS.push({n, t:$('#rt_t').value, ob:$('#rt_ob').value, cr:'Tú', ejs:newRutinaEjs.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:''}))});
+  const t = $('#rt_t').value;
+  const ob = $('#rt_ob').value;
+  const ejs = newRutinaEjs.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:''}));
+  if(editRutinaIdx!==null){
+    const r = RUTINAS[editRutinaIdx];
+    if(r.n!==n) SOCIOS.forEach(s=>{ s.rs = s.rs.map(x=>x===r.n?n:x); });
+    r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
+  } else {
+    RUTINAS.push({n, t, ob, cr:'Tú', ejs});
+  }
+  persist();
   closeModal(); renderStaff();
 }
 
@@ -1610,11 +1662,18 @@ function pageQR(){
     <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
   </div>`;
 }
+function renderQRInto(boxId, text, opts){
+  const box = document.getElementById(boxId);
+  if(!box) return;
+  box.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  box.appendChild(canvas);
+  if(typeof QRCode === 'undefined'){ box.innerHTML = '<p style="color:var(--red);font-size:12px;">No se pudo cargar el generador de QR. Revisá tu conexión y recargá la página.</p>'; return; }
+  QRCode.toCanvas(canvas, text, opts, (err)=>{ if(err){ console.error('Error generando QR:', err); box.innerHTML = '<p style="color:var(--red);font-size:12px;">No se pudo generar el QR.</p>'; } });
+}
 function mountQRCodes(){
-  const box = document.getElementById('qrGeneralBox');
-  if(box) QRCode.toCanvas(box, qrUrlFor(null), {width:150, margin:1}, ()=>{});
-  const sbox = document.getElementById('qrStaffBox');
-  if(sbox) QRCode.toCanvas(sbox, qrUrlForStaff(), {width:150, margin:1, color:{dark:'#7c3aed'}}, ()=>{});
+  renderQRInto('qrGeneralBox', qrUrlFor(null), {width:150, margin:1});
+  renderQRInto('qrStaffBox', qrUrlForStaff(), {width:150, margin:1, color:{dark:'#7c3aed'}});
 }
 function openClaseQR(name){
   openModal(`
@@ -1623,8 +1682,7 @@ function openClaseQR(name){
     <p style="color:var(--text2);font-size:12px;margin-top:6px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso a esta clase.</p>
     <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="closeModal()">Cerrar</button></div>
   `);
-  const box = document.getElementById('qrClaseBox');
-  if(box) QRCode.toCanvas(box, qrUrlFor(name), {width:140, margin:1, color:{dark:'#059669'}}, ()=>{});
+  renderQRInto('qrClaseBox', qrUrlFor(name), {width:140, margin:1, color:{dark:'#059669'}});
 }
 
 /* ---- PAGOS ---- */
