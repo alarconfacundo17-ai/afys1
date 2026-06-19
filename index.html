@@ -810,7 +810,7 @@ function finishScan(){
   $('#scanTime').textContent = `Hora: ${hora}`;
 
   if(staffPage==='qr') renderStaff();
-  else persist();
+  persist();
   updateNotifDots();
 }
 
@@ -918,7 +918,6 @@ function renderStaff(){
   else if(staffPage==='qr') { c.innerHTML = pageQR(); mountQRCodes(); }
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
   bindStaffEvents();
-  persist();
 }
 
 /* ---- PANEL ---- */
@@ -1775,7 +1774,6 @@ function renderSocio(){
   else if(socioPage==='asistencia') c.innerHTML = socioAsistencia();
   else if(socioPage==='cuenta') c.innerHTML = socioCuenta();
   updateNotifDots();
-  persist();
 }
 
 function calcAge(birthStr){
