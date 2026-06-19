@@ -1694,6 +1694,12 @@ function openRutinaModal(idx){
   }
   renderRutinaModalBody();
 }
+function ejGrupo(name){ return Object.keys(EJD).find(g=>EJD[g].includes(name)); }
+function ejOptionsHTML(selected){
+  const groups = Object.keys(EJD);
+  return `<option value="">Elegir ejercicio...</option>` +
+    groups.map(g=>`<optgroup label="${esc(g)}">${EJD[g].map(e=>`<option value="${esc(e)}" ${e===selected?'selected':''}>${esc(e)}</option>`).join('')}</optgroup>`).join('');
+}
 function renderRutinaModalBody(){
   const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
   openModal(`
@@ -1704,18 +1710,21 @@ function renderRutinaModalBody(){
     <div class="field"><label>Tipo</label><select id="rt_t">${['Fuerza','Cardio','Movilidad','Full body','Personal'].map(t=>`<option ${r&&r.t===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="field"><label>Objetivo (opcional)</label><input id="rt_ob" value="${r?esc(r.ob||''):''}"></div>
     <h3>Ejercicios</h3>
+    <p style="color:var(--text2);font-size:12px;margin-top:-6px;margin-bottom:10px;">Se eligen de la batería de ejercicios, agrupados por tipo (Core, Piernas, etc).</p>
     <div id="rtEjs">
-    ${newRutinaEjs.map((e,i)=>`
+    ${newRutinaEjs.map((e,i)=>{ const g = ejGrupo(e.n); return `
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(newRutinaEjs,dragSrcIdx,${i},renderRutinaModalBody)">
         <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
         <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
-        <input placeholder="Nombre" value="${esc(e.n)}" oninput="newRutinaEjs[${i}].n=this.value" style="flex:2;">
+        ${g?`<span class="badge" style="flex:0 0 auto;background:${EJC[g]}22;color:${EJC[g]}">${esc(g)}</span>`:''}
+        <select onchange="newRutinaEjs[${i}].n=this.value;renderRutinaModalBody()" style="flex:2;">${ejOptionsHTML(e.n)}</select>
         <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
         <input placeholder="Reps" value="${esc(e.r)}" oninput="newRutinaEjs[${i}].r=this.value" style="flex:1;">
         <button class="btn btn-outline btn-sm" onclick="removeRutinaEj(${i})">×</button>
-      </div>`).join('')}
+      </div>`;}).join('')}
     </div>
     <button class="btn btn-outline btn-sm" onclick="addRutinaEj()">+ Agregar ejercicio</button>
+    <p style="color:var(--text2);font-size:12px;margin-top:6px;">¿No encontrás el ejercicio? Cargalo primero desde la sección Ejercicios.</p>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveRutina()">Guardar</button></div>
   `,'wide');
 }
