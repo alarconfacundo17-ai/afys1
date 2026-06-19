@@ -1071,6 +1071,13 @@ function openNuevoStaffModal(role){
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="copyInviteLink()">Copiar link</button></div>
   `);
 }
+function copyLink(text){
+  navigator.clipboard?.writeText(text).then(()=>{
+    alert('Link copiado: '+text);
+  }).catch(()=>{
+    prompt('Copiá este link:', text);
+  });
+}
 function copyInviteLink(){
   const input = $('#inv_link');
   input.select();
@@ -1920,14 +1927,19 @@ function pageQR(){
       <h3>QR del gimnasio</h3>
       <div class="qr-box" id="qrGeneralBox"></div>
       <p style="color:var(--text2);font-size:12px;margin:6px 0 10px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso.</p>
-      <div style="display:flex;gap:8px;justify-content:center;">
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
         <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
+        <button class="btn btn-outline" onclick="copyLink('${esc(qrUrlFor(null))}')"><i class="ti ti-link"></i> Copiar link para nuevo socio</button>
       </div>
     </div>
     <div class="card">
       <h3>QR por clase</h3>
       ${CLASES_HOY.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);">
-        <span>${esc(c.n)} · ${c.h}</span><button class="btn btn-outline btn-sm" onclick="openClaseQR('${esc(c.n)}')">Ver QR</button>
+        <span>${esc(c.n)} · ${c.h}</span>
+        <span style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openClaseQR('${esc(c.n)}')">Ver QR</button>
+          <button class="btn btn-outline btn-sm" onclick="copyLink('${esc(qrUrlFor(c.n))}')" title="Copiar link"><i class="ti ti-link"></i></button>
+        </span>
       </div>`).join('')}
     </div>
   </div>
@@ -1936,8 +1948,9 @@ function pageQR(){
     <h3>QR para el personal (profesores)</h3>
     <div class="qr-box" id="qrStaffBox"></div>
     <p style="color:var(--text2);font-size:12px;margin:6px 0 10px;">Imprimí este QR y pegalo en el gimnasio. Al escanearlo, el profesor llega directo a una pantalla para crear su cuenta o iniciar sesión como personal. Después podés ascenderlo a admin o dueño desde "Cuentas y permisos".</p>
-    <div style="display:flex;gap:8px;justify-content:center;">
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
+      <button class="btn btn-outline" onclick="copyLink('${esc(qrUrlForStaff())}')"><i class="ti ti-link"></i> Copiar link</button>
     </div>
   </div>` : ''}
   <div class="card">
@@ -1964,7 +1977,10 @@ function openClaseQR(name){
     <div class="modal-head"><h3>QR — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
     <div class="qr-box" id="qrClaseBox"></div>
     <p style="color:var(--text2);font-size:12px;margin-top:6px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso a esta clase.</p>
-    <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="closeModal()">Cerrar</button></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="copyLink('${esc(qrUrlFor(name))}')"><i class="ti ti-link"></i> Copiar link</button>
+      <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeModal()">Cerrar</button>
+    </div>
   `);
   renderQRInto('qrClaseBox', qrUrlFor(name), {width:140, margin:1, color:{dark:'#059669'}});
 }
