@@ -91,6 +91,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .modal-box.wide{width:600px;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
+.modal-sticky-top{position:sticky;top:-24px;margin:-24px -24px 16px -24px;padding:24px 24px 12px 24px;background:#fff;z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
 .field{margin-bottom:12px;}
 .field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
@@ -313,6 +314,7 @@ const PERM_LABELS = {
 let STAFF = [];
 let currentStaffId = null;
 let DUENO_EMAIL = null;
+let PENDING_INVITES = [];
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 // cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
@@ -349,7 +351,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES,
   };
 }
 
@@ -360,6 +362,7 @@ function applyState(s){
   fillArray(CLASES_HOY, s.CLASES_HOY);
   fillArray(PAGOS, s.PAGOS);
   fillArray(REGS, s.REGS);
+  fillArray(PENDING_INVITES, s.PENDING_INVITES);
   fillObject(SOCIOS_LOGIN, s.SOCIOS_LOGIN);
   fillObject(EJD, s.EJD);
   fillObject(EJC, s.EJC);
@@ -713,10 +716,13 @@ function closeQRGate(){
 }
 
 /* ============ QR DEL PERSONAL (profesor escanea el QR impreso) ============ */
-function openStaffGate(){
+let pendingInvite = null;
+function openStaffGate(invite){
+  pendingInvite = invite || null;
   $('#login').classList.add('hidden');
   $('#staffGate').classList.remove('hidden');
-  renderStaffGateLogin();
+  if(pendingInvite) renderStaffGateSignup();
+  else renderStaffGateLogin();
 }
 
 function renderStaffGateLogin(staffError){
@@ -753,40 +759,48 @@ async function staffGateLogin(){
 }
 
 function renderStaffGateSignup(staffError){
+  const role = pendingInvite ? pendingInvite.role : 'profesor';
+  const roleLabel = {dueno:'dueño/a', admin:'admin', profesor:'profesor/a'}[role];
   $('#staffGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
-    <p class="sub" style="margin-bottom:0;">Creá tu cuenta de profesor/a para empezar a usar el sistema.</p>
+    <p class="sub" style="margin-bottom:0;">${pendingInvite?`Fuiste invitado/a a crear una cuenta de <b>${esc(roleLabel)}</b> en Gimnasio Afys.`:'Creá tu cuenta de profesor/a para empezar a usar el sistema.'}</p>
     <label>Nombre y apellido</label>
     <input id="sg_n" type="text" placeholder="Tu nombre completo">
     <label>Email</label>
     <input id="sg_e" type="email" placeholder="tu@email.com">
     <label>Contraseña</label>
     <input id="sg_p" type="password" placeholder="Mínimo 6 caracteres">
-    <label>Especialidad (opcional)</label>
-    <input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">
+    ${role==='profesor'?`<label>Especialidad (opcional)</label><input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">`:''}
     ${staffError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(staffError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="staffGateCreate()">Crear cuenta</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderStaffGateLogin()">Volver</button>
+    ${pendingInvite?'':`<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderStaffGateLogin()">Volver</button>`}
   `;
 }
 
 async function staffGateCreate(){
+  const role = pendingInvite ? pendingInvite.role : 'profesor';
   const n = $('#sg_n').value.trim();
   const email = $('#sg_e').value.trim().toLowerCase();
   const pass = $('#sg_p').value;
-  const esp = $('#sg_esp').value.trim()||null;
+  const esp = role==='profesor' ? ($('#sg_esp').value.trim()||null) : null;
   if(!n || !email || pass.length<6){ renderStaffGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(STAFF.find(s=>s.email===email) || email===DUENO_EMAIL){ renderStaffGateSignup('Ya existe una cuenta con ese email. Iniciá sesión.'); return; }
-  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role:'profesor'}, emailRedirectTo:APP_URL}});
+  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
   if(error){ renderStaffGateSignup(error.message); return; }
   const id = 'st_'+Date.now();
-  STAFF.push({id, n, email, role:'profesor', esp, perms:{verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:true,cuentas:false}});
+  const perms = role==='profesor'
+    ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:true,cuentas:false}
+    : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false};
+  STAFF.push({id, n, email, role, esp, perms});
+  if(pendingInvite) PENDING_INVITES = PENDING_INVITES.filter(i=>i.token!==pendingInvite.token);
+  pendingInvite = null;
   persist();
   $('#staffGate').classList.add('hidden');
   await routeLoggedInUser(email);
 }
 
 function closeStaffGate(){
+  pendingInvite = null;
   $('#staffGate').classList.add('hidden');
   $('#login').classList.remove('hidden');
 }
@@ -1041,41 +1055,28 @@ function promoteStaff(id, newRole){
 }
 
 function openNuevoStaffModal(role){
-  const titles = {dueno:'dueño', admin:'admin', profesor:'profesor'};
+  const titles = {dueno:'dueño/a', admin:'admin', profesor:'profesor/a'};
+  const token = 'inv_'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  PENDING_INVITES.push({token, role, createdAt:Date.now()});
+  persist();
+  const link = `${APP_URL}?invite=${token}`;
   openModal(`
-    <div class="modal-head"><h3>Nuevo ${titles[role]}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre</label><input id="st_n" placeholder="Nombre completo"></div>
-    <div class="field"><label>Email</label><input id="st_email" type="email" placeholder="nombre@gym.com"></div>
-    <div class="field"><label>Contraseña</label><input id="st_pass" type="password" placeholder="Mínimo 6 caracteres"></div>
-    ${role==='profesor'?`<div class="field"><label>Especialidad</label><input id="st_esp" placeholder="Funcional, Yoga, etc."></div>`:''}
-    <p id="st_err" style="color:#D85A30;font-size:12.5px;"></p>
-    <p style="color:var(--text2);font-size:12.5px;">Se crea sin permisos activados; los podés habilitar después desde "Editar permisos". ${role==='dueno'?'Un dueño agregado por vos no tiene acceso total automático: vos decidís qué puede ver y hacer.':''} La persona deberá confirmar su email antes de poder ingresar.</p>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveNuevoStaff('${role}')">Guardar</button></div>
+    <div class="modal-head"><h3>Invitar ${titles[role]}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12.5px;">Copiá este link y enviáselo a la persona que querés que sea ${titles[role]}. Al abrirlo va a poder crear su propia cuenta, ya con ese rol asignado. ${role!=='profesor'?'Se crea sin permisos activados; los podés habilitar después desde "Editar permisos".':''}</p>
+    <div class="field"><input id="inv_link" value="${esc(link)}" readonly onclick="this.select()"></div>
+    <p id="inv_copied" style="color:var(--green);font-size:12.5px;height:16px;"></p>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="copyInviteLink()">Copiar link</button></div>
   `);
 }
-async function saveNuevoStaff(role){
-  const titles = {dueno:'Nuevo dueño', admin:'Nuevo admin', profesor:'Nuevo profesor'};
-  const n = $('#st_n').value.trim()||titles[role];
-  const email = $('#st_email').value.trim().toLowerCase();
-  const pass = $('#st_pass').value;
-  const esp = role==='profesor' ? ($('#st_esp').value.trim()||null) : null;
-  const err = $('#st_err');
-  if(!email){ err.textContent='Ingresá un email válido.'; return; }
-  if(!pass || pass.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
-  if(STAFF.find(s=>s.email===email)){ err.textContent='Ya existe una cuenta con ese email.'; return; }
-  const {data:{session:adminSession}} = await sb.auth.getSession();
-  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
-  if(error){ err.textContent = error.message; return; }
-  if(adminSession) await sb.auth.setSession({access_token:adminSession.access_token, refresh_token:adminSession.refresh_token});
-  const id = 'st_'+Date.now();
-  const perms = role==='profesor'
-    ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:true,cuentas:false}
-    : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false};
-  STAFF.push({id, n, email, role, esp, perms});
-  persist();
-  closeModal();
-  alert(`Cuenta creada. ${n} ya puede ingresar con su email (${email}) y la contraseña que definiste.`);
-  renderStaff();
+function copyInviteLink(){
+  const input = $('#inv_link');
+  input.select();
+  navigator.clipboard?.writeText(input.value).then(()=>{
+    $('#inv_copied').textContent = '¡Copiado!';
+  }).catch(()=>{
+    document.execCommand('copy');
+    $('#inv_copied').textContent = '¡Copiado!';
+  });
 }
 
 function openPermModal(staffId){
@@ -1457,18 +1458,17 @@ function openRutinaModal(idx){
 function renderRutinaModalBody(){
   const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
   openModal(`
-    <div class="modal-head"><h3>${r?'Editar rutina':'Nueva rutina'}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre</label><input id="rt_n" value="${r?esc(r.n):''}"></div>
+    <div class="modal-sticky-top">
+      <div class="modal-head" style="margin-bottom:10px;"><h3>${r?'Editar rutina':'Nueva rutina'}</h3><button onclick="closeModal()">✕</button></div>
+      <div class="field" style="margin-bottom:0;"><label>Nombre</label><input id="rt_n" value="${r?esc(r.n):''}"></div>
+    </div>
     <div class="field"><label>Tipo</label><select id="rt_t">${['Fuerza','Cardio','Movilidad','Full body','Personal'].map(t=>`<option ${r&&r.t===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="field"><label>Objetivo (opcional)</label><input id="rt_ob" value="${r?esc(r.ob||''):''}"></div>
     <h3>Ejercicios</h3>
     <div id="rtEjs">
     ${newRutinaEjs.map((e,i)=>`
-      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
-        <span style="display:flex;flex-direction:column;gap:2px;">
-          <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveRutinaEj(${i},-1)" title="Subir"><i class="ti ti-chevron-up"></i></button>
-          <button class="btn btn-outline btn-sm" ${i===newRutinaEjs.length-1?'disabled':''} onclick="moveRutinaEj(${i},1)" title="Bajar"><i class="ti ti-chevron-down"></i></button>
-        </span>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(newRutinaEjs,dragSrcIdx,${i},renderRutinaModalBody)">
+        <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
         <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
         <input placeholder="Nombre" value="${esc(e.n)}" oninput="newRutinaEjs[${i}].n=this.value" style="flex:2;">
         <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
@@ -1482,11 +1482,13 @@ function renderRutinaModalBody(){
 }
 function addRutinaEj(){ newRutinaEjs.push({n:'',s:3,r:'10'}); renderRutinaModalBody(); }
 function removeRutinaEj(i){ newRutinaEjs.splice(i,1); renderRutinaModalBody(); }
-function moveRutinaEj(i,dir){
-  const j = i+dir;
-  if(j<0 || j>=newRutinaEjs.length) return;
-  [newRutinaEjs[i], newRutinaEjs[j]] = [newRutinaEjs[j], newRutinaEjs[i]];
-  renderRutinaModalBody();
+let dragSrcIdx = null;
+function dragReorder(arr, from, to, renderFn){
+  if(from===null || from===undefined || from===to) return;
+  const [item] = arr.splice(from,1);
+  arr.splice(to,0,item);
+  dragSrcIdx = null;
+  renderFn();
 }
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
@@ -1691,9 +1693,13 @@ function saveEjercicio(){
 
 let bateriaSel = [];
 let bateriaFilter = null;
+let bateriaName = '';
 function openCrearDesdeBateria(){
   openModal(`
-    <div class="modal-head"><h3>Crear rutina desde la batería</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-sticky-top">
+      <div class="modal-head" style="margin-bottom:10px;"><h3>Crear rutina desde la batería</h3><button onclick="closeModal()">✕</button></div>
+      <div class="field" style="margin-bottom:0;"><label>Nombre de la rutina</label><input id="bat_n" value="${esc(bateriaName)}" oninput="bateriaName=this.value"></div>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
       ${Object.keys(EJD).map(g=>`<button class="btn btn-sm ${bateriaFilter===g?'btn-primary':'btn-outline'}" onclick="bateriaFilter='${g}';openCrearDesdeBateria()">${g}</button>`).join('')}
       <button class="btn btn-sm ${!bateriaFilter?'btn-primary':'btn-outline'}" onclick="bateriaFilter=null;openCrearDesdeBateria()">Todos</button>
@@ -1703,11 +1709,8 @@ function openCrearDesdeBateria(){
     </div>
     <h3>Ejercicios seleccionados</h3>
     ${bateriaSel.map((e,i)=>`
-      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
-        <span style="display:flex;flex-direction:column;gap:2px;">
-          <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveBateriaEj(${i},-1)" title="Subir"><i class="ti ti-chevron-up"></i></button>
-          <button class="btn btn-outline btn-sm" ${i===bateriaSel.length-1?'disabled':''} onclick="moveBateriaEj(${i},1)" title="Bajar"><i class="ti ti-chevron-down"></i></button>
-        </span>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(bateriaSel,dragSrcIdx,${i},openCrearDesdeBateria)">
+        <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
         <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
         <span style="flex:2;">${esc(e.n)}</span>
         <input placeholder="Series" value="${e.s}" oninput="bateriaSel[${i}].s=this.value" style="flex:1;">
@@ -1715,7 +1718,6 @@ function openCrearDesdeBateria(){
         <input placeholder="Video (opcional)" value="${esc(e.v)}" oninput="bateriaSel[${i}].v=this.value" style="flex:2;">
         <button class="btn btn-outline btn-sm" onclick="bateriaSel.splice(${i},1);openCrearDesdeBateria()">×</button>
       </div>`).join('')}
-    <div class="field"><label>Nombre de la rutina</label><input id="bat_n"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBateriaRutina()">Guardar rutina</button></div>
   `,'wide');
 }
@@ -1723,16 +1725,10 @@ function addBateriaEj(name){
   if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10',v:''});
   openCrearDesdeBateria();
 }
-function moveBateriaEj(i,dir){
-  const j = i+dir;
-  if(j<0 || j>=bateriaSel.length) return;
-  [bateriaSel[i], bateriaSel[j]] = [bateriaSel[j], bateriaSel[i]];
-  openCrearDesdeBateria();
-}
 function saveBateriaRutina(){
   const n = $('#bat_n').value.trim()||'Rutina personalizada';
   RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:e.v}))});
-  bateriaSel=[]; closeModal(); renderStaff();
+  bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
 
 /* ---- QR Y ASISTENCIA ---- */
@@ -2024,9 +2020,14 @@ function socioCuenta(){
   const urlParams = new URLSearchParams(window.location.search);
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
   const isStaffQR = urlParams.get('staff')==='1';
-  if(qrType || isStaffQR){
+  const inviteToken = urlParams.get('invite');
+  if(qrType || isStaffQR || inviteToken){
     if(qrType) pendingQR = {tipo: qrType, clase: urlParams.get('nombre')||null};
     window.history.replaceState({}, '', window.location.pathname);
+  }
+  let invite = null;
+  if(inviteToken){
+    invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
 
   const {data:{session}} = await sb.auth.getSession();
@@ -2037,6 +2038,12 @@ function socioCuenta(){
     }
     await routeLoggedInUser(sEmail);
     if(pendingQR && currentRole==='socio') startScan();
+  } else if(invite){
+    openStaffGate(invite);
+  } else if(inviteToken){
+    $('#login').classList.remove('hidden');
+    loginError='Este link de invitación ya no es válido. Pedí uno nuevo.';
+    renderLogin();
   } else if(isStaffQR){
     openStaffGate();
   } else if(pendingQR){
