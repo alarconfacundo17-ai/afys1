@@ -888,6 +888,9 @@ document.addEventListener('click',e=>{
 function isSuperOwner(){
   return currentRole==='dueno' && currentStaffId===null;
 }
+function isDueno(){
+  return currentRole==='dueno';
+}
 function staffMenu(){
   let items = [
     {id:'panel', icon:'ti-layout-dashboard', label:'Panel'},
@@ -1651,7 +1654,53 @@ function pageHorarios(){
       </div>
     </div>
   </div>
+  ${isDueno()?pageHorasProfes(profes):''}
   `;
+}
+const DIA_JS_IDX = {'Domingo':0,'Lunes':1,'Martes':2,'Miércoles':3,'Jueves':4,'Viernes':5,'Sábado':6};
+function turnoHoras(t){ return Math.max(0,(hToMin(t.hasta)-hToMin(t.desde))/60); }
+function weeklyHorasPorProfe(profes){
+  return profes.map(p=>({
+    p, horas: TURNOS.filter(t=>t.staffId===p.id).reduce((a,t)=>a+turnoHoras(t),0)
+  }));
+}
+function monthOccurrences(dia, year, month){
+  const target = DIA_JS_IDX[dia];
+  const last = new Date(year, month+1, 0).getDate();
+  let count = 0;
+  for(let d=1; d<=last; d++){ if(new Date(year,month,d).getDay()===target) count++; }
+  return count;
+}
+function monthlyHorasPorProfe(profes, year, month){
+  return profes.map(p=>({
+    p, horas: TURNOS.filter(t=>t.staffId===p.id).reduce((a,t)=>a+turnoHoras(t)*monthOccurrences(t.dia,year,month),0)
+  }));
+}
+let horasMesSel = null;
+function pageHorasProfes(profes){
+  const now = new Date();
+  if(!horasMesSel) horasMesSel = {year:now.getFullYear(), month:now.getMonth()};
+  const semanal = weeklyHorasPorProfe(profes);
+  const mensual = monthlyHorasPorProfe(profes, horasMesSel.year, horasMesSel.month);
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return `
+  <div class="card" style="margin-top:18px;">
+    <h3>Horas semanales por profesor/a</h3>
+    <p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Según los turnos cargados en el calendario semanal (visible solo para dueños).</p>
+    <table><thead><tr><th>Profesor/a</th><th>Horas/semana</th></tr></thead>
+    <tbody>${semanal.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--text2);">Sin profesores cargados</td></tr>'}</tbody></table>
+  </div>
+  <div class="card" style="margin-top:18px;">
+    <div class="section-head"><h3 style="margin:0;">Recuento mensual de horas</h3>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select id="hm_mes" onchange="horasMesSel.month=parseInt(this.value);renderStaff();">${meses.map((m,i)=>`<option value="${i}" ${i===horasMesSel.month?'selected':''}>${m}</option>`).join('')}</select>
+        <select id="hm_anio" onchange="horasMesSel.year=parseInt(this.value);renderStaff();">${[now.getFullYear()-1,now.getFullYear(),now.getFullYear()+1].map(y=>`<option value="${y}" ${y===horasMesSel.year?'selected':''}>${y}</option>`).join('')}</select>
+      </div>
+    </div>
+    <p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Estimado a partir de cuántas veces cae cada día de la semana en el mes elegido, según los turnos fijos del calendario.</p>
+    <table><thead><tr><th>Profesor/a</th><th>Horas en ${meses[horasMesSel.month]} ${horasMesSel.year}</th></tr></thead>
+    <tbody>${mensual.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--text2);">Sin profesores cargados</td></tr>'}</tbody></table>
+  </div>`;
 }
 function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
 function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); renderStaff(); }
