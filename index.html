@@ -291,25 +291,6 @@ const EJ_VIDEOS = {};
 const EJ_IMAGES = {};
 
 
-const RUTINAS_SOCIO = [
-  {n:'Fuerza básica', sem:'Semana 4', dias:[
-    {d:'Lunes',    g:'Pecho + Tríceps',    e:['Press banca plano','Press inclinado mancuernas','Aperturas en polea','Fondos en paralelas','Press francés barra','Extensiones en polea'],         s:[4,4,3,4,3,4], r:['10-12','10-12','12-15','8-10','12','12'],      v:['https://youtube.com','','https://youtube.com','','','']},
-    {d:'Martes',   g:'Espalda + Bíceps',   e:['Dominadas con peso','Remo con barra','Remo en polea baja','Pulldown en polea','Curl con barra recta','Curl martillo'],                            s:[4,4,3,4,3,3], r:['6-8','10-12','12','10-12','12','12'],           v:['','https://youtube.com','','https://youtube.com','','']},
-    {d:'Miércoles',g:'Piernas + Core',     e:['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Plancha abdominal','Elevación de piernas'], s:[4,4,3,4,3,3,3],r:['8-10','12-15','15','12','10','60s','15'],      v:['https://youtube.com','','','','https://youtube.com','','']},
-    {d:'Jueves',   g:'Hombros + Trapecio', e:['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Face pull en polea'],          s:[4,4,3,4,3,3], r:['8-10','12-15','12','15','12','15'],            v:['','https://youtube.com','','','','https://youtube.com']},
-    {d:'Viernes',  g:'Full body',          e:['Sentadilla con barra','Press banca plano','Dominadas con peso','Press Arnold','Curl con barra recta','Extensiones en polea','Plancha abdominal'], s:[4,4,3,3,3,3,3],r:['8','10-12','6-8','12','12','12','60s'],       v:['https://youtube.com','','https://youtube.com','','https://youtube.com','','']},
-    {d:'Sábado',   g:'Descanso activo',    e:[], s:[], r:[], v:[]},
-  ]},
-  {n:'Cardio intenso', sem:'Semana 2', dias:[
-    {d:'Lunes',    g:'HIIT Full body',  e:['Burpees','Sentadilla + press','Thruster','Russian twist','Plancha abdominal'], s:[4,3,4,3,3], r:['15','12','10','20','60s'], v:['https://youtube.com','','https://youtube.com','','']},
-    {d:'Martes',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
-    {d:'Miércoles',g:'Cardio + Core',   e:['Burpees','Rueda abdominal','Elevación de piernas','Russian twist','Plancha lateral'], s:[4,3,3,3,3], r:['15','12','15','20','45s'], v:['','','https://youtube.com','','']},
-    {d:'Jueves',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
-    {d:'Viernes',  g:'HIIT avanzado',   e:['Thruster','Sentadilla + press','Peso muerto + remo','Clean y press','Burpees'], s:[4,4,3,4,3], r:['10','12','10','8','12'], v:['https://youtube.com','','','https://youtube.com','']},
-    {d:'Sábado',   g:'Descanso activo', e:[], s:[], r:[], v:[]},
-  ]},
-];
-
 /* ============ STATE ============ */
 let currentRole = 'dueno'; // dueno | admin | profesor | socio
 let currentSocioIdx = 0;
@@ -394,6 +375,18 @@ function applyState(s){
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   migrateProfesorDefaultPerms();
+  migrateClasesTurnos();
+}
+
+function migrateClasesTurnos(){
+  let changed = false;
+  CLASES_HOY.forEach(c=>{
+    if(!c.cId || !TURNOS.find(t=>t.claseId===c.cId)){
+      syncClaseTurno(c);
+      changed = true;
+    }
+  });
+  if(changed) persist();
 }
 
 function migrateProfesorDefaultPerms(){
@@ -1289,7 +1282,7 @@ function pageClases(){
   <div class="card" style="margin-bottom:18px;">
   <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
   <tbody>
-  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>Hoy ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td style="display:flex;gap:6px;">
+  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td style="display:flex;gap:6px;">
     <button class="btn btn-outline btn-sm" title="Editar clase" onclick="openClaseModal(${idx})"><i class="ti ti-edit"></i></button>
     <button class="btn btn-outline btn-sm" title="Eliminar clase" onclick="deleteClase(${idx})">✕</button>
   </td>`:''}</tr>`).join('')}
@@ -1310,9 +1303,10 @@ function openClaseModal(idx){
   openModal(`
     <div class="modal-head"><h3>${c?'Editar clase':'Nueva clase'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="cl_n" value="${c?esc(c.n):''}"></div>
-    <div class="field"><label>Día</label><input id="cl_d" placeholder="Lunes" value="${c?esc(c.d||''):''}"></div>
+    <div class="field"><label>Día</label><select id="cl_d">${DIAS_SEMANA.map(d=>`<option ${c&&c.d===d?'selected':''}>${d}</option>`).join('')}</select></div>
     <div class="field"><label>Hora</label><input id="cl_h" type="time" value="${c?esc(c.h):''}"></div>
     <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="${cupoMax}"></div>
+    <div class="field"><label>Duración (minutos)</label><input id="cl_dur" type="number" step="5" value="${c?(c.dur||60):60}"></div>
     <div class="field"><label>Profesor a cargo</label>
       <select id="cl_ins" onchange="$('#cl_ins_otro_wrap').classList.toggle('hidden', this.value!=='__otro__')">
         ${profes.map(p=>`<option value="${esc(p.n)}" ${c&&c.ins===p.n?'selected':''}>${esc(p.n)}</option>`).join('')}
@@ -1325,27 +1319,46 @@ function openClaseModal(idx){
 }
 function saveClase(){
   const n=$('#cl_n').value.trim()||'Nueva clase';
-  const d=$('#cl_d').value.trim();
+  const d=$('#cl_d').value;
   const h=$('#cl_h').value||'08:00';
+  const dur=parseInt($('#cl_dur').value)||60;
   const insSel = $('#cl_ins').value;
   const ins = insSel==='__otro__' ? ($('#cl_ins_otro').value.trim()||'Sin asignar') : insSel;
   const cupo = $('#cl_c').value||12;
+  let c;
   if(editClaseIdx!==null){
-    const c = CLASES_HOY[editClaseIdx];
+    c = CLASES_HOY[editClaseIdx];
     const entradas = (c.cu.split('/')[0])||0;
-    Object.assign(c, {n,d,h,ins,cu:`${entradas}/${cupo}`});
+    Object.assign(c, {n,d,h,dur,ins,cu:`${entradas}/${cupo}`});
   } else {
-    CLASES_HOY.push({n,d,h,ins,cu:`0/${cupo}`});
+    c = {n,d,h,dur,ins,cu:`0/${cupo}`,cId:'cl_'+Date.now()};
+    CLASES_HOY.push(c);
   }
+  syncClaseTurno(c);
   persist();
   closeModal(); renderStaff();
 }
 function deleteClase(idx){
   const c = CLASES_HOY[idx];
   if(!confirm(`¿Eliminar la clase "${c.n}"?`)) return;
+  if(c.cId) TURNOS = TURNOS.filter(t=>t.claseId!==c.cId);
   CLASES_HOY.splice(idx,1);
   persist();
   renderStaff();
+}
+function addMinutes(hhmm, minutes){
+  const mins = hToMin(hhmm)+minutes;
+  const h = Math.floor((mins%1440)/60), m = mins%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function syncClaseTurno(c){
+  if(!c.cId) c.cId = 'cl_'+Date.now();
+  if(!DIAS_SEMANA.includes(c.d)) return; // sin día válido de la semana, no se puede ubicar en el calendario
+  const staffMatch = STAFF.find(s=>s.n===c.ins);
+  const data = {dia:c.d, desde:c.h, hasta:addMinutes(c.h,c.dur||60), clase:c.n, staffId: staffMatch?staffMatch.id:null, claseId:c.cId};
+  const existing = TURNOS.find(t=>t.claseId===c.cId);
+  if(existing) Object.assign(existing, data);
+  else TURNOS.push({id:turnoSeq++, ...data});
 }
 
 /* ---- RUTINAS ---- */
@@ -1452,6 +1465,11 @@ function renderRutinaModalBody(){
     <div id="rtEjs">
     ${newRutinaEjs.map((e,i)=>`
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <span style="display:flex;flex-direction:column;gap:2px;">
+          <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveRutinaEj(${i},-1)" title="Subir"><i class="ti ti-chevron-up"></i></button>
+          <button class="btn btn-outline btn-sm" ${i===newRutinaEjs.length-1?'disabled':''} onclick="moveRutinaEj(${i},1)" title="Bajar"><i class="ti ti-chevron-down"></i></button>
+        </span>
+        <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
         <input placeholder="Nombre" value="${esc(e.n)}" oninput="newRutinaEjs[${i}].n=this.value" style="flex:2;">
         <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
         <input placeholder="Reps" value="${esc(e.r)}" oninput="newRutinaEjs[${i}].r=this.value" style="flex:1;">
@@ -1464,6 +1482,12 @@ function renderRutinaModalBody(){
 }
 function addRutinaEj(){ newRutinaEjs.push({n:'',s:3,r:'10'}); renderRutinaModalBody(); }
 function removeRutinaEj(i){ newRutinaEjs.splice(i,1); renderRutinaModalBody(); }
+function moveRutinaEj(i,dir){
+  const j = i+dir;
+  if(j<0 || j>=newRutinaEjs.length) return;
+  [newRutinaEjs[i], newRutinaEjs[j]] = [newRutinaEjs[j], newRutinaEjs[i]];
+  renderRutinaModalBody();
+}
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
   const t = $('#rt_t').value;
@@ -1539,7 +1563,7 @@ function pageHorarios(){
               const col = staffColor(t.staffId);
               const bg = t.clase ? `${col}cc` : `${col}22`;
               const fg = t.clase ? '#fff' : col;
-              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${bg};border-left:3px solid ${col};color:${fg};" ${canEdit?`onclick="event.stopPropagation();openTurnoModal(${t.id})"`:''}>
+              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${bg};border-left:3px solid ${col};color:${fg};" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
                 ${t.clase?`<b>${esc(t.clase)}</b><br>${esc(st?st.n:'-')}`:`<b>${esc(st?st.n:'-')}</b>`}<br>${t.desde}-${t.hasta}
               </div>`;
             }).join('')}
@@ -1553,6 +1577,14 @@ function pageHorarios(){
 function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
 function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); renderStaff(); }
 function removeGymTramo(dia,idx){ GYM_HOURS[dia].splice(idx,1); renderStaff(); }
+function openCalendarEvent(turnoId){
+  const t = TURNOS.find(x=>x.id===turnoId);
+  if(t && t.claseId){
+    const idx = CLASES_HOY.findIndex(c=>c.cId===t.claseId);
+    if(idx>=0){ openClaseModal(idx); return; }
+  }
+  openTurnoModal(turnoId);
+}
 function openTurnoModal(turnoId,presetDia){
   const t = turnoId?TURNOS.find(x=>x.id===turnoId):null;
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
@@ -1672,6 +1704,11 @@ function openCrearDesdeBateria(){
     <h3>Ejercicios seleccionados</h3>
     ${bateriaSel.map((e,i)=>`
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <span style="display:flex;flex-direction:column;gap:2px;">
+          <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveBateriaEj(${i},-1)" title="Subir"><i class="ti ti-chevron-up"></i></button>
+          <button class="btn btn-outline btn-sm" ${i===bateriaSel.length-1?'disabled':''} onclick="moveBateriaEj(${i},1)" title="Bajar"><i class="ti ti-chevron-down"></i></button>
+        </span>
+        <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
         <span style="flex:2;">${esc(e.n)}</span>
         <input placeholder="Series" value="${e.s}" oninput="bateriaSel[${i}].s=this.value" style="flex:1;">
         <input placeholder="Reps" value="${esc(e.r)}" oninput="bateriaSel[${i}].r=this.value" style="flex:1;">
@@ -1684,6 +1721,12 @@ function openCrearDesdeBateria(){
 }
 function addBateriaEj(name){
   if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10',v:''});
+  openCrearDesdeBateria();
+}
+function moveBateriaEj(i,dir){
+  const j = i+dir;
+  if(j<0 || j>=bateriaSel.length) return;
+  [bateriaSel[i], bateriaSel[j]] = [bateriaSel[j], bateriaSel[i]];
   openCrearDesdeBateria();
 }
 function saveBateriaRutina(){
@@ -1910,7 +1953,7 @@ function toggleReserva(i){ reservas[i]=!reservas[i]; renderSocio(); }
 
 function socioRutina(){
   const s = SOCIOS[currentSocioIdx];
-  const misRutinas = RUTINAS_SOCIO.filter(r=>s.rs.includes(r.n));
+  const misRutinas = RUTINAS.filter(r=>s.rs.includes(r.n));
   if(!misRutinas.length) return `<h2>Rutina</h2><p style="color:var(--text2);">No tienes rutinas asignadas.</p>`;
   if(socioActiveRutinaIdx>=misRutinas.length) socioActiveRutinaIdx=0;
   const r = misRutinas[socioActiveRutinaIdx];
@@ -1919,25 +1962,11 @@ function socioRutina(){
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
     ${misRutinas.map((m,i)=>`<button class="btn btn-sm ${i===socioActiveRutinaIdx?'btn-primary':'btn-outline'}" onclick="socioActiveRutinaIdx=${i};renderSocio();">${esc(m.n)}</button>`).join('')}
   </div>
-  <p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${r.sem}</p>
-  ${r.dias.map((d,i)=>{
-    const rest = !d.e.length;
-    return `<div class="day-row ${rest?'rest':''}" ${rest?'':`onclick="openDiaModal(${socioActiveRutinaIdx},${i})"`} style="cursor:${rest?'default':'pointer'};">
-      <div><b>${d.d}</b><div style="font-size:12px;color:var(--text2);">${esc(d.g)}</div></div>
-      <div>${rest?'🌙':'→'}</div>
-    </div>`;
-  }).join('')}`;
+  ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${esc(r.ob)}</p>`:''}
+  <div class="card">
+    ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${e.v?`<a href="${esc(e.v)}" target="_blank"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}</div>`).join('')}
+  </div>`;
 }
-function openDiaModal(rIdx,dIdx){
-  const misRutinas = RUTINAS_SOCIO.filter(r=>SOCIOS[currentSocioIdx].rs.includes(r.n));
-  const d = misRutinas[rIdx].dias[dIdx];
-  openModal(`
-    <div class="modal-head"><h3>${d.d} — ${esc(d.g)}</h3><button onclick="closeModal()">✕</button></div>
-    ${d.e.map((e,i)=>`<div class="ej-row"><span>${esc(e)} <span style="color:var(--text2);">(${d.s[i]}x${esc(d.r[i])})</span></span>${d.v[i]?`<a href="${esc(d.v[i])}" target="_blank"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}</div>`).join('')}
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
-  `);
-}
-
 function calcRacha(misRegs){
   // racha = días consecutivos (contando desde hoy hacia atrás) con al menos una entrada
   const dias = new Set(misRegs.filter(r=>r.f).map(r=>new Date(r.f).toDateString()));
