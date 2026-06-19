@@ -1119,7 +1119,10 @@ function pageSocios(){
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       <td>${esc(s.pl)}</td>
-      <td>${s.rs.map(r=>`<span class="badge b-purple">${esc(r)}</span>`).join(' ')||'-'}</td>
+      <td>${s.rs.map(r=>{
+        const dias = s.rsDias && s.rsDias[r];
+        return `<span class="badge b-purple" title="${dias&&dias.length?esc(dias.join(', ')):''}">${esc(r)}${dias&&dias.length?` (${dias.map(d=>d.slice(0,3)).join('/')})`:''}</span>`;
+      }).join(' ')||'-'}</td>
       ${showPay?`<td>${payBadge(s.es)}</td>`:''}
       <td>${s.hoy?`<span class="badge b-ok">✓ ${s.entradaHora}</span>`:'-'}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
@@ -1390,7 +1393,7 @@ function pageRutinas(){
 function deleteRutina(idx){
   const r = RUTINAS[idx];
   if(!confirm(`¿Eliminar la rutina "${r.n}"? Se quitará también de los socios que la tengan asignada.`)) return;
-  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); });
+  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; });
   RUTINAS.splice(idx,1);
   persist();
   renderStaff();
@@ -1417,6 +1420,8 @@ function openAsignarModal(idx, search){
       const si = SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
       const maxed = s.rs.length>=4;
+      if(!s.rsDias) s.rsDias = {};
+      const dias = s.rsDias[r.n]||[];
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
@@ -1424,6 +1429,12 @@ function openAsignarModal(idx, search){
                 :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
         </div>
         <div class="tag-list" style="margin-top:6px;">${s.rs.map(t=>`<span class="tag">${esc(t)}<span class="x" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>
+        ${has?`<div style="margin-top:8px;">
+          <p style="color:var(--text2);font-size:11.5px;margin-bottom:4px;">Días (opcional)</p>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            ${DIAS_SEMANA.map(d=>`<button class="btn btn-sm ${dias.includes(d)?'btn-primary':'btn-outline'}" style="padding:3px 8px;font-size:11.5px;" onclick="toggleRutinaDia(${si},'${r.n.replace(/'/g,"\\'")}','${d}',${idx},'${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
+          </div>
+        </div>`:''}
       </div>`;
     }).join('')}
     </div>
@@ -1436,9 +1447,19 @@ function asignarRutina(si, rname, idx, search){
   persist();
   openAsignarModal(idx, search);
 }
+function toggleRutinaDia(si, rname, dia, idx, search){
+  const s = SOCIOS[si];
+  if(!s.rsDias) s.rsDias = {};
+  const dias = s.rsDias[rname] = s.rsDias[rname]||[];
+  const i = dias.indexOf(dia);
+  if(i>=0) dias.splice(i,1); else dias.push(dia);
+  persist();
+  openAsignarModal(idx, search);
+}
 function quitarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   s.rs = s.rs.filter(r=>r!==rname);
+  if(s.rsDias) delete s.rsDias[rname];
   persist();
   openAsignarModal(idx, search);
 }
@@ -1497,7 +1518,10 @@ function saveRutina(){
   const ejs = newRutinaEjs.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:''}));
   if(editRutinaIdx!==null){
     const r = RUTINAS[editRutinaIdx];
-    if(r.n!==n) SOCIOS.forEach(s=>{ s.rs = s.rs.map(x=>x===r.n?n:x); });
+    if(r.n!==n) SOCIOS.forEach(s=>{
+      s.rs = s.rs.map(x=>x===r.n?n:x);
+      if(s.rsDias && s.rsDias[r.n]){ s.rsDias[n] = s.rsDias[r.n]; delete s.rsDias[r.n]; }
+    });
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
   } else {
     RUTINAS.push({n, t, ob, cr:'Tú', ejs});
@@ -1959,6 +1983,7 @@ function socioRutina(){
     ${misRutinas.map((m,i)=>`<button class="btn btn-sm ${i===socioActiveRutinaIdx?'btn-primary':'btn-outline'}" onclick="socioActiveRutinaIdx=${i};renderSocio();">${esc(m.n)}</button>`).join('')}
   </div>
   ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${esc(r.ob)}</p>`:''}
+  ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">📅 Días: <b>${s.rsDias[r.n].join(', ')}</b></p>`:''}
   <div class="card">
     ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${e.v?`<a href="${esc(e.v)}" target="_blank"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}</div>`).join('')}
   </div>`;
