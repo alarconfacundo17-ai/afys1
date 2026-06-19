@@ -254,13 +254,13 @@ const SOCIOS = [];
 
 const RUTINAS = [
   {n:'Fuerza básica',  t:'Fuerza',   cr:'Carlos L.', ob:'Ganar fuerza y masa',
-   ejs:[{n:'Press banca plano',s:4,r:'10-12',v:'https://youtube.com'},{n:'Sentadilla con barra',s:4,r:'8-10',v:''},{n:'Dominadas con peso',s:3,r:'6-8',v:'https://youtube.com'},{n:'Press militar con barra',s:3,r:'10',v:''},{n:'Curl con barra recta',s:3,r:'12',v:''},{n:'Extensiones en polea',s:3,r:'12',v:''}]},
+   ejs:[{n:'Press banca plano',s:4,r:'10-12'},{n:'Sentadilla con barra',s:4,r:'8-10'},{n:'Dominadas con peso',s:3,r:'6-8'},{n:'Press militar con barra',s:3,r:'10'},{n:'Curl con barra recta',s:3,r:'12'},{n:'Extensiones en polea',s:3,r:'12'}]},
   {n:'Cardio intenso', t:'Cardio',   cr:'Carlos L.', ob:'Mejorar resistencia cardiovascular',
-   ejs:[{n:'Burpees',s:4,r:'15',v:'https://youtube.com'},{n:'Sentadilla + press',s:3,r:'12',v:''},{n:'Thruster',s:4,r:'10',v:''},{n:'Russian twist',s:3,r:'20',v:''},{n:'Plancha abdominal',s:3,r:'60s',v:''}]},
+   ejs:[{n:'Burpees',s:4,r:'15'},{n:'Sentadilla + press',s:3,r:'12'},{n:'Thruster',s:4,r:'10'},{n:'Russian twist',s:3,r:'20'},{n:'Plancha abdominal',s:3,r:'60s'}]},
   {n:'Flexibilidad',   t:'Movilidad',cr:'Ana N.',    ob:'Mejorar movilidad y postura',
-   ejs:[{n:'Plancha abdominal',s:3,r:'60s',v:''},{n:'Elevación de piernas',s:3,r:'15',v:''},{n:'Russian twist',s:3,r:'20',v:''}]},
+   ejs:[{n:'Plancha abdominal',s:3,r:'60s'},{n:'Elevación de piernas',s:3,r:'15'},{n:'Russian twist',s:3,r:'20'}]},
   {n:'Hipertrofia A/B',t:'Fuerza',   cr:'Admin',     ob:'',
-   ejs:[{n:'Press inclinado mancuernas',s:4,r:'10-12',v:''},{n:'Remo con barra',s:4,r:'8-10',v:'https://youtube.com'},{n:'Press Arnold',s:3,r:'12',v:''},{n:'Curl martillo',s:3,r:'12',v:''},{n:'Hip thrust',s:4,r:'10',v:'https://youtube.com'}]},
+   ejs:[{n:'Press inclinado mancuernas',s:4,r:'10-12'},{n:'Remo con barra',s:4,r:'8-10'},{n:'Press Arnold',s:3,r:'12'},{n:'Curl martillo',s:3,r:'12'},{n:'Hip thrust',s:4,r:'10'}]},
 ];
 
 const CLASES_HOY = [];
@@ -309,7 +309,7 @@ const PERM_LABELS = {
   cargarSocios:'Cargar socios nuevos', removerSocios:'Remover/reactivar socios',
   editarSocios:'Editar datos de socios', editarFichas:'Editar fichas (objetivo, peso, etc.)',
   clases:'Clases', editarRutinas:'Editar rutinas', asignarRutinas:'Asignar rutinas a socios',
-  cargarEjercicios:'Cargar/editar ejercicios',
+  cargarEjercicios:'Cargar/editar ejercicios', subirVideos:'Subir videos de ejercicios',
   horarios:'Editar horarios del gimnasio', cuentas:'Gestionar cuentas y permisos',
 };
 let STAFF = [];
@@ -781,7 +781,7 @@ function ensureStaffProfile(email, user){
   if(email===DUENO_EMAIL || STAFF.find(s=>s.email===email)) return;
   const nombre = (user && user.user_metadata && user.user_metadata.nombre) || email.split('@')[0];
   const id = 'st_'+Date.now();
-  STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:true,cuentas:false}});
+  STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,subirVideos:false,horarios:true,cuentas:false}});
   persist();
 }
 
@@ -826,8 +826,8 @@ async function staffGateCreate(){
   if(error){ renderStaffGateSignup(error.message); return; }
   const id = 'st_'+Date.now();
   const perms = role==='profesor'
-    ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,horarios:true,cuentas:false}
-    : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false};
+    ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,subirVideos:false,horarios:true,cuentas:false}
+    : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,subirVideos:false,horarios:false,cuentas:false};
   STAFF.push({id, n, email, role, esp, perms});
   if(pendingInvite) PENDING_INVITES = PENDING_INVITES.filter(i=>i.token!==pendingInvite.token);
   pendingInvite = null;
@@ -1799,6 +1799,7 @@ function deleteTurno(turnoId){
 let ejSearch = '';
 function pageEjercicios(){
   const canEdit = isSuperOwner() || hasPerm('cargarEjercicios');
+  const canVideo = isSuperOwner() || hasPerm('subirVideos');
   const q = ejSearch.trim().toLowerCase();
   return `
   <div class="section-head"><h2 style="margin:0;">Ejercicios</h2>
@@ -1823,9 +1824,9 @@ function pageEjercicios(){
           <div class="ej-row">
             <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
-              ${EJ_VIDEOS[e]?`<a class="btn btn-outline btn-sm" href="${esc(EJ_VIDEOS[e])}" target="_blank" title="Ver video"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}
-              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')" title="${EJ_VIDEOS[e]?'Editar video':'Agregar video'}"><i class="ti ti-${EJ_VIDEOS[e]?'edit':'link'}"></i></button>
-              <button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
+              ${EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
+              ${canVideo?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="${EJ_VIDEOS[e]?'Cambiar video':'Subir video'}"><i class="ti ti-${EJ_VIDEOS[e]?'edit':'upload'}"></i></button>`:''}
+              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
               <button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
               <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>`:''}
             </span>
@@ -1836,10 +1837,46 @@ function pageEjercicios(){
   `;
 }
 function toggleGroup(g){ collapsedGroups[g] = (collapsedGroups[g]===false) ? true : false; persist(); renderStaff(); }
-function editVideo(name){
+function openVideoModal(name){
   const cur = EJ_VIDEOS[name]||'';
-  const v = prompt('Link de YouTube para "'+name+'":', cur);
-  if(v!==null){ EJ_VIDEOS[name]=v; persist(); }
+  const canVideo = isSuperOwner() || hasPerm('subirVideos');
+  openModal(`
+    <div class="modal-head"><h3>Video — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
+    ${cur?`<video src="${esc(cur)}" controls style="width:100%;border-radius:8px;margin-bottom:12px;max-height:320px;background:#000;"></video>`:`<p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Sin video cargado todavía.</p>`}
+    ${canVideo?`
+      <div class="field"><label>Subir video desde tu dispositivo</label><input id="vid_file" type="file" accept="video/*"></div>
+      <p id="vid_status" style="font-size:12px;color:var(--text2);margin-bottom:4px;"></p>
+    `:''}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
+      ${cur && canVideo?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteVideo('${esc(name)}')">Eliminar video</button>`:''}
+      ${canVideo?`<button class="btn btn-primary" onclick="uploadVideo('${esc(name)}')">Subir</button>`:''}
+    </div>
+  `);
+}
+async function uploadVideo(name){
+  const input = $('#vid_file');
+  const file = input && input.files && input.files[0];
+  if(!file){ alert('Elegí un archivo de video primero.'); return; }
+  const status = $('#vid_status');
+  if(status) status.textContent = 'Subiendo...';
+  const path = `${Date.now()}_${name.replace(/[^a-z0-9.]+/gi,'_')}`;
+  const {error} = await sb.storage.from('ejercicio-videos').upload(path, file, {upsert:true});
+  if(error){
+    if(status) status.textContent = '';
+    alert('No se pudo subir el video: '+error.message);
+    return;
+  }
+  const {data} = sb.storage.from('ejercicio-videos').getPublicUrl(path);
+  EJ_VIDEOS[name] = data.publicUrl;
+  persist();
+  closeModal(); openVideoModal(name);
+}
+function deleteVideo(name){
+  if(!confirm('¿Eliminar el video de "'+name+'"?')) return;
+  delete EJ_VIDEOS[name];
+  persist();
+  closeModal(); openVideoModal(name);
 }
 function openImageModal(name){
   const cur = EJ_IMAGES[name]||'';
@@ -1940,19 +1977,18 @@ function openCrearDesdeBateria(){
         <span style="flex:2;">${esc(e.n)}</span>
         <input placeholder="Series" value="${e.s}" oninput="bateriaSel[${i}].s=this.value" style="flex:1;">
         <input placeholder="Reps" value="${esc(e.r)}" oninput="bateriaSel[${i}].r=this.value" style="flex:1;">
-        <input placeholder="Video (opcional)" value="${esc(e.v)}" oninput="bateriaSel[${i}].v=this.value" style="flex:2;">
         <button class="btn btn-outline btn-sm" onclick="bateriaSel.splice(${i},1);openCrearDesdeBateria()">×</button>
       </div>`).join('')}
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBateriaRutina()">Guardar rutina</button></div>
   `,'wide');
 }
 function addBateriaEj(name){
-  if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10',v:''});
+  if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10'});
   openCrearDesdeBateria();
 }
 function saveBateriaRutina(){
   const n = $('#bat_n').value.trim()||'Rutina personalizada';
-  RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,v:e.v}))});
+  RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}))});
   bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
 
@@ -2204,7 +2240,7 @@ function socioRutina(){
   ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${esc(r.ob)}</p>`:''}
   ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">📅 Días: <b>${s.rsDias[r.n].join(', ')}</b></p>`:''}
   <div class="card">
-    ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${e.v?`<a href="${esc(e.v)}" target="_blank"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}</div>`).join('')}
+    ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}</div>`).join('')}
   </div>`;
 }
 function calcRacha(misRegs){
