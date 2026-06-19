@@ -729,8 +729,14 @@ function renderStaffGateLogin(staffError){
 async function staffGateLogin(){
   const email = $('#sg_login_e').value.trim().toLowerCase();
   const password = $('#sg_login_p').value;
-  const {error} = await sb.auth.signInWithPassword({email, password});
+  const {data, error} = await sb.auth.signInWithPassword({email, password});
   if(error){ renderStaffGateLogin('Email o contraseña incorrectos.'); return; }
+  if(email!==DUENO_EMAIL && !STAFF.find(s=>s.email===email)){
+    const nombre = (data && data.user && data.user.user_metadata && data.user.user_metadata.nombre) || email.split('@')[0];
+    const id = 'st_'+Date.now();
+    STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
+    persist();
+  }
   $('#staffGate').classList.add('hidden');
   await routeLoggedInUser(email);
 }
