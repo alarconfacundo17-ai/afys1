@@ -1502,9 +1502,9 @@ function pageClases(){
   return `
   <div class="section-head"><h2 style="margin:0;">Clases</h2>${canCreate?`<button class="btn btn-primary" onclick="openClaseModal()"><i class="ti ti-plus"></i>Nueva clase</button>`:''}</div>
   <div class="card" style="margin-bottom:18px;">
-  <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
+  <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th><th>Inscriptos</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
   <tbody>
-  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td style="display:flex;gap:6px;">
+  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td><td><button class="btn btn-outline btn-sm" onclick="openInscriptosModal(${idx})"><i class="ti ti-users"></i> ${inscriptosClase(c).length}</button></td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td style="display:flex;gap:6px;">
     <button class="btn btn-outline btn-sm" title="Editar clase" onclick="openClaseModal(${idx})"><i class="ti ti-edit"></i></button>
     <button class="btn btn-outline btn-sm" title="Eliminar clase" onclick="deleteClase(${idx})">✕</button>
   </td>`:''}</tr>`).join('')}
@@ -2329,6 +2329,27 @@ function savePerfil(){
 }
 
 function claseKey(c){ return c.cId || (c.n+'_'+c.h); }
+function inscriptosClase(c){
+  const k = claseKey(c);
+  const list = [];
+  Object.keys(RESERVAS).forEach(idxStr=>{
+    const idx = Number(idxStr);
+    if(RESERVAS[idx] && RESERVAS[idx][k] && SOCIOS[idx]) list.push(SOCIOS[idx]);
+  });
+  return list;
+}
+function openInscriptosModal(idx){
+  const c = CLASES_HOY[idx];
+  const list = inscriptosClase(c);
+  openModal(`
+    <div class="modal-head"><h3>Inscriptos — ${esc(c.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">${esc(c.d||'')} ${c.h} — ${list.length} inscripto${list.length===1?'':'s'}</p>
+    ${list.length?`<table><thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead><tbody>
+      ${list.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.tel||'-')}</td></tr>`).join('')}
+    </tbody></table>`:`<p style="color:var(--text2);font-size:13px;">Todavía nadie se anotó a esta clase.</p>`}
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+  `);
+}
 function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
 function socioClases(){
   const misReservas = socioReservas();
