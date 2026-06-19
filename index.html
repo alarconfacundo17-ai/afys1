@@ -1605,11 +1605,12 @@ function pageEjercicios(){
         ${EJD[g].map((e,i)=>`
           <div class="ej-row">
             <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
-            ${canEdit?`<span>
-              <button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')"><i class="ti ti-brand-youtube"></i></button>
+            <span>
+              ${EJ_VIDEOS[e]?`<a class="btn btn-outline btn-sm" href="${esc(EJ_VIDEOS[e])}" target="_blank" title="Ver video"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}
+              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')" title="${EJ_VIDEOS[e]?'Editar video':'Agregar video'}"><i class="ti ti-${EJ_VIDEOS[e]?'edit':'link'}"></i></button>
               <button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
-              <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>
-            </span>`:''}
+              <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>`:''}
+            </span>
           </div>`).join('')}
       </div>
     </div>
