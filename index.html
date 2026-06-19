@@ -167,6 +167,11 @@ h3{font-size:15px;margin-bottom:10px;}
   <div class="login-box" id="qrGateContent"></div>
 </div>
 
+<!-- ===================== STAFF GATE (profesor escanea el QR impreso) ===================== -->
+<div id="staffGate" class="hidden">
+  <div class="login-box" id="staffGateContent"></div>
+</div>
+
 <!-- ===================== SCAN ===================== -->
 <div id="scan" class="hidden">
   <div class="scan-box">
@@ -459,7 +464,6 @@ function renderLogin(){
       <div class="hint">
         ${DUENO_EMAIL?'':`<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='signupDueno';loginError='';renderLogin();">Soy el dueño del gimnasio, crear cuenta</button>`}
         <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="loginView='signupSocio';loginError='';renderLogin();">Soy socio nuevo, crear mi cuenta</button>
-        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="openQRGate()">📷 Simular escaneo del QR del gimnasio</button>
       </div>
     `;
   }
@@ -654,6 +658,76 @@ async function qrGateLoginAndCheckIn(email){
 
 function closeQRGate(){
   $('#qrGate').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+}
+
+/* ============ QR DEL PERSONAL (profesor escanea el QR impreso) ============ */
+function openStaffGate(){
+  $('#login').classList.add('hidden');
+  $('#staffGate').classList.remove('hidden');
+  renderStaffGateLogin();
+}
+
+function renderStaffGateLogin(staffError){
+  $('#staffGateContent').innerHTML = `
+    <h1 style="font-size:20px;">👋 Acceso de personal</h1>
+    <p class="sub" style="margin-bottom:0;">Ingresá con tu cuenta de profesor/a o staff.</p>
+    <label>Email</label>
+    <input id="sg_login_e" type="email" placeholder="tu@email.com">
+    <label>Contraseña</label>
+    <input id="sg_login_p" type="password" placeholder="••••••••">
+    ${staffError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(staffError)}</p>`:''}
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="staffGateLogin()">Ingresar</button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderStaffGateSignup()">Primera vez, crear mi cuenta</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeStaffGate()">Cancelar</button>
+  `;
+}
+
+async function staffGateLogin(){
+  const email = $('#sg_login_e').value.trim().toLowerCase();
+  const password = $('#sg_login_p').value;
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ renderStaffGateLogin('Email o contraseña incorrectos.'); return; }
+  $('#staffGate').classList.add('hidden');
+  await routeLoggedInUser(email);
+}
+
+function renderStaffGateSignup(staffError){
+  $('#staffGateContent').innerHTML = `
+    <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
+    <p class="sub" style="margin-bottom:0;">Creá tu cuenta de profesor/a para empezar a usar el sistema.</p>
+    <label>Nombre y apellido</label>
+    <input id="sg_n" type="text" placeholder="Tu nombre completo">
+    <label>Email</label>
+    <input id="sg_e" type="email" placeholder="tu@email.com">
+    <label>Contraseña</label>
+    <input id="sg_p" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Especialidad (opcional)</label>
+    <input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">
+    ${staffError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(staffError)}</p>`:''}
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="staffGateCreate()">Crear cuenta</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderStaffGateLogin()">Volver</button>
+  `;
+}
+
+async function staffGateCreate(){
+  const n = $('#sg_n').value.trim();
+  const email = $('#sg_e').value.trim().toLowerCase();
+  const pass = $('#sg_p').value;
+  const esp = $('#sg_esp').value.trim()||null;
+  if(!n || !email || pass.length<6){ renderStaffGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
+  if(STAFF.find(s=>s.email===email) || email===DUENO_EMAIL){ renderStaffGateSignup('Ya existe una cuenta con ese email. Iniciá sesión.'); return; }
+  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role:'profesor'}, emailRedirectTo:APP_URL}});
+  if(error){ renderStaffGateSignup(error.message); return; }
+  const id = 'st_'+Date.now();
+  STAFF.push({id, n, email, role:'profesor', esp, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
+  persist();
+  $('#staffGate').classList.add('hidden');
+  await routeLoggedInUser(email);
+}
+
+function closeStaffGate(){
+  $('#staffGate').classList.add('hidden');
   $('#login').classList.remove('hidden');
 }
 
@@ -878,16 +952,33 @@ function pageCuentas(){
     <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
     <tbody>
-      ${admins.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
+      ${admins.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>
+        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
+        ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+      </td></tr>`).join('')}
     </tbody></table>
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td><button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button></td></tr>`).join('')}
+      ${profs.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td>
+        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
+        ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','admin')">Ascender a admin</button>
+        <button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+      </td></tr>`).join('')}
     </tbody></table>
   </div>`;
+}
+
+function promoteStaff(id, newRole){
+  const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
+  const labels = {admin:'admin', dueno:'dueño'};
+  if(!confirm(`¿Ascender a ${esc(s.n)} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
+  s.role = newRole;
+  persist();
+  renderStaff();
 }
 
 function openNuevoStaffModal(role){
@@ -1483,6 +1574,9 @@ function saveBateriaRutina(){
 function qrUrlFor(clase){
   return clase ? `${APP_URL}?qr=clase&nombre=${encodeURIComponent(clase)}` : `${APP_URL}?qr=general`;
 }
+function qrUrlForStaff(){
+  return `${APP_URL}?staff=1`;
+}
 function pageQR(){
   return `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
@@ -1501,6 +1595,15 @@ function pageQR(){
       </div>`).join('')}
     </div>
   </div>
+  ${(isSuperOwner()||hasPerm('cuentas'))?`
+  <div class="card" style="text-align:center;margin-bottom:18px;">
+    <h3>QR para el personal (profesores)</h3>
+    <div class="qr-box" id="qrStaffBox"></div>
+    <p style="color:var(--text2);font-size:12px;margin:6px 0 10px;">Imprimí este QR y pegalo en el gimnasio. Al escanearlo, el profesor llega directo a una pantalla para crear su cuenta o iniciar sesión como personal. Después podés ascenderlo a admin o dueño desde "Cuentas y permisos".</p>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
+    </div>
+  </div>` : ''}
   <div class="card">
     <div class="section-head"><h3>Registro de entradas del día (${REGS.length})</h3></div>
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
@@ -1510,6 +1613,8 @@ function pageQR(){
 function mountQRCodes(){
   const box = document.getElementById('qrGeneralBox');
   if(box) QRCode.toCanvas(box, qrUrlFor(null), {width:150, margin:1}, ()=>{});
+  const sbox = document.getElementById('qrStaffBox');
+  if(sbox) QRCode.toCanvas(sbox, qrUrlForStaff(), {width:150, margin:1, color:{dark:'#7c3aed'}}, ()=>{});
 }
 function openClaseQR(name){
   openModal(`
@@ -1617,7 +1722,7 @@ function socioInicio(){
   <div class="card" style="margin-bottom:16px;">
     <h3>Estado de hoy</h3>
     ${s.hoy?`<p style="color:var(--green);font-weight:600;">✅ Presente hoy — ${s.entradaHora}</p>`
-           :`<button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="pendingQR={tipo:'general'};startScan();">Simular escaneo QR</button>`}
+           :`<p style="color:var(--text2);font-size:13px;">Todavía no marcaste tu entrada hoy. Escaneá el QR del gimnasio para registrar tu ingreso.</p>`}
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Próximas clases reservadas</h3>
@@ -1762,8 +1867,9 @@ function socioCuenta(){
 
   const urlParams = new URLSearchParams(window.location.search);
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
-  if(qrType){
-    pendingQR = {tipo: qrType, clase: urlParams.get('nombre')||null};
+  const isStaffQR = urlParams.get('staff')==='1';
+  if(qrType || isStaffQR){
+    if(qrType) pendingQR = {tipo: qrType, clase: urlParams.get('nombre')||null};
     window.history.replaceState({}, '', window.location.pathname);
   }
 
@@ -1771,6 +1877,8 @@ function socioCuenta(){
   if(session && session.user && session.user.email){
     await routeLoggedInUser(session.user.email);
     if(pendingQR && currentRole==='socio') startScan();
+  } else if(isStaffQR){
+    openStaffGate();
   } else if(pendingQR){
     openQRGate();
   } else {
