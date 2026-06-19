@@ -1267,14 +1267,45 @@ function openNotasModal(idx){
   const s = SOCIOS[idx];
   openModal(`
     <div class="modal-head"><h3>Notas de staff — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <div id="notasList">${s.nt.map(n=>`<div class="card" style="margin-bottom:8px;">${esc(n)}</div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin notas</p>'}</div>
+    <div id="notasList">${s.nt.map((n,i)=>`
+      <div class="card" style="margin-bottom:8px;">
+        ${editNotaIdx===i?`
+          <textarea id="nt_edit_${i}" rows="3" style="width:100%;margin-bottom:6px;">${esc(n)}</textarea>
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button class="btn btn-outline btn-sm" onclick="editNotaIdx=null;openNotasModal(${idx})">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="saveEditNota(${idx},${i})">Guardar</button>
+          </div>
+        `:`
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <span style="white-space:pre-wrap;">${esc(n)}</span>
+            <span style="display:flex;gap:4px;flex-shrink:0;">
+              <button class="btn btn-outline btn-sm" onclick="editNotaIdx=${i};openNotasModal(${idx})" title="Editar"><i class="ti ti-edit"></i></button>
+              <button class="btn btn-outline btn-sm" onclick="removeNota(${idx},${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+            </span>
+          </div>
+        `}
+      </div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin notas</p>'}</div>
     <div class="field"><label>Nueva nota</label><textarea id="nt_new" rows="3"></textarea></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="addNota(${idx})">Agregar</button></div>
   `);
 }
+let editNotaIdx = null;
 function addNota(idx){
   const v = $('#nt_new').value.trim();
   if(v){SOCIOS[idx].nt.push(v); persist();}
+  openNotasModal(idx);
+}
+function saveEditNota(idx,i){
+  const v = $('#nt_edit_'+i).value.trim();
+  if(v) SOCIOS[idx].nt[i]=v;
+  editNotaIdx=null;
+  persist();
+  openNotasModal(idx);
+}
+function removeNota(idx,i){
+  if(!confirm('¿Eliminar esta nota?')) return;
+  SOCIOS[idx].nt.splice(i,1);
+  persist();
   openNotasModal(idx);
 }
 
