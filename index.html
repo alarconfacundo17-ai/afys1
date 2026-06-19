@@ -291,6 +291,8 @@ const EJC = {
 const EJ_VIDEOS = {};
 // ejercicio -> link de imagen (editable)
 const EJ_IMAGES = {};
+// reservas de clases: { [idxSocio]: { [claseKey]: true } }
+const RESERVAS = {};
 
 
 /* ============ STATE ============ */
@@ -352,7 +354,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS,
   };
 }
 
@@ -369,6 +371,7 @@ function applyState(s){
   fillObject(EJC, s.EJC);
   fillObject(EJ_VIDEOS, s.EJ_VIDEOS);
   fillObject(EJ_IMAGES, s.EJ_IMAGES);
+  fillObject(RESERVAS, s.RESERVAS);
   if(Array.isArray(s.STAFF)) STAFF = s.STAFF;
   if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
@@ -431,7 +434,21 @@ async function loadState(){
 function $(sel,root){return (root||document).querySelector(sel);}
 function $all(sel,root){return [...(root||document).querySelectorAll(sel)];}
 function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
+function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});}
+// Selector de hora en formato 24hs (00-23), reemplaza al <input type="time"> nativo
+// que en algunos celulares muestra AM/PM segun la configuracion regional del equipo.
+function timeSelectHTML(id, value, onchange){
+  const [h,m] = (value||'08:00').split(':');
+  const hours = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+  const mins = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const oc = onchange ? ` onchange="${onchange}"` : '';
+  return `<div style="display:flex;gap:4px;align-items:center;">
+    <select id="${id}_h" style="width:auto;"${oc}>${hours.map(hh=>`<option value="${hh}" ${hh===h?'selected':''}>${hh}</option>`).join('')}</select>
+    <span>:</span>
+    <select id="${id}_m" style="width:auto;"${oc}>${mins.map(mm=>`<option value="${mm}" ${mm===m?'selected':''}>${mm}</option>`).join('')}</select>
+  </div>`;
+}
+function timeSelectValue(id){ return $('#'+id+'_h').value+':'+$('#'+id+'_m').value; }
 function payBadge(es){
   if(es==='ok') return '<span class="badge b-ok">Al día</span>';
   if(es==='ve') return '<span class="badge b-warn">Por vencer</span>';
@@ -1414,7 +1431,7 @@ function openClaseModal(idx){
     <div class="modal-head"><h3>${c?'Editar clase':'Nueva clase'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="cl_n" value="${c?esc(c.n):''}"></div>
     <div class="field"><label>Día</label><select id="cl_d">${DIAS_SEMANA.map(d=>`<option ${c&&c.d===d?'selected':''}>${d}</option>`).join('')}</select></div>
-    <div class="field"><label>Hora</label><input id="cl_h" type="time" value="${c?esc(c.h):''}"></div>
+    <div class="field"><label>Hora</label>${timeSelectHTML('cl_h', c?c.h:'08:00')}</div>
     <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="${cupoMax}"></div>
     <div class="field"><label>Duración (minutos)</label><input id="cl_dur" type="number" step="5" value="${c?(c.dur||60):60}"></div>
     <div class="field"><label>Profesor a cargo</label>
@@ -1430,7 +1447,7 @@ function openClaseModal(idx){
 function saveClase(){
   const n=$('#cl_n').value.trim()||'Nueva clase';
   const d=$('#cl_d').value;
-  const h=$('#cl_h').value||'08:00';
+  const h=timeSelectValue('cl_h')||'08:00';
   const dur=parseInt($('#cl_dur').value)||60;
   const insSel = $('#cl_ins').value;
   const ins = insSel==='__otro__' ? ($('#cl_ins_otro').value.trim()||'Sin asignar') : insSel;
@@ -1659,9 +1676,9 @@ function pageHorarios(){
       if(canEdit){
         return `<td style="min-width:108px;padding:4px 6px;">
           ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;">
-            <input type="time" step="300" value="${tr.desde}" style="width:64px;font-size:11px;padding:2px 4px;" onchange="saveGymHour('${d}',${i},'desde',this.value)">
+            ${timeSelectHTML('gh_'+d+'_'+i+'_de', tr.desde, `saveGymHour('${d}',${i},'desde',timeSelectValue('gh_${d}_${i}_de'))`)}
             <span style="color:var(--text2);font-size:10px;">-</span>
-            <input type="time" step="300" value="${tr.hasta}" style="width:64px;font-size:11px;padding:2px 4px;" onchange="saveGymHour('${d}',${i},'hasta',this.value)">
+            ${timeSelectHTML('gh_'+d+'_'+i+'_ha', tr.hasta, `saveGymHour('${d}',${i},'hasta',timeSelectValue('gh_${d}_${i}_ha'))`)}
             <button class="btn btn-outline btn-sm" style="padding:1px 5px;font-size:10px;" onclick="removeGymTramo('${d}',${i})">×</button>
           </div>`).join('')}
           <button class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10.5px;" onclick="addGymTramo('${d}')">+ tramo</button>
@@ -1771,8 +1788,8 @@ function openTurnoModal(turnoId,presetDia){
     <div class="field"><label>Nombre de la clase (opcional, ej: Spinning, Yoga)</label><input id="tn_cl" type="text" placeholder="Dejar vacío si es un turno de trabajo" value="${t&&t.clase?esc(t.clase):''}"></div>
     <div class="field"><label>Profesor/a a cargo</label><select id="tn_s">${profes.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
     <div class="field"><label>Día</label><select id="tn_d">${DIAS_SEMANA.map(d=>`<option ${ (t?t.dia:presetDia)===d?'selected':''}>${d}</option>`).join('')}</select></div>
-    <div class="field"><label>Desde</label><input id="tn_de" type="time" step="300" value="${t?t.desde:'08:00'}"></div>
-    <div class="field"><label>Hasta</label><input id="tn_ha" type="time" step="300" value="${t?t.hasta:'12:00'}"></div>
+    <div class="field"><label>Desde</label>${timeSelectHTML('tn_de', t?t.desde:'08:00')}</div>
+    <div class="field"><label>Hasta</label>${timeSelectHTML('tn_ha', t?t.hasta:'12:00')}</div>
     <div class="modal-actions">
       ${t?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteTurno(${t.id})">Eliminar</button>`:''}
       <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
@@ -1781,7 +1798,7 @@ function openTurnoModal(turnoId,presetDia){
   `);
 }
 function saveTurno(turnoId){
-  const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:$('#tn_de').value, hasta:$('#tn_ha').value, clase:$('#tn_cl').value.trim()};
+  const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
   if(turnoId){
     const t = TURNOS.find(x=>x.id===turnoId);
     Object.assign(t,data);
@@ -2145,7 +2162,6 @@ function socioInicio(){
   const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
   const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
   const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
-  const racha = calcRacha(misRegs);
   return `
   <div class="profile-card">
     <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:16px;" onclick="openEditPerfil()">✏️</button>
@@ -2162,7 +2178,6 @@ function socioInicio(){
   <div class="grid-metrics">
     <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Clases este mes</div></div>
     <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Entradas semana</div></div>
-    <div class="metric"><div class="num">🔥 ${racha}</div><div class="lbl">Racha de días</div></div>
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Estado de hoy</h3>
@@ -2171,7 +2186,7 @@ function socioInicio(){
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Próximas clases reservadas</h3>
-    ${CLASES_HOY.map((c,i)=>reservas[i]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||'<p style="color:var(--text2);font-size:13px;">Sin clases reservadas</p>'}
+    ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||'<p style="color:var(--text2);font-size:13px;">Sin clases reservadas</p>'}
   </div>
   <div class="card">
     <h3>Rutinas activas</h3>
@@ -2210,21 +2225,31 @@ function savePerfil(){
   closeModal(); renderSocio();
 }
 
-let reservas = {};
+function claseKey(c){ return c.cId || (c.n+'_'+c.h); }
+function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
 function socioClases(){
+  const misReservas = socioReservas();
   return `
   <h2>Clases disponibles</h2>
   ${CLASES_HOY.map((c,i)=>{
     const [act,tot] = c.cu.split('/').map(Number);
     const full = act>=tot;
-    const booked = reservas[i];
+    const booked = !!misReservas[claseKey(c)];
     return `<div class="class-card">
       <div><b>${esc(c.n)}</b><div style="font-size:12px;color:var(--text2);">${c.h} · ${esc(c.ins)} · ${c.cu}</div></div>
       <button class="btn btn-sm ${booked?'btn-outline':full?'btn-outline':'btn-primary'}" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${booked?'Reservada':full?'Sin cupo':'Reservar'}</button>
     </div>`;
   }).join('')}`;
 }
-function toggleReserva(i){ reservas[i]=!reservas[i]; renderSocio(); }
+function toggleReserva(i){
+  const c = CLASES_HOY[i];
+  const misReservas = socioReservas();
+  const k = claseKey(c);
+  if(misReservas[k]) delete misReservas[k];
+  else misReservas[k] = true;
+  persist();
+  renderSocio();
+}
 
 function socioRutina(){
   const s = SOCIOS[currentSocioIdx];
@@ -2243,17 +2268,6 @@ function socioRutina(){
     ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}</div>`).join('')}
   </div>`;
 }
-function calcRacha(misRegs){
-  // racha = días consecutivos (contando desde hoy hacia atrás) con al menos una entrada
-  const dias = new Set(misRegs.filter(r=>r.f).map(r=>new Date(r.f).toDateString()));
-  let racha = 0;
-  const cursor = new Date();
-  while(dias.has(cursor.toDateString())){
-    racha++;
-    cursor.setDate(cursor.getDate()-1);
-  }
-  return racha;
-}
 function socioAsistencia(){
   const s = SOCIOS[currentSocioIdx];
   const misRegs = REGS.filter(r=>r.i===s.i);
@@ -2262,11 +2276,9 @@ function socioAsistencia(){
   const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
   const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
   const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
-  const racha = calcRacha(misRegs);
   return `
   <h2>Asistencia</h2>
   <div class="grid-metrics">
-    <div class="metric"><div class="num">${racha}</div><div class="lbl">Racha (días seguidos)</div></div>
     <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Esta semana</div></div>
     <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Este mes</div></div>
     <div class="metric"><div class="num">${misRegs.length}</div><div class="lbl">Total histórico</div></div>
