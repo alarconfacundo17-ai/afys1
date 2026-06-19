@@ -1644,8 +1644,10 @@ function deleteTurno(turnoId){
 }
 
 /* ---- EJERCICIOS ---- */
+let ejSearch = '';
 function pageEjercicios(){
   const canEdit = isSuperOwner() || hasPerm('cargarEjercicios');
+  const q = ejSearch.trim().toLowerCase();
   return `
   <div class="section-head"><h2 style="margin:0;">Ejercicios</h2>
     <div style="display:flex;gap:8px;">
@@ -1653,26 +1655,32 @@ function pageEjercicios(){
       ${canEdit?`<button class="btn btn-primary" onclick="openNuevoEjercicio()"><i class="ti ti-plus"></i>Nuevo ejercicio</button>`:''}
     </div>
   </div>
-  ${Object.keys(EJD).map(g=>`
+  <input id="ej_search" placeholder="Buscar ejercicio..." value="${esc(ejSearch)}" oninput="const _p=this.selectionStart;ejSearch=this.value;renderStaff();const _ne=document.getElementById('ej_search');if(_ne){_ne.focus();_ne.setSelectionRange(_p,_p);}" style="margin-bottom:14px;">
+  ${Object.keys(EJD).map(g=>{
+    const items = EJD[g].filter(e=>!q || e.toLowerCase().includes(q));
+    if(q && !items.length) return '';
+    const open = q ? true : !collapsedGroups[g];
+    return `
     <div class="group-block">
       <div class="group-head" onclick="toggleGroup('${g}')">
-        <span>${g} <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${EJD[g].length}</span></span>
-        <span>${collapsedGroups[g]?'▸':'▾'}</span>
+        <span>${g} <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${items.length}</span></span>
+        <span>${open?'▾':'▸'}</span>
       </div>
-      <div class="group-body ${collapsedGroups[g]?'hidden':''}">
-        ${EJD[g].map((e,i)=>`
+      <div class="group-body ${open?'':'hidden'}">
+        ${items.map((e,i)=>`
           <div class="ej-row">
             <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
               ${EJ_VIDEOS[e]?`<a class="btn btn-outline btn-sm" href="${esc(EJ_VIDEOS[e])}" target="_blank" title="Ver video"><i class="ti ti-brand-youtube" style="color:#DC2626;"></i></a>`:''}
               ${canEdit?`<button class="btn btn-outline btn-sm" onclick="editVideo('${esc(e)}')" title="${EJ_VIDEOS[e]?'Editar video':'Agregar video'}"><i class="ti ti-${EJ_VIDEOS[e]?'edit':'link'}"></i></button>
               <button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
+              <button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
               <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>`:''}
             </span>
           </div>`).join('')}
       </div>
     </div>
-  `).join('')}
+  `;}).join('')}
   `;
 }
 function toggleGroup(g){ collapsedGroups[g]=!collapsedGroups[g]; renderStaff(); }
@@ -1700,6 +1708,32 @@ function deleteEjercicio(g,name){
   EJD[g]=EJD[g].filter(e=>e!==name);
   persist();
   renderStaff();
+}
+function openEjercicioGruposModal(name){
+  openModal(`
+    <div class="modal-head"><h3>Tipos — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">Elegí a qué tipo(s) pertenece este ejercicio. Podés marcar más de uno.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+      ${Object.keys(EJD).map(g=>`
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="eg_${esc(g)}" ${EJD[g].includes(name)?'checked':''}>
+          <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${esc(g)}</span>
+        </label>`).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveEjercicioGrupos('${esc(name)}')">Guardar</button></div>
+  `);
+}
+function saveEjercicioGrupos(name){
+  const checked = Object.keys(EJD).filter(g=>document.getElementById('eg_'+g)?.checked);
+  if(!checked.length){ alert('El ejercicio debe pertenecer a al menos un tipo.'); return; }
+  Object.keys(EJD).forEach(g=>{
+    const has = EJD[g].includes(name);
+    const should = checked.includes(g);
+    if(should && !has) EJD[g].push(name);
+    else if(!should && has) EJD[g] = EJD[g].filter(e=>e!==name);
+  });
+  persist();
+  closeModal(); renderStaff();
 }
 const EJ_COLOR_PALETTE = ['#534AB7','#059669','#D85A30','#D4537E','#378ADD','#BA7517','#8B45C6','#2B9E9E','#0E7490','#7C3AED','#DB2777','#16A34A','#EA580C','#0D9488'];
 function nextEjColor(){
