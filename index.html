@@ -1698,20 +1698,35 @@ function saveImage(name){
 }
 function deleteEjercicio(g,name){
   EJD[g]=EJD[g].filter(e=>e!==name);
+  persist();
   renderStaff();
+}
+const EJ_COLOR_PALETTE = ['#534AB7','#059669','#D85A30','#D4537E','#378ADD','#BA7517','#8B45C6','#2B9E9E','#0E7490','#7C3AED','#DB2777','#16A34A','#EA580C','#0D9488'];
+function nextEjColor(){
+  const used = new Set(Object.values(EJC));
+  const free = EJ_COLOR_PALETTE.find(c=>!used.has(c));
+  return free || EJ_COLOR_PALETTE[Object.keys(EJC).length % EJ_COLOR_PALETTE.length];
 }
 function openNuevoEjercicio(){
   openModal(`
     <div class="modal-head"><h3>Nuevo ejercicio</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="ej_n"></div>
-    <div class="field"><label>Grupo muscular</label><select id="ej_g">${Object.keys(EJD).map(g=>`<option>${g}</option>`).join('')}</select></div>
+    <div class="field"><label>Tipo / grupo</label><select id="ej_g" onchange="document.getElementById('ej_g_new_wrap').classList.toggle('hidden', this.value!=='__new__')">${Object.keys(EJD).map(g=>`<option>${g}</option>`).join('')}<option value="__new__">+ Crear nuevo tipo...</option></select></div>
+    <div id="ej_g_new_wrap" class="field hidden"><label>Nombre del nuevo tipo (ej: Movilidad, Potencia)</label><input id="ej_g_new" placeholder="Movilidad"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveEjercicio()">Guardar</button></div>
   `);
 }
 function saveEjercicio(){
   const n = $('#ej_n').value.trim();
-  const g = $('#ej_g').value;
+  let g = $('#ej_g').value;
+  if(g==='__new__'){
+    const newG = $('#ej_g_new').value.trim();
+    if(!newG) return;
+    if(!EJD[newG]){ EJD[newG]=[]; EJC[newG]=nextEjColor(); collapsedGroups[newG]=false; }
+    g = newG;
+  }
   if(n) EJD[g].push(n);
+  persist();
   closeModal(); renderStaff();
 }
 
