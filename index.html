@@ -424,6 +424,7 @@ let collapsedGroups = {}; // group name -> bool collapsed
 const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RTCEUdI9e0Sl_WMzf5lE3w_xcezp9fx';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const APP_URL = window.location.origin + window.location.pathname;
 
 function fillArray(arr, data){ if(!Array.isArray(data)) return; arr.length=0; arr.push(...data); }
 function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; Object.keys(obj).forEach(k=>delete obj[k]); Object.assign(obj, data); }
@@ -590,7 +591,7 @@ async function submitSignupDueno(){
   const p = $('#sd_p').value;
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
   if(DUENO_EMAIL){ loginError='Ya existe una cuenta de dueño.'; renderLogin(); return; }
-  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'dueno'}}});
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'dueno'}, emailRedirectTo:APP_URL}});
   if(error){ loginError=error.message; renderLogin(); return; }
   DUENO_EMAIL = e;
   persist();
@@ -609,7 +610,7 @@ async function submitSignupSocio(){
   const ob = $('#su_ob').value.trim()||null;
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
-  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}}});
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
   if(error){ loginError=error.message; renderLogin(); return; }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
@@ -681,7 +682,7 @@ async function qrGateCreateSocio(){
   const ob = $('#qrg_ob').value.trim()||null;
   if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
-  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}}});
+  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
   if(error){ renderQRGateSignup(error.message); return; }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
@@ -967,7 +968,7 @@ async function saveNuevoStaff(role){
   if(!email){ err.textContent='Ingresá un email válido.'; return; }
   if(!pass || pass.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres.'; return; }
   if(STAFF.find(s=>s.email===email)){ err.textContent='Ya existe una cuenta con ese email.'; return; }
-  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}}});
+  const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
   if(error){ err.textContent = error.message; return; }
   const id = 'st_'+Date.now();
   STAFF.push({id, n, email, role, esp, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
