@@ -1761,12 +1761,12 @@ function pageEjercicios(){
   ${Object.keys(EJD).map(g=>{
     const items = EJD[g].filter(e=>!q || e.toLowerCase().includes(q));
     if(q && !items.length) return '';
-    const open = q ? true : !collapsedGroups[g];
+    const open = q ? true : collapsedGroups[g]===false;
     return `
     <div class="group-block">
-      <div class="group-head" onclick="toggleGroup('${g}')">
+      <div class="group-head" onclick="toggleGroup('${g}')" style="cursor:pointer;">
         <span>${g} <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${items.length}</span></span>
-        <span>${open?'▾':'▸'}</span>
+        <span><i class="ti ti-chevron-${open?'down':'right'}"></i></span>
       </div>
       <div class="group-body ${open?'':'hidden'}">
         ${items.map((e,i)=>`
@@ -1785,7 +1785,7 @@ function pageEjercicios(){
   `;}).join('')}
   `;
 }
-function toggleGroup(g){ collapsedGroups[g]=!collapsedGroups[g]; renderStaff(); }
+function toggleGroup(g){ collapsedGroups[g] = (collapsedGroups[g]===false) ? true : false; persist(); renderStaff(); }
 function editVideo(name){
   const cur = EJ_VIDEOS[name]||'';
   const v = prompt('Link de YouTube para "'+name+'":', cur);
