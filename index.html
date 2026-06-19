@@ -726,17 +726,20 @@ function renderStaffGateLogin(staffError){
   `;
 }
 
+function ensureStaffProfile(email, user){
+  if(email===DUENO_EMAIL || STAFF.find(s=>s.email===email)) return;
+  const nombre = (user && user.user_metadata && user.user_metadata.nombre) || email.split('@')[0];
+  const id = 'st_'+Date.now();
+  STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
+  persist();
+}
+
 async function staffGateLogin(){
   const email = $('#sg_login_e').value.trim().toLowerCase();
   const password = $('#sg_login_p').value;
   const {data, error} = await sb.auth.signInWithPassword({email, password});
   if(error){ renderStaffGateLogin('Email o contraseña incorrectos.'); return; }
-  if(email!==DUENO_EMAIL && !STAFF.find(s=>s.email===email)){
-    const nombre = (data && data.user && data.user.user_metadata && data.user.user_metadata.nombre) || email.split('@')[0];
-    const id = 'st_'+Date.now();
-    STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,horarios:false,cuentas:false}});
-    persist();
-  }
+  ensureStaffProfile(email, data && data.user);
   $('#staffGate').classList.add('hidden');
   await routeLoggedInUser(email);
 }
@@ -1980,7 +1983,11 @@ function socioCuenta(){
 
   const {data:{session}} = await sb.auth.getSession();
   if(session && session.user && session.user.email){
-    await routeLoggedInUser(session.user.email);
+    const sEmail = session.user.email.toLowerCase();
+    if(isStaffQR && sEmail!==DUENO_EMAIL && !STAFF.find(s=>s.email===sEmail) && !SOCIOS_LOGIN[sEmail]){
+      ensureStaffProfile(sEmail, session.user);
+    }
+    await routeLoggedInUser(sEmail);
     if(pendingQR && currentRole==='socio') startScan();
   } else if(isStaffQR){
     openStaffGate();
