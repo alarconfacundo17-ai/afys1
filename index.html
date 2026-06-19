@@ -584,7 +584,7 @@ function openQRGate(){
 function renderQRGateSignup(qrError){
   $('#qrGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
-    <p class="sub" style="margin-bottom:0;">Es la primera vez que escaneás este QR. Creá tu cuenta de socio para registrar tu ingreso.</p>
+    <p class="sub" style="margin-bottom:0;">Escaneaste el QR del gimnasio. Creá tu cuenta de socio para registrar tu ingreso, o iniciá sesión si ya tenés una.</p>
     <label>Nombre y apellido</label>
     <input id="qrg_n" type="text" placeholder="Tu nombre completo">
     <label>Email (Gmail)</label>
@@ -601,6 +601,7 @@ function renderQRGateSignup(qrError){
     <input id="qrg_ob" type="text" placeholder="Bajar peso, ganar músculo, etc.">
     ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateCreateSocio()">Crear cuenta y registrar ingreso</button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateLoginForm()">Ya tengo cuenta, iniciar sesión</button>
     <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
   `;
 }
@@ -656,6 +657,40 @@ async function qrGateLoginAndCheckIn(email){
   const password = $('#qrg_login_p').value;
   const {error} = await sb.auth.signInWithPassword({email, password});
   if(error){ $('#qrLoginError').textContent = 'Contraseña incorrecta o cuenta sin confirmar.'; return; }
+  currentRole = 'socio';
+  currentSocioIdx = info.idx;
+  pendingQR = pendingQR || {tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY, email);
+  $('#qrGate').classList.add('hidden');
+  startScan();
+}
+
+function renderQRGateLoginForm(qrError){
+  $('#qrGateContent').innerHTML = `
+    <h1 style="font-size:20px;">👋 Iniciar sesión</h1>
+    <p class="sub" style="margin-bottom:0;">Ingresá con tu cuenta de socio para registrar tu entrada de hoy.</p>
+    <label>Email</label>
+    <input id="qrg_form_e" type="email" placeholder="tu@gmail.com">
+    <label>Contraseña</label>
+    <input id="qrg_form_p" type="password" placeholder="••••••••">
+    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginByForm()">Ingresar y marcar entrada</button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateSignup()">No tengo cuenta, crear una</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
+  `;
+}
+
+async function qrGateLoginByForm(){
+  const email = $('#qrg_form_e').value.trim().toLowerCase();
+  const password = $('#qrg_form_p').value;
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
+  const info = SOCIOS_LOGIN[email];
+  if(!info){
+    await sb.auth.signOut();
+    renderQRGateLoginForm('Esta cuenta no es de socio. Si sos personal del gimnasio, iniciá sesión desde la pantalla principal.');
+    return;
+  }
   currentRole = 'socio';
   currentSocioIdx = info.idx;
   pendingQR = pendingQR || {tipo:'general'};
