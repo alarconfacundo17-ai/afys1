@@ -1601,23 +1601,23 @@ function pageHorarios(){
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
   const totalH = CAL_END-CAL_START;
   return `
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Horario del gimnasio</h3>
-    <table><thead><tr>${DIAS_SEMANA.map(d=>`<th>${d}</th>`).join('')}</tr></thead>
+  <div class="card" style="margin-bottom:18px;font-size:12px;">
+    <h3 style="font-size:14px;margin-bottom:8px;">Horario del gimnasio</h3>
+    <table style="font-size:11.5px;"><thead><tr>${DIAS_SEMANA.map(d=>`<th style="padding:4px 6px;">${d}</th>`).join('')}</tr></thead>
     <tbody><tr>${DIAS_SEMANA.map(d=>{
       const h = GYM_HOURS[d];
       if(canEdit){
-        return `<td style="min-width:150px;">
-          ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
-            <input type="time" step="300" value="${tr.desde}" style="width:82px;" onchange="saveGymHour('${d}',${i},'desde',this.value)">
-            <span style="color:var(--text2);">-</span>
-            <input type="time" step="300" value="${tr.hasta}" style="width:82px;" onchange="saveGymHour('${d}',${i},'hasta',this.value)">
-            <button class="btn btn-outline btn-sm" style="padding:2px 7px;" onclick="removeGymTramo('${d}',${i})">×</button>
+        return `<td style="min-width:108px;padding:4px 6px;">
+          ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;">
+            <input type="time" step="300" value="${tr.desde}" style="width:64px;font-size:11px;padding:2px 4px;" onchange="saveGymHour('${d}',${i},'desde',this.value)">
+            <span style="color:var(--text2);font-size:10px;">-</span>
+            <input type="time" step="300" value="${tr.hasta}" style="width:64px;font-size:11px;padding:2px 4px;" onchange="saveGymHour('${d}',${i},'hasta',this.value)">
+            <button class="btn btn-outline btn-sm" style="padding:1px 5px;font-size:10px;" onclick="removeGymTramo('${d}',${i})">×</button>
           </div>`).join('')}
-          <button class="btn btn-outline btn-sm" onclick="addGymTramo('${d}')">+ tramo</button>
+          <button class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10.5px;" onclick="addGymTramo('${d}')">+ tramo</button>
         </td>`;
       }
-      return `<td>${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join('<br>'):'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
+      return `<td style="padding:4px 6px;">${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join('<br>'):'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
     }).join('')}</tr></tbody></table>
   </div>
   <div class="card">
