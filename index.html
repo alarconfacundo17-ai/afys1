@@ -2446,6 +2446,7 @@ function openInscriptosModal(idx){
 function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
 function socioClases(){
   const misReservas = socioReservas();
+  if(!CLASES_HOY.length) return `<h2>Clases disponibles</h2>${emptyState('ti-calendar-plus','Próximamente... todavía no hay clases cargadas.')}`;
   return `
   <h2>Clases disponibles</h2>
   ${CLASES_HOY.map((c,i)=>{
