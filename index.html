@@ -24,7 +24,7 @@ input,select,textarea{font-family:inherit;font-size:14px;padding:8px 10px;border
 .btn-sm{padding:7px 11px;font-size:12px;min-height:34px;min-width:34px;justify-content:center;}
 .btn:hover{opacity:.9;}
 .btn:active{opacity:.75;}
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13.5px;}
 th{text-align:left;padding:10px 8px;color:var(--text2);border-bottom:1px solid var(--border);font-weight:600;}
 td{padding:10px 8px;border-bottom:1px solid var(--border2);}
@@ -45,7 +45,7 @@ h3{font-size:15px;margin-bottom:10px;}
 /* LOGIN */
 #login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg2);}
 .login-box{box-shadow:0 4px 24px rgba(0,0,0,.08);}
-.login-box{background:#fff;border-radius:16px;padding:36px;width:380px;}
+.login-box{background:#fff;border-radius:16px;padding:36px;width:380px;max-width:92vw;}
 .login-box h1{font-size:24px;text-align:center;margin-bottom:4px;}
 .login-box p.sub{text-align:center;color:var(--text2);font-size:13px;margin-bottom:20px;}
 .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
@@ -87,15 +87,15 @@ h3{font-size:15px;margin-bottom:10px;}
 .dot-num{display:inline-flex;width:22px;height:22px;border-radius:50%;color:#fff;align-items:center;justify-content:center;font-size:11px;margin-right:8px;font-weight:700;}
 
 /* modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;}
-.modal-box{background:#fff;border-radius:14px;padding:24px;width:460px;max-height:86vh;overflow:auto;}
-.modal-box.wide{width:600px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:14px;}
+.modal-box{background:#fff;border-radius:14px;padding:24px;width:460px;max-width:100%;max-height:86vh;overflow:auto;}
+.modal-box.wide{width:600px;max-width:100%;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
 .modal-sticky-top{position:sticky;top:-24px;margin:-24px -24px 16px -24px;padding:24px 24px 12px 24px;background:#fff;z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
 .field{margin-bottom:12px;}
 .field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
 
 /* toggle */
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
@@ -141,9 +141,27 @@ h3{font-size:15px;margin-bottom:10px;}
 .qr-box{display:flex;justify-content:center;margin:16px 0;}
 
 @media(max-width:760px){
-  .sidebar{display:none;}
+  .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:120;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 16px rgba(0,0,0,.15);}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:110;}
+  .sidebar-overlay.open{display:block;}
+  #staffMenuBtn{display:inline-flex;}
   #staff{flex-direction:column;}
+  .topbar{padding:12px 14px;}
+  .content{padding:14px;}
+  .modal-box{padding:16px;}
+  .modal-sticky-top{margin:-16px -16px 16px -16px;padding:16px 16px 12px 16px;}
+  .login-box{padding:24px;}
+  .section-head{flex-wrap:wrap;gap:10px;}
+  table{font-size:12.5px;}
+  th,td{padding:8px 6px;}
 }
+@media(min-width:761px){
+  #staffMenuBtn{display:none;}
+  .sidebar-overlay{display:none !important;}
+}
+#staffMenuBtn{align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;font-size:18px;}
+#staffMenuBtn:hover{background:var(--bg2);}
 
 /* horarios - calendario semanal */
 .cal-wrap{overflow-x:auto;}
@@ -194,12 +212,16 @@ h3{font-size:15px;margin-bottom:10px;}
 
 <!-- ===================== STAFF (dueño/admin/profesor) ===================== -->
 <div id="staff" class="hidden">
+  <div class="sidebar-overlay" id="staffSidebarOverlay" onclick="toggleStaffSidebar(false)"></div>
   <div class="sidebar" id="staffSidebar"></div>
   <div class="main">
     <div class="topbar">
-      <div>
-        <b id="staffTitle">Panel</b>
-        <div class="role-tag" id="staffRoleTag"></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="staffMenuBtn" onclick="toggleStaffSidebar()"><i class="ti ti-menu-2"></i></button>
+        <div>
+          <b id="staffTitle">Panel</b>
+          <div class="role-tag" id="staffRoleTag"></div>
+        </div>
       </div>
       <div style="display:flex;gap:16px;align-items:center;">
         <div class="notif-wrap">
@@ -985,10 +1007,18 @@ function renderStaffSidebar(){
     staffPage = el.dataset.page;
     renderStaffSidebar();
     renderStaff();
+    toggleStaffSidebar(false);
   }));
   const tags={dueno:'Dueño',admin:'Admin',profesor:'Profesor'};
   const st = currentStaff();
   $('#staffRoleTag').textContent = tags[currentRole] + (st?` · ${st.n}`:'');
+}
+function toggleStaffSidebar(force){
+  const sb = $('#staffSidebar'), ov = $('#staffSidebarOverlay');
+  if(!sb) return;
+  const open = typeof force==='boolean' ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  if(ov) ov.classList.toggle('open', open);
 }
 
 /* ============ STAFF ROUTER ============ */
