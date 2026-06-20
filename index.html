@@ -24,7 +24,10 @@ input,select,textarea{font-family:inherit;font-size:14px;padding:8px 10px;border
 .btn-sm{padding:7px 11px;font-size:12px;min-height:34px;min-width:34px;justify-content:center;}
 .btn:hover{opacity:.9;}
 .btn:active{opacity:.75;}
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;overflow-x:auto;}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;overflow-x:auto;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.empty-state{text-align:center;padding:32px 12px;color:var(--text2);}
+.empty-state i{font-size:32px;display:block;margin-bottom:8px;opacity:.4;}
+.empty-state p{font-size:13px;}
 table{width:100%;border-collapse:collapse;font-size:13.5px;}
 th{text-align:left;padding:10px 8px;color:var(--text2);border-bottom:1px solid var(--border);font-weight:600;}
 td{padding:10px 8px;border-bottom:1px solid var(--border2);}
@@ -35,8 +38,8 @@ td{padding:10px 8px;border-bottom:1px solid var(--border2);}
 .b-info{background:#DBEAFE;color:#1E40AF;}
 .b-purple{background:#EDE9FE;color:#5B21B6;}
 .grid-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px;}
-.metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;}
-.metric .num{font-size:26px;font-weight:700;}
+.metric{background:#fff;border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.metric .num{font-size:26px;font-weight:700;color:var(--primary);}
 .metric .lbl{font-size:12.5px;color:var(--text2);margin-top:4px;}
 h2{font-size:20px;margin-bottom:14px;}
 h3{font-size:15px;margin-bottom:10px;}
@@ -87,9 +90,13 @@ h3{font-size:15px;margin-bottom:10px;}
 .dot-num{display:inline-flex;width:22px;height:22px;border-radius:50%;color:#fff;align-items:center;justify-content:center;font-size:11px;margin-right:8px;font-weight:700;}
 
 /* modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:14px;}
-.modal-box{background:#fff;border-radius:14px;padding:24px;width:460px;max-width:100%;max-height:86vh;overflow:auto;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:14px;animation:fadeIn .15s ease;}
+.modal-box{background:#fff;border-radius:14px;padding:24px;width:460px;max-width:100%;max-height:86vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.2);animation:modalIn .18s ease;}
 .modal-box.wide{width:600px;max-width:100%;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+#staffContent>*, #socioContent>*{animation:fadeInUp .22s ease;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
 .modal-sticky-top{position:sticky;top:-24px;margin:-24px -24px 16px -24px;padding:24px 24px 12px 24px;background:#fff;z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
@@ -456,6 +463,12 @@ async function loadState(){
 function $(sel,root){return (root||document).querySelector(sel);}
 function $all(sel,root){return [...(root||document).querySelectorAll(sel)];}
 function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function emptyState(icon, text){
+  return `<div class="empty-state"><i class="ti ${icon}"></i><p>${text}</p></div>`;
+}
+function emptyRow(icon, text, colspan){
+  return `<tr><td colspan="${colspan}"><div class="empty-state" style="padding:18px 12px;"><i class="ti ${icon}" style="font-size:24px;"></i><p>${text}</p></div></td></tr>`;
+}
 function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});}
 // Selector de hora en formato 24hs (00-23), reemplaza al <input type="time"> nativo
 // que en algunos celulares muestra AM/PM segun la configuracion regional del equipo.
@@ -948,7 +961,7 @@ function toggleNotif(who){
   panel.classList.toggle('hidden');
   if(open){
     const list = who==='staff' ? notifStaff : (notifSocio[currentSocioIdx]||[]);
-    panel.innerHTML = list.length ? list.map(n=>`<div class="notif-item">${esc(n.txt)} ${n.new?'<span class="new-tag">Nuevo</span>':''}</div>`).join('') : '<div class="notif-item">Sin notificaciones</div>';
+    panel.innerHTML = list.length ? list.map(n=>`<div class="notif-item">${esc(n.txt)} ${n.new?'<span class="new-tag">Nuevo</span>':''}</div>`).join('') : `<div class="notif-item">${emptyState('ti-bell-off','Sin notificaciones')}</div>`;
     list.forEach(n=>n.new=false);
     updateNotifDots();
   }
@@ -1087,7 +1100,7 @@ function pagePanel(){
   <div class="card" style="margin-bottom:18px;">
     <h3>Últimas entradas por QR</h3>
     <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
-    <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--text2);">Sin entradas todavía</td></tr>'}</tbody></table>
+    <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')||emptyRow('ti-door-enter','Sin entradas todavía',3)}</tbody></table>
   </div>
   ${currentRole!=='profesor'?(()=>{
     const meses = ingresosUltimosMeses(3);
@@ -1501,7 +1514,7 @@ function openNotasModal(idx){
             </span>
           </div>
         `}
-      </div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin notas</p>'}</div>
+      </div>`).join('')||emptyState('ti-notes-off','Sin notas')}</div>
     <div class="field"><label>Nueva nota</label><textarea id="nt_new" rows="3"></textarea></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="addNota(${idx})">Agregar</button></div>
   `);
@@ -1904,7 +1917,7 @@ function pageHorasProfes(profes){
     <h3>Horas semanales por profesor/a</h3>
     <p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Según los turnos cargados en el calendario semanal (visible solo para dueños).</p>
     <table><thead><tr><th>Profesor/a</th><th>Horas/semana</th></tr></thead>
-    <tbody>${semanal.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--text2);">Sin profesores cargados</td></tr>'}</tbody></table>
+    <tbody>${semanal.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin profesores cargados',2)}</tbody></table>
   </div>
   <div class="card" style="margin-top:18px;">
     <div class="section-head"><h3 style="margin:0;">Recuento mensual de horas</h3>
@@ -1915,7 +1928,7 @@ function pageHorasProfes(profes){
     </div>
     <p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Estimado a partir de cuántas veces cae cada día de la semana en el mes elegido, según los turnos fijos del calendario.</p>
     <table><thead><tr><th>Profesor/a</th><th>Horas en ${meses[horasMesSel.month]} ${horasMesSel.year}</th></tr></thead>
-    <tbody>${mensual.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||'<tr><td colspan="2" style="color:var(--text2);">Sin profesores cargados</td></tr>'}</tbody></table>
+    <tbody>${mensual.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin profesores cargados',2)}</tbody></table>
   </div>`;
 }
 function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
@@ -2018,7 +2031,7 @@ function openVideoModal(name){
   const canVideo = isSuperOwner() || hasPerm('subirVideos');
   openModal(`
     <div class="modal-head"><h3>Video — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
-    ${cur?videoPreviewHTML(cur):`<p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Sin video cargado todavía.</p>`}
+    ${cur?videoPreviewHTML(cur):emptyState('ti-video-off','Sin video cargado todavía.')}
     ${canVideo?`
       <div class="field"><label>Link de YouTube u otra página</label><input id="vid_link" placeholder="https://..." value="${esc(cur)}"></div>
       <div class="field"><label>O subí un video desde tu dispositivo</label><input id="vid_file" type="file" accept="video/*"></div>
@@ -2276,7 +2289,7 @@ function pagePagos(){
   </div>
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
-  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||`<tr><td colspan="${canEditPagos?5:4}" style="color:var(--text2);">Sin pagos registrados todavía</td></tr>`}</tbody></table>
+  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
   </div>`;
 }
 
@@ -2361,11 +2374,11 @@ function socioInicio(){
   </div>
   <div class="card" style="margin-bottom:16px;">
     <h3>Próximas clases reservadas</h3>
-    ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||'<p style="color:var(--text2);font-size:13px;">Sin clases reservadas</p>'}
+    ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
   </div>
   <div class="card">
     <h3>Rutinas activas</h3>
-    ${s.rs.map(r=>`<div class="badge b-purple" style="margin-right:6px;cursor:pointer;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();">${esc(r)}</div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin rutinas asignadas</p>'}
+    ${s.rs.map(r=>`<div class="badge b-purple" style="margin-right:6px;cursor:pointer;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();">${esc(r)}</div>`).join('')||emptyState('ti-barbell-off','Sin rutinas asignadas')}
   </div>`;
 }
 
@@ -2418,7 +2431,7 @@ function openInscriptosModal(idx){
     <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">${esc(c.d||'')} ${c.h} — ${list.length} inscripto${list.length===1?'':'s'}</p>
     ${list.length?`<table><thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead><tbody>
       ${list.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.tel||'-')}</td></tr>`).join('')}
-    </tbody></table>`:`<p style="color:var(--text2);font-size:13px;">Todavía nadie se anotó a esta clase.</p>`}
+    </tbody></table>`:emptyState('ti-users-group','Todavía nadie se anotó a esta clase.')}
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
   `);
 }
@@ -2450,7 +2463,7 @@ function toggleReserva(i){
 function socioRutina(){
   const s = SOCIOS[currentSocioIdx];
   const misRutinas = s.rs.map(n=>RUTINAS.find(r=>r.n===n)).filter(Boolean);
-  if(!misRutinas.length) return `<h2>Rutina</h2><p style="color:var(--text2);">No tienes rutinas asignadas.</p>`;
+  if(!misRutinas.length) return `<h2>Rutina</h2>${emptyState('ti-barbell-off','No tienes rutinas asignadas.')}`;
   if(socioActiveRutinaIdx>=misRutinas.length) socioActiveRutinaIdx=0;
   const r = misRutinas[socioActiveRutinaIdx];
   return `
@@ -2482,7 +2495,7 @@ function socioAsistencia(){
   </div>
   <div class="card">
     <h3>Historial</h3>
-    ${misRegs.map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin registros aún</p>'}
+    ${misRegs.map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
   </div>`;
 }
 
@@ -2495,7 +2508,7 @@ function socioCuenta(){
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="card">
     <h3>Historial de pagos</h3>
-    ${PAGOS.filter(p=>p.n===s.n).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:12px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||'<p style="color:var(--text2);font-size:13px;">Sin pagos registrados</p>'}
+    ${PAGOS.filter(p=>p.n===s.n).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:12px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
   </div>`;
 }
 
