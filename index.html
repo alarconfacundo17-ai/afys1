@@ -141,6 +141,11 @@ h3{font-size:15px;margin-bottom:10px;}
 .welcome-banner h2{font-size:14.5px;margin-bottom:3px;color:var(--text);}
 .welcome-banner p{font-size:12px;color:var(--text2);margin:0;line-height:1.35;}
 @media(max-width:480px){.welcome-banner{padding:10px 14px 12px;}.welcome-logo{max-width:140px;}}
+.ej-picker{position:relative;}
+.ej-picker input{width:100%;}
+.ej-picker-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;max-height:190px;overflow:auto;z-index:60;box-shadow:0 6px 16px rgba(0,0,0,.12);margin-top:3px;}
+.ej-picker-item{padding:8px 10px;font-size:12.5px;cursor:pointer;display:flex;gap:6px;align-items:center;}
+.ej-picker-item:hover{background:var(--bg2);}
 .day-pills{display:flex;gap:7px;flex-wrap:wrap;}
 .day-pill{padding:9px 14px;font-size:13px;font-weight:600;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:.15s;min-width:48px;text-align:center;}
 .day-pill:hover{border-color:var(--primary);}
@@ -1888,6 +1893,33 @@ function ejOptionsHTML(selected){
   return `<option value="">Elegir ejercicio...</option>` +
     groups.map(g=>`<optgroup label="${esc(g)}">${EJD[g].map(e=>`<option value="${esc(e)}" ${e===selected?'selected':''}>${esc(e)}</option>`).join('')}</optgroup>`).join('');
 }
+function ejFlatList(){ return Object.keys(EJD).flatMap(g=>EJD[g].map(e=>({n:e,g}))); }
+function renderEjPickerList(i, search){
+  const q = (search||'').toLowerCase();
+  const list = ejFlatList().filter(o=>o.n.toLowerCase().includes(q));
+  const listEl = document.getElementById('rtEjList'+i);
+  if(!listEl) return;
+  listEl.innerHTML = list.length ? list.map(o=>`<div class="ej-picker-item" onclick="selectRutinaEj(${i},'${o.n.replace(/'/g,"\\'")}')"><span class="badge" style="background:${EJC[o.g]}22;color:${EJC[o.g]}">${esc(o.g)}</span>${esc(o.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
+  listEl.classList.remove('hidden');
+}
+function hideEjPicker(i){
+  const listEl = document.getElementById('rtEjList'+i);
+  if(listEl) listEl.classList.add('hidden');
+}
+function selectRutinaEj(i, name){
+  newRutinaEjs[i].n = name;
+  const input = document.getElementById('rtEjSearch'+i);
+  if(input) input.value = name;
+  hideEjPicker(i);
+  const g = ejGrupo(name);
+  const badge = document.getElementById('rtEjBadge'+i);
+  if(badge){
+    badge.textContent = g||'';
+    badge.style.visibility = g?'visible':'hidden';
+    badge.style.background = g?EJC[g]+'22':'';
+    badge.style.color = g?EJC[g]:'';
+  }
+}
 function renderRutinaModalBody(){
   const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
   openModal(`
@@ -1904,8 +1936,11 @@ function renderRutinaModalBody(){
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(newRutinaEjs,dragSrcIdx,${i},renderRutinaModalBody)">
         <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
         <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
-        ${g?`<span class="badge" style="flex:0 0 auto;background:${EJC[g]}22;color:${EJC[g]}">${esc(g)}</span>`:''}
-        <select onchange="newRutinaEjs[${i}].n=this.value;renderRutinaModalBody()" style="flex:2;">${ejOptionsHTML(e.n)}</select>
+        <span id="rtEjBadge${i}" class="badge" style="flex:0 0 auto;${g?`background:${EJC[g]}22;color:${EJC[g]}`:'visibility:hidden;'}">${g?esc(g):''}</span>
+        <div class="ej-picker" style="flex:2;">
+          <input id="rtEjSearch${i}" type="text" autocomplete="off" placeholder="Buscar ejercicio..." value="${esc(e.n)}" oninput="renderEjPickerList(${i},this.value)" onfocus="renderEjPickerList(${i},this.value)" onblur="setTimeout(()=>hideEjPicker(${i}),150)">
+          <div id="rtEjList${i}" class="ej-picker-list hidden"></div>
+        </div>
         <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
         <input placeholder="Reps" value="${esc(e.r)}" oninput="newRutinaEjs[${i}].r=this.value" style="flex:1;">
         <button class="btn btn-outline btn-sm" onclick="removeRutinaEj(${i})">×</button>
