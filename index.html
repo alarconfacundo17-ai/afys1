@@ -363,6 +363,7 @@ let DUENO_EMAIL = null;
 let PENDING_INVITES = [];
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 // cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
 let GYM_HOURS = {
   Lunes:     [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
@@ -2415,6 +2416,11 @@ function pagePagos(){
   <table><thead><tr><th>Nombre</th><th>Plan</th><th>Vence</th><th>Estado</th></tr></thead>
   <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
   </div>`:''}
+  <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
+  <div class="card" style="margin-bottom:16px;">
+  <table><thead><tr><th>Nombre</th><th>Plan</th><th></th></tr></thead>
+  <tbody>${SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('')||emptyRow('ti-users','Sin socios todavía',3)}</tbody></table>
+  </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
   ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
   </div>
@@ -2422,6 +2428,27 @@ function pagePagos(){
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
   <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
   </div>`;
+}
+function openHistorialAnualModal(idx, year){
+  const s = SOCIOS[idx];
+  year = year || new Date().getFullYear();
+  const entrenoMes = m => REGS.some(r=>r.i===s.i && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
+  const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return p.n===s.n && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
+  openModal(`
+    <div class="modal-head"><h3>Historial ${year} — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year-1})">‹ ${year-1}</button>
+      <b style="font-size:14px;">${year}</b>
+      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year+1})">${year+1} ›</button>
+    </div>
+    <table><thead><tr><th>Mes</th><th>Entrenó</th><th>Pagó</th></tr></thead>
+    <tbody>${MESES.map((nombre,m)=>`<tr>
+      <td>${nombre}</td>
+      <td>${entrenoMes(m)?'<span class="badge b-ok">✓</span>':'<span class="badge b-err">✕</span>'}</td>
+      <td>${pagoMes(m)?'<span class="badge b-ok">✓</span>':'<span class="badge b-err">✕</span>'}</td>
+    </tr>`).join('')}</tbody></table>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
+  `);
 }
 
 function bindStaffEvents(){}
