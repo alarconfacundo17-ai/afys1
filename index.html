@@ -1320,16 +1320,12 @@ function pageSocios(){
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Plan</th><th>Rutinas</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Hoy</th><th>Estado</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th><th>Plan</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Hoy</th><th>Estado</th><th></th></tr></thead>
   <tbody>
   ${ordered.map(({s,idx})=>`
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       <td>${esc(s.pl)}</td>
-      <td>${s.rs.map(r=>{
-        const dias = s.rsDias && s.rsDias[r];
-        return `<span class="badge b-purple" title="${dias&&dias.length?esc(dias.join(', ')):''}">${esc(r)}${dias&&dias.length?` (${dias.map(d=>d.slice(0,3)).join('/')})`:''}</span>`;
-      }).join(' ')||'-'}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
       <td>${s.hoy?`<span class="badge b-ok">✓ ${s.entradaHora}</span>`:'-'}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
