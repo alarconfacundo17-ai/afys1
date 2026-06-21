@@ -1331,16 +1331,28 @@ function pageSocios(){
       <td style="display:flex;gap:6px;">
         ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
         <button class="btn btn-outline btn-sm" title="Notas" onclick="openNotasModal(${idx})">📝</button>
-        ${hasPerm('editarSocios')||hasPerm('editarFichas')||isSuperOwner()?`<button class="btn btn-outline btn-sm" title="Editar ficha" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit"></i></button>`:''}
-        ${hasPerm('removerSocios')||isSuperOwner()?(s.activo===false
-          ?`<button class="btn btn-outline btn-sm" title="Reactivar socio" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i></button>`
-          :`<button class="btn btn-outline btn-sm" title="Dar de baja" onclick="openBajaModal(${idx})">✕</button>`):''}
-        ${hasPerm('removerSocios')||isSuperOwner()?`<button class="btn btn-outline btn-sm" style="color:var(--red);" title="Eliminar completamente" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash"></i></button>`:''}
+        <button class="btn btn-outline btn-sm" title="Opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots"></i></button>
       </td>
     </tr>
   `).join('')}
   </tbody></table>
   </div>`;
+}
+function openSocioOpcionesModal(idx){
+  const s = SOCIOS[idx];
+  const canEdit = hasPerm('editarSocios')||hasPerm('editarFichas')||isSuperOwner();
+  const canRemove = hasPerm('removerSocios')||isSuperOwner();
+  openModal(`
+    <div class="modal-head"><h3>${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${canEdit?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit"></i>Editar ficha</button>`:''}
+      ${canRemove?(s.activo===false
+        ?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i>Reactivar socio</button>`
+        :`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openBajaModal(${idx})"><i class="ti ti-user-off"></i>Dar de baja</button>`):''}
+      ${canRemove?`<button class="btn btn-outline" style="justify-content:flex-start;color:var(--red);" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash"></i>Eliminar completamente</button>`:''}
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
 }
 function openBajaModal(idx){
   const s = SOCIOS[idx];
