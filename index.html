@@ -730,9 +730,10 @@ async function qrGateCreateSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
+  notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
   persist();
   currentRole = 'socio';
   currentSocioIdx = idx;
@@ -966,16 +967,47 @@ function updateNotifDots(){
   $('#socioNotifDot').classList.toggle('hidden', !mine.some(n=>n.new));
 }
 
+function renderNotifPanel(who){
+  const panel = who==='staff' ? $('#staffNotifPanel') : $('#socioNotifPanel');
+  const list = who==='staff' ? notifStaff : (notifSocio[currentSocioIdx]||[]);
+  const canResolve = who==='staff' && (currentRole==='dueno' || currentRole==='admin');
+  panel.innerHTML = list.length ? list.map(n=>{
+    const showAlta = n.altaIdx!=null && SOCIOS[n.altaIdx] && SOCIOS[n.altaIdx].altaPendiente;
+    const acciones = showAlta && canResolve ? `
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();resolverAltaPrevia(${n.altaIdx},false)">No, es nuevo</button>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();resolverAltaPrevia(${n.altaIdx},true)">Sí, ya era socio</button>
+      </div>` : '';
+    return `<div class="notif-item">${esc(n.txt)} ${n.new?'<span class="new-tag">Nuevo</span>':''}${acciones}</div>`;
+  }).join('') : `<div class="notif-item">${emptyState('ti-bell-off','Sin notificaciones')}</div>`;
+}
+
 function toggleNotif(who){
   const panel = who==='staff' ? $('#staffNotifPanel') : $('#socioNotifPanel');
   const open = panel.classList.contains('hidden');
   panel.classList.toggle('hidden');
   if(open){
     const list = who==='staff' ? notifStaff : (notifSocio[currentSocioIdx]||[]);
-    panel.innerHTML = list.length ? list.map(n=>`<div class="notif-item">${esc(n.txt)} ${n.new?'<span class="new-tag">Nuevo</span>':''}</div>`).join('') : `<div class="notif-item">${emptyState('ti-bell-off','Sin notificaciones')}</div>`;
+    renderNotifPanel(who);
     list.forEach(n=>n.new=false);
     updateNotifDots();
   }
+}
+
+function resolverAltaPrevia(idx, eraSocio){
+  const s = SOCIOS[idx];
+  if(!s) return;
+  s.altaPendiente = false;
+  if(eraSocio){
+    s.es = 'ok';
+    s.nt.push(`Marcado como socio anterior a la app, pago al día (${new Date().toLocaleDateString('es-AR')}). Falta asignarle un plan.`);
+  } else {
+    s.nt.push(`Confirmado como socio nuevo desde la app (${new Date().toLocaleDateString('es-AR')}).`);
+  }
+  notifStaff = notifStaff.filter(n=>n.altaIdx!==idx);
+  persist();
+  renderNotifPanel('staff');
+  if(staffPage) renderStaff();
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.notif-wrap')){
