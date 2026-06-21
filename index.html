@@ -1506,7 +1506,7 @@ function openSocioRutinasModal(si, search){
   openModal(`
     <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <input placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
-    <div style="max-height:340px;overflow:auto;">
+    <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.length?list.map(r=>{
       const has = s.rs.includes(r.n);
       const maxed = s.rs.length>=4;
@@ -1795,7 +1795,7 @@ function openAsignarModal(idx, search){
   openModal(`
     <div class="modal-head"><h3>Asignar — ${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
     <input placeholder="Buscar socio..." value="${esc(search)}" oninput="openAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
-    <div style="max-height:340px;overflow:auto;">
+    <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.map(s=>{
       const si = SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
@@ -2428,7 +2428,15 @@ function bindStaffEvents(){}
 
 /* ============ MODAL ============ */
 function openModal(html, size){
+  const prevBox = document.querySelector('.modal-box');
+  const prevBoxTop = prevBox ? prevBox.scrollTop : 0;
+  const prevList = document.getElementById('modalScrollList');
+  const prevListTop = prevList ? prevList.scrollTop : 0;
   $('#modalHost').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box ${size==='wide'?'wide':''}">${html}</div></div>`;
+  const box = document.querySelector('.modal-box');
+  if(box) box.scrollTop = prevBoxTop;
+  const list = document.getElementById('modalScrollList');
+  if(list) list.scrollTop = prevListTop;
 }
 function closeModal(){ $('#modalHost').innerHTML=''; }
 
