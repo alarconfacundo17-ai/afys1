@@ -2444,7 +2444,7 @@ function openHistorialAnualModal(idx, year){
     <table><thead><tr><th>Mes</th><th>Entrenó</th><th>Pagó</th></tr></thead>
     <tbody>${MESES.map((nombre,m)=>`<tr>
       <td>${nombre}</td>
-      <td>${entrenoMes(m)?'<span class="badge b-ok">✓</span>':'<span class="badge b-err">✕</span>'}</td>
+      <td>${entrenoMes(m)?'<span class="badge b-ok">✓</span>':'-'}</td>
       <td>${pagoMes(m)?'<span class="badge b-ok">✓</span>':'<span class="badge b-err">✕</span>'}</td>
     </tr>`).join('')}</tbody></table>
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
