@@ -1509,6 +1509,7 @@ function openSocioRutinasModal(si, search){
   const list = RUTINAS.filter(r=>r.n.toLowerCase().includes(search.toLowerCase()));
   if(!s.rsDias) s.rsDias = {};
   if(!s.rsNotas) s.rsNotas = {};
+  if(!s.rsOverride) s.rsOverride = {};
   openModal(`
     <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <input placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
@@ -1521,7 +1522,10 @@ function openSocioRutinasModal(si, search){
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(r.n)}</b>
-          ${has?`<button class="btn btn-outline btn-sm" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>`
+          ${has?`<span style="display:flex;gap:6px;">
+              <button class="btn btn-outline btn-sm" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Editar ejercicios'}</button>
+              <button class="btn btn-outline btn-sm" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
+            </span>`
                 :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
         </div>
         ${has?`<div style="margin-top:10px;">
@@ -1573,6 +1577,54 @@ function setRutinaDias(si, rname, dias, search){
   s.rsDias[rname] = [...dias];
   persist();
   openSocioRutinasModal(si, search);
+}
+let socioEjEditArr = null, socioEjEditSi = null, socioEjEditRname = null;
+function openSocioRutinaEjsModal(si, rname){
+  const s = SOCIOS[si];
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+  if(!s.rsOverride) s.rsOverride = {};
+  const base = s.rsOverride[rname] ? s.rsOverride[rname] : r.ejs;
+  socioEjEditArr = base.length ? base.map(e=>({n:e.n,s:e.s,r:e.r,kg:e.kg||''})) : [{n:'',s:3,r:'10',kg:''}];
+  socioEjEditSi = si;
+  socioEjEditRname = rname;
+  currentEjsArr = socioEjEditArr;
+  currentEjsRenderFn = renderSocioEjModalBody;
+  renderSocioEjModalBody();
+}
+function renderSocioEjModalBody(){
+  const s = SOCIOS[socioEjEditSi];
+  const rname = socioEjEditRname;
+  const hasOverride = !!(s.rsOverride && s.rsOverride[rname]);
+  openModal(`
+    <div class="modal-head"><h3>Ejercicios — ${esc(rname)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12px;margin-top:-6px;margin-bottom:10px;">Estos cambios sólo afectan a <b>${esc(s.n)}</b>. La rutina original no se modifica para los demás socios.</p>
+    <div id="rtEjs">
+    ${socioEjEditArr.map((e,i)=>ejRowHTML(i,e,true,false)).join('')}
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
+    <div class="modal-actions" style="justify-content:space-between;">
+      ${hasOverride?`<button class="btn btn-outline" onclick="resetSocioRutinaEjs(${socioEjEditSi},'${rname.replace(/'/g,"\\'")}')">Restablecer original</button>`:'<span></span>'}
+      <span>
+        <button class="btn btn-outline" onclick="openSocioRutinasModal(${socioEjEditSi})">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveSocioRutinaEjs()">Guardar</button>
+      </span>
+    </div>
+  `,'wide');
+}
+function saveSocioRutinaEjs(){
+  const s = SOCIOS[socioEjEditSi];
+  const ejs = socioEjEditArr.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r,kg:e.kg||'',v:''}));
+  if(!s.rsOverride) s.rsOverride = {};
+  s.rsOverride[socioEjEditRname] = ejs;
+  persist();
+  openSocioRutinasModal(socioEjEditSi);
+}
+function resetSocioRutinaEjs(si, rname){
+  const s = SOCIOS[si];
+  if(s.rsOverride) delete s.rsOverride[rname];
+  persist();
+  openSocioRutinasModal(si);
 }
 
 let editPagoIdx = null;
@@ -1877,6 +1929,8 @@ function quitarRutina(si, rname, idx, search){
 
 let newRutinaEjs = [{n:'',s:3,r:'10'}];
 let editRutinaIdx = null;
+let currentEjsArr = newRutinaEjs;
+let currentEjsRenderFn = ()=>renderRutinaModalBody();
 function openRutinaModal(idx){
   editRutinaIdx = (typeof idx==='number') ? idx : null;
   if(editRutinaIdx!==null){
@@ -1885,6 +1939,8 @@ function openRutinaModal(idx){
   } else {
     newRutinaEjs = [{n:'',s:3,r:'10'}];
   }
+  currentEjsArr = newRutinaEjs;
+  currentEjsRenderFn = renderRutinaModalBody;
   renderRutinaModalBody();
 }
 function ejGrupo(name){ return Object.keys(EJD).find(g=>EJD[g].includes(name)); }
@@ -1899,15 +1955,15 @@ function renderEjPickerList(i, search){
   const list = ejFlatList().filter(o=>o.n.toLowerCase().includes(q));
   const listEl = document.getElementById('rtEjList'+i);
   if(!listEl) return;
-  listEl.innerHTML = list.length ? list.map(o=>`<div class="ej-picker-item" onclick="selectRutinaEj(${i},'${o.n.replace(/'/g,"\\'")}')"><span class="badge" style="background:${EJC[o.g]}22;color:${EJC[o.g]}">${esc(o.g)}</span>${esc(o.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
+  listEl.innerHTML = list.length ? list.map(o=>`<div class="ej-picker-item" onclick="selectEjAt(${i},'${o.n.replace(/'/g,"\\'")}')"><span class="badge" style="background:${EJC[o.g]}22;color:${EJC[o.g]}">${esc(o.g)}</span>${esc(o.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
   listEl.classList.remove('hidden');
 }
 function hideEjPicker(i){
   const listEl = document.getElementById('rtEjList'+i);
   if(listEl) listEl.classList.add('hidden');
 }
-function selectRutinaEj(i, name){
-  newRutinaEjs[i].n = name;
+function selectEjAt(i, name){
+  currentEjsArr[i].n = name;
   const input = document.getElementById('rtEjSearch'+i);
   if(input) input.value = name;
   hideEjPicker(i);
@@ -1920,6 +1976,24 @@ function selectRutinaEj(i, name){
     badge.style.color = g?EJC[g]:'';
   }
 }
+function ejRowHTML(i, e, showKg, draggable){
+  const g = ejGrupo(e.n);
+  return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ${draggable?`ondragover="event.preventDefault()" ondrop="dragReorder(currentEjsArr,dragSrcIdx,${i},currentEjsRenderFn)"`:''}>
+    ${draggable?`<span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>`:''}
+    <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
+    <span id="rtEjBadge${i}" class="badge" style="flex:0 0 auto;${g?`background:${EJC[g]}22;color:${EJC[g]}`:'visibility:hidden;'}">${g?esc(g):''}</span>
+    <div class="ej-picker" style="flex:2;">
+      <input id="rtEjSearch${i}" type="text" autocomplete="off" placeholder="Buscar ejercicio..." value="${esc(e.n)}" oninput="renderEjPickerList(${i},this.value)" onfocus="renderEjPickerList(${i},this.value)" onblur="setTimeout(()=>hideEjPicker(${i}),150)">
+      <div id="rtEjList${i}" class="ej-picker-list hidden"></div>
+    </div>
+    <input placeholder="Series" value="${e.s}" oninput="currentEjsArr[${i}].s=this.value" style="flex:1;">
+    <input placeholder="Reps" value="${esc(e.r)}" oninput="currentEjsArr[${i}].r=this.value" style="flex:1;">
+    ${showKg?`<input placeholder="Kg" value="${esc(e.kg||'')}" oninput="currentEjsArr[${i}].kg=this.value" style="flex:1;">`:''}
+    <button class="btn btn-outline btn-sm" onclick="removeEjRow(${i})">×</button>
+  </div>`;
+}
+function addEjRow(){ currentEjsArr.push({n:'',s:3,r:'10',kg:''}); currentEjsRenderFn(); }
+function removeEjRow(i){ currentEjsArr.splice(i,1); currentEjsRenderFn(); }
 function renderRutinaModalBody(){
   const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
   openModal(`
@@ -1932,27 +2006,13 @@ function renderRutinaModalBody(){
     <h3>Ejercicios</h3>
     <p style="color:var(--text2);font-size:12px;margin-top:-6px;margin-bottom:10px;">Se eligen de la batería de ejercicios, agrupados por tipo (Core, Piernas, etc).</p>
     <div id="rtEjs">
-    ${newRutinaEjs.map((e,i)=>{ const g = ejGrupo(e.n); return `
-      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(newRutinaEjs,dragSrcIdx,${i},renderRutinaModalBody)">
-        <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
-        <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
-        <span id="rtEjBadge${i}" class="badge" style="flex:0 0 auto;${g?`background:${EJC[g]}22;color:${EJC[g]}`:'visibility:hidden;'}">${g?esc(g):''}</span>
-        <div class="ej-picker" style="flex:2;">
-          <input id="rtEjSearch${i}" type="text" autocomplete="off" placeholder="Buscar ejercicio..." value="${esc(e.n)}" oninput="renderEjPickerList(${i},this.value)" onfocus="renderEjPickerList(${i},this.value)" onblur="setTimeout(()=>hideEjPicker(${i}),150)">
-          <div id="rtEjList${i}" class="ej-picker-list hidden"></div>
-        </div>
-        <input placeholder="Series" value="${e.s}" oninput="newRutinaEjs[${i}].s=this.value" style="flex:1;">
-        <input placeholder="Reps" value="${esc(e.r)}" oninput="newRutinaEjs[${i}].r=this.value" style="flex:1;">
-        <button class="btn btn-outline btn-sm" onclick="removeRutinaEj(${i})">×</button>
-      </div>`;}).join('')}
+    ${newRutinaEjs.map((e,i)=>ejRowHTML(i,e,false,true)).join('')}
     </div>
-    <button class="btn btn-outline btn-sm" onclick="addRutinaEj()">+ Agregar ejercicio</button>
+    <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <p style="color:var(--text2);font-size:12px;margin-top:6px;">¿No encontrás el ejercicio? Cargalo primero desde la sección Ejercicios.</p>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveRutina()">Guardar</button></div>
   `,'wide');
 }
-function addRutinaEj(){ newRutinaEjs.push({n:'',s:3,r:'10'}); renderRutinaModalBody(); }
-function removeRutinaEj(i){ newRutinaEjs.splice(i,1); renderRutinaModalBody(); }
 let dragSrcIdx = null;
 function dragReorder(arr, from, to, renderFn){
   if(from===null || from===undefined || from===to) return;
@@ -2687,7 +2747,7 @@ function socioRutina(){
   ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">📅 Días: <b>${s.rsDias[r.n].join(', ')}</b></p>`:''}
   ${(s.rsNotas&&s.rsNotas[r.n])?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;background:var(--bg2);padding:8px 10px;border-radius:8px;">📝 ${esc(s.rsNotas[r.n])}</p>`:''}
   <div class="card">
-    ${r.ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)})</span></span>${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}</div>`).join('')}
+    ${(()=>{ const ejs = (s.rsOverride&&s.rsOverride[r.n]) ? s.rsOverride[r.n] : r.ejs; return ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)}${e.kg?` · ${esc(e.kg)}kg`:''})</span></span>${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}</div>`).join(''); })()}
   </div>`;
 }
 function socioAsistencia(){
