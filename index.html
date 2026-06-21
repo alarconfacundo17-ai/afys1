@@ -136,11 +136,11 @@ h3{font-size:15px;margin-bottom:10px;}
 .bn-item.active{color:var(--primary);}
 .s-page{display:none;}
 .s-page.active{display:block;}
-.welcome-banner{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);animation:fadeInUp .25s ease;}
-.welcome-logo{width:60px;height:60px;object-fit:contain;flex-shrink:0;}
+.welcome-banner{display:flex;flex-direction:column;align-items:center;text-align:center;background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 20px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);animation:fadeInUp .25s ease;overflow:hidden;}
+.welcome-logo{width:100%;max-width:280px;height:auto;object-fit:contain;margin-bottom:6px;}
 .welcome-banner h2{font-size:16.5px;margin-bottom:4px;color:var(--text);}
 .welcome-banner p{font-size:13px;color:var(--text2);margin:0;line-height:1.4;}
-@media(max-width:480px){.welcome-banner{flex-direction:column;text-align:center;padding:20px 16px;}.welcome-logo{width:72px;height:72px;}}
+@media(max-width:480px){.welcome-banner{padding:12px 16px 16px;}.welcome-logo{max-width:220px;}}
 .profile-card{background:linear-gradient(135deg,#3B82C9,#60A5FA);color:#fff;border-radius:18px;padding:22px 22px 20px;margin-bottom:16px;position:relative;box-shadow:0 4px 14px rgba(59,130,201,.25);}
 .avatar{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;margin-bottom:10px;}
 .profile-card .pname{font-size:17px;font-weight:700;margin-bottom:8px;}
