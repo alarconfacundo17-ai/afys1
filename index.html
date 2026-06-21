@@ -249,6 +249,10 @@ h3{font-size:15px;margin-bottom:10px;}
           <div class="role-tag" id="staffRoleTag"></div>
         </div>
       </div>
+      <div class="ej-picker" style="position:relative;flex:1;max-width:240px;margin:0 12px;">
+        <input id="staffGlobalSearch" type="text" autocomplete="off" placeholder="Buscar socio..." oninput="renderStaffSearchResults(this.value)" onfocus="renderStaffSearchResults(this.value)" onblur="setTimeout(hideStaffSearchResults,150)">
+        <div id="staffSearchResults" class="ej-picker-list hidden"></div>
+      </div>
       <div style="display:flex;gap:16px;align-items:center;">
         <div class="notif-wrap">
           <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
@@ -1080,6 +1084,28 @@ function renderStaffSidebar(){
   const st = currentStaff();
   $('#staffRoleTag').textContent = tags[currentRole] + (st?` · ${st.n}`:'');
 }
+function renderStaffSearchResults(q){
+  const list = document.getElementById('staffSearchResults');
+  if(!list) return;
+  q = (q||'').trim().toLowerCase();
+  if(!q){ list.classList.add('hidden'); return; }
+  const res = SOCIOS.map((s,i)=>({s,i})).filter(o=>o.s.n.toLowerCase().includes(q)).slice(0,8);
+  list.innerHTML = res.length ? res.map(o=>`<div class="ej-picker-item" onclick="goToSocioFromSearch(${o.i})">${esc(o.s.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
+  list.classList.remove('hidden');
+}
+function hideStaffSearchResults(){
+  const list = document.getElementById('staffSearchResults');
+  if(list) list.classList.add('hidden');
+}
+function goToSocioFromSearch(idx){
+  hideStaffSearchResults();
+  const input = document.getElementById('staffGlobalSearch');
+  if(input) input.value = '';
+  staffPage = 'socios';
+  renderStaffSidebar();
+  renderStaff();
+  openEditSocioModal(idx);
+}
 function toggleStaffSidebar(force){
   const sb = $('#staffSidebar'), ov = $('#staffSidebarOverlay');
   if(!sb) return;
@@ -1151,6 +1177,20 @@ function pagePanel(){
   }
   return `
   <div class="grid-metrics">${metrics}</div>
+  ${currentRole==='dueno'?(()=>{
+    const hoy = new Date();
+    const enUnaSemana = new Date(hoy.getTime()+7*86400000);
+    const vencenSemana = SOCIOS.filter(s=>s.activo!==false && s.vence && new Date(s.vence)>=hoy && new Date(s.vence)<=enUnaSemana).length;
+    const atraso15 = SOCIOS.filter(s=>{
+      if(s.activo===false || s.es!=='de' || !s.vence) return false;
+      const d = new Date(s.vence);
+      return !isNaN(d) && Math.floor((hoy-d)/86400000)>=15;
+    }).length;
+    return `<div class="card" style="margin-bottom:18px;display:flex;gap:28px;">
+      <div><b style="font-size:22px;">${vencenSemana}</b><div style="color:var(--text2);font-size:12.5px;">Vencen esta semana</div></div>
+      <div><b style="font-size:22px;">${atraso15}</b><div style="color:var(--text2);font-size:12.5px;">Atraso +15 días</div></div>
+    </div>`;
+  })():''}
   <div class="card" style="margin-bottom:18px;">
     <h3>Últimas entradas por QR</h3>
     <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
@@ -2747,8 +2787,24 @@ function socioRutina(){
   ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">📅 Días: <b>${s.rsDias[r.n].join(', ')}</b></p>`:''}
   ${(s.rsNotas&&s.rsNotas[r.n])?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;background:var(--bg2);padding:8px 10px;border-radius:8px;">📝 ${esc(s.rsNotas[r.n])}</p>`:''}
   <div class="card">
-    ${(()=>{ const ejs = (s.rsOverride&&s.rsOverride[r.n]) ? s.rsOverride[r.n] : r.ejs; return ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)}${e.kg?` · ${esc(e.kg)}kg`:''})</span></span>${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}</div>`).join(''); })()}
+    ${(()=>{
+      const ejs = (s.rsOverride&&s.rsOverride[r.n]) ? s.rsOverride[r.n] : r.ejs;
+      const miPeso = (s.rsMiPeso&&s.rsMiPeso[r.n]) || {};
+      return ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)}${e.kg?` · ${esc(e.kg)}kg`:''})</span></span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${r.n.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:64px;font-size:11.5px;padding:5px 7px;">
+          ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
+        </span>
+      </div>`).join('');
+    })()}
   </div>`;
+}
+function setMiPesoEj(si, rname, ejName, val){
+  const s = SOCIOS[si];
+  if(!s.rsMiPeso) s.rsMiPeso = {};
+  if(!s.rsMiPeso[rname]) s.rsMiPeso[rname] = {};
+  s.rsMiPeso[rname][ejName] = val;
+  persist();
 }
 function socioAsistencia(){
   const s = SOCIOS[currentSocioIdx];
