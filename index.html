@@ -1447,37 +1447,29 @@ function saveSocio(){
 
 function openEditSocioModal(idx){
   const s = SOCIOS[idx];
-  const hasCumple = !!s.cumple;
   openModal(`
     <div class="modal-head"><h3>Editar ficha — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre y apellido</label><input id="es_n" value="${esc(s.n)}"></div>
     <div class="field"><label>Email (Gmail)</label><input id="es_email" type="email" value="${esc(s.email||'')}"></div>
     <div class="field"><label>Teléfono</label><input id="es_tel" type="tel" value="${esc(s.tel||'')}"></div>
-    <div class="field"><label>Fecha de nacimiento</label><input id="es_cumple" type="date" value="${s.cumple||''}" oninput="onEsCumpleInput()"></div>
-    <div class="field"><label>Edad${hasCumple?' (calculada automáticamente)':''}</label><input id="es_ed" type="number" value="${getEdad(s)||''}" ${hasCumple?'disabled':''}></div>
     <div class="field"><label>Peso (kg, opcional)</label><input id="es_pe" type="number" value="${s.pe||''}"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="es_ob" value="${esc(s.ob||'')}"></div>
     <div class="field"><label>Plan</label><select id="es_pl">${['Mensual','Trimestral','Semestral'].map(p=>`<option ${s.pl===p?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveEditSocio(${idx})">Guardar</button></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-outline" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell"></i>Rutinas</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditSocio(${idx})">Guardar</button>
+      </div>
+    </div>
   `);
-}
-function onEsCumpleInput(){
-  const v = $('#es_cumple').value;
-  const edInput = $('#es_ed');
-  if(v){ edInput.value = calcAge(v)||''; edInput.disabled = true; }
-  else { edInput.disabled = false; }
 }
 function saveEditSocio(idx){
   const s = SOCIOS[idx];
   const oldEmail = s.email;
-  s.n = $('#es_n').value.trim()||s.n;
-  s.i = initials(s.n);
   const newEmail = $('#es_email').value.trim().toLowerCase();
   s.email = newEmail||null;
   s.tel = $('#es_tel').value.trim()||null;
-  s.cumple = $('#es_cumple').value || null;
-  s.ed = s.cumple ? calcAge(s.cumple) : (parseInt($('#es_ed').value)||s.ed);
   s.pe = parseInt($('#es_pe').value)||null;
   s.ob = $('#es_ob').value.trim()||null;
   s.pl = $('#es_pl').value;
@@ -1487,6 +1479,64 @@ function saveEditSocio(idx){
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
   persist();
   closeModal(); renderStaff();
+}
+function openSocioRutinasModal(si, search){
+  const s = SOCIOS[si];
+  search = search||'';
+  const list = RUTINAS.filter(r=>r.n.toLowerCase().includes(search.toLowerCase()));
+  if(!s.rsDias) s.rsDias = {};
+  if(!s.rsNotas) s.rsNotas = {};
+  openModal(`
+    <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <input placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
+    <div style="max-height:340px;overflow:auto;">
+    ${list.length?list.map(r=>{
+      const has = s.rs.includes(r.n);
+      const maxed = s.rs.length>=4;
+      const dias = s.rsDias[r.n]||[];
+      const nota = s.rsNotas[r.n]||'';
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <b style="font-size:13.5px;">${esc(r.n)}</b>
+          ${has?`<button class="btn btn-outline btn-sm" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>`
+                :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
+        </div>
+        ${has?`<div style="margin-top:8px;">
+          <p style="color:var(--text2);font-size:11.5px;margin-bottom:4px;">Días (opcional)</p>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            ${DIAS_SEMANA.map(d=>`<button class="btn btn-sm ${dias.includes(d)?'btn-primary':'btn-outline'}" style="padding:3px 8px;font-size:11.5px;" onclick="toggleRutinaDiaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${d}','${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
+          </div>
+          <p style="color:var(--text2);font-size:11.5px;margin-top:8px;margin-bottom:4px;">Nota para el socio (opcional)</p>
+          <textarea oninput="setRutinaNota(${si},'${r.n.replace(/'/g,"\\'")}',this.value)" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:50px;font-size:12.5px;">${esc(nota)}</textarea>
+        </div>`:''}
+      </div>`;
+    }).join(''):emptyState('ti-barbell-off','No hay rutinas creadas todavía')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="openEditSocioModal(${si})">Volver</button></div>
+  `,'wide');
+}
+function asignarRutinaSocio(si, rname, search){
+  const s = SOCIOS[si];
+  if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
+  persist();
+  openSocioRutinasModal(si, search);
+}
+function quitarRutinaSocio(si, rname, search){
+  const s = SOCIOS[si];
+  s.rs = s.rs.filter(r=>r!==rname);
+  if(s.rsDias) delete s.rsDias[rname];
+  if(s.rsNotas) delete s.rsNotas[rname];
+  persist();
+  openSocioRutinasModal(si, search);
+}
+function toggleRutinaDiaSocio(si, rname, dia, search){
+  const s = SOCIOS[si];
+  if(!s.rsDias) s.rsDias = {};
+  const dias = s.rsDias[rname] = s.rsDias[rname]||[];
+  const i = dias.indexOf(dia);
+  if(i>=0) dias.splice(i,1); else dias.push(dia);
+  persist();
+  openSocioRutinasModal(si, search);
 }
 
 let editPagoIdx = null;
