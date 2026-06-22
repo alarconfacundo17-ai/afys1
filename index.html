@@ -957,6 +957,12 @@ function renderStaffGateSignup(staffError){
     <input id="sg_e" type="email" placeholder="tu@email.com">
     <label>Contraseña</label>
     <input id="sg_p" type="password" placeholder="Mínimo 6 caracteres">
+    <label>Teléfono (opcional)</label>
+    <input id="sg_tel" type="text" placeholder="011 1234-5678">
+    <label>Domicilio (opcional)</label>
+    <input id="sg_dom" type="text" placeholder="Calle 123, Ciudad">
+    <label>Edad (opcional)</label>
+    <input id="sg_edad" type="number" min="0" placeholder="30">
     ${role==='profesor'?`<label>Especialidad (opcional)</label><input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">`:''}
     ${staffError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(staffError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="staffGateCreate()">Crear cuenta</button>
@@ -970,6 +976,9 @@ async function staffGateCreate(){
   const email = $('#sg_e').value.trim().toLowerCase();
   const pass = $('#sg_p').value;
   const esp = role==='profesor' ? ($('#sg_esp').value.trim()||null) : null;
+  const tel = $('#sg_tel').value.trim()||null;
+  const dom = $('#sg_dom').value.trim()||null;
+  const edad = $('#sg_edad').value ? parseInt($('#sg_edad').value) : null;
   if(!n || !email || pass.length<6){ renderStaffGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(STAFF.find(s=>s.email===email) || email===DUENO_EMAIL){ renderStaffGateSignup('Ya existe una cuenta con ese email. Iniciá sesión.'); return; }
   const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
@@ -978,7 +987,7 @@ async function staffGateCreate(){
   const perms = role==='profesor'
     ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,subirVideos:false,horarios:true,cuentas:false}
     : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,subirVideos:false,horarios:false,cuentas:false};
-  STAFF.push({id, n, email, role, esp, perms});
+  STAFF.push({id, n, email, role, esp, tel, dom, edad, perms});
   if(pendingInvite) PENDING_INVITES = PENDING_INVITES.filter(i=>i.token!==pendingInvite.token);
   pendingInvite = null;
   persist();
@@ -1409,17 +1418,41 @@ function openStaffOpcionesModal(id){
 function openStaffFichaModal(id){
   const s = STAFF.find(x=>x.id===id);
   if(!s) return;
+  const canEdit = isSuperOwner()||hasPerm('cuentas');
   const roleLabel = {dueno:'Dueño', admin:'Administrador', profesor:'Profesor'}[s.role]||s.role;
   openModal(`
     <div class="modal-head"><h3>${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;">
       <div><b>Email:</b> ${esc(s.email)}</div>
       <div><b>Rol:</b> ${esc(roleLabel)}</div>
-      ${s.esp?`<div><b>Especialidad:</b> ${esc(s.esp)}</div>`:''}
       <div><b>Estado:</b> ${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</div>
+      ${canEdit?`
+      <div class="field"><label>Teléfono</label><input id="fc_tel" value="${esc(s.tel||'')}" placeholder="011 1234-5678"></div>
+      <div class="field"><label>Domicilio</label><input id="fc_dom" value="${esc(s.dom||'')}" placeholder="Calle 123, Ciudad"></div>
+      <div class="field"><label>Edad</label><input id="fc_edad" type="number" min="0" value="${s.edad!=null?s.edad:''}" placeholder="30"></div>
+      ${s.role==='profesor'?`<div class="field"><label>Especialidad</label><input id="fc_esp" value="${esc(s.esp||'')}" placeholder="Spinning, Funcional, etc."></div>`:''}
+      `:`
+      ${s.tel?`<div><b>Teléfono:</b> ${esc(s.tel)}</div>`:''}
+      ${s.dom?`<div><b>Domicilio:</b> ${esc(s.dom)}</div>`:''}
+      ${s.edad!=null?`<div><b>Edad:</b> ${s.edad}</div>`:''}
+      ${s.esp?`<div><b>Especialidad:</b> ${esc(s.esp)}</div>`:''}
+      `}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
+      ${canEdit?`<button class="btn btn-primary" onclick="saveStaffFicha('${s.id}')">Guardar</button>`:''}
+    </div>
   `);
+}
+function saveStaffFicha(id){
+  const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
+  s.tel = $('#fc_tel').value.trim()||null;
+  s.dom = $('#fc_dom').value.trim()||null;
+  s.edad = $('#fc_edad').value ? parseInt($('#fc_edad').value) : null;
+  if(s.role==='profesor') s.esp = $('#fc_esp').value.trim()||null;
+  persist();
+  closeModal(); renderStaff();
 }
 
 function openNuevoStaffModal(role){
