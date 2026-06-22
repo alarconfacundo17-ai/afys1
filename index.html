@@ -1306,23 +1306,20 @@ function pageCuentas(){
   </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th></th></tr></thead>
     <tbody>
-      ${admins.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
-        ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+      ${admins.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openStaffOpcionesModal('${s.id}')"><i class="ti ti-dots-vertical"></i></button>
         ${(isSuperOwner()||hasPerm('cuentas'))?staffBajaButtons(s):''}
       </td></tr>`).join('')}
     </tbody></table>
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
-        ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','admin')">Ascender a admin</button>
-        <button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
+      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openStaffOpcionesModal('${s.id}')"><i class="ti ti-dots-vertical"></i></button>
         ${(isSuperOwner()||hasPerm('cuentas'))?staffBajaButtons(s):''}
       </td></tr>`).join('')}
     </tbody></table>
@@ -1377,7 +1374,32 @@ function promoteStaff(id, newRole){
   if(!confirm(`¿Ascender a ${esc(s.n)} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
   s.role = newRole;
   persist();
+  closeModal();
   renderStaff();
+}
+function demoteStaff(id, newRole){
+  const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
+  const labels = {admin:'admin', profesor:'profesor'};
+  if(!confirm(`¿Descender a ${esc(s.n)} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
+  s.role = newRole;
+  persist();
+  closeModal();
+  renderStaff();
+}
+function openStaffOpcionesModal(id){
+  const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
+  openModal(`
+    <div class="modal-head"><h3>${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="openPermModal('${s.id}')"><i class="ti ti-shield-lock"></i>Editar permisos</button>
+      ${isSuperOwner()&&s.role==='profesor'?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="promoteStaff('${s.id}','admin')"><i class="ti ti-arrow-up"></i>Ascender a admin</button>`:''}
+      ${isSuperOwner()&&(s.role==='profesor'||s.role==='admin')?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="promoteStaff('${s.id}','dueno')"><i class="ti ti-arrow-up"></i>Ascender a dueño</button>`:''}
+      ${isSuperOwner()&&s.role==='admin'?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="demoteStaff('${s.id}','profesor')"><i class="ti ti-arrow-down"></i>Descender a profesor</button>`:''}
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
 }
 
 function openNuevoStaffModal(role){
