@@ -203,6 +203,11 @@ h3{font-size:15px;margin-bottom:10px;}
 </head>
 <body>
 
+<div id="demoBar" class="hidden" style="position:fixed;top:0;left:0;right:0;z-index:150;background:#1c1730;color:#fff;display:flex;justify-content:center;align-items:center;gap:14px;padding:9px 14px;font-size:12.5px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);">
+  <span id="demoBarTxt">Modo demo</span>
+  <button class="btn btn-primary btn-sm" style="background:#fff;color:#1c1730;" onclick="exitDemo()">Salir del modo demo</button>
+</div>
+
 <!-- ===================== LOGIN ===================== -->
 <div id="login">
   <div class="login-box" id="loginBox"></div>
@@ -355,6 +360,8 @@ let socioPage = 'inicio';
 let socioActiveRutinaIdx = 0;
 let entradasHoy = REGS.length;
 let pendingQR = null; // {tipo:'general'|'clase', clase}
+let demoMode = false;
+let demoPrev = null; // {role, staffId, socioIdx}
 
 // Permisos unificados: admins y profesores comparten las mismas opciones.
 // El dueño decide individualmente, por persona, cuáles activar.
@@ -465,6 +472,7 @@ function migrateProfesorDefaultPerms(){
 
 let persistTimer = null;
 function persist(){
+  if(demoMode) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(()=>{
     sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
@@ -690,6 +698,70 @@ function logout(){
   loginView='login'; loginError='';
   $('#login').classList.remove('hidden');
   renderLogin();
+}
+
+/* ============ MODO DEMO (dueño previsualiza la app como socio/profe/admin) ============ */
+function openDemoChooserModal(){
+  const profes = STAFF.filter(s=>s.role==='profesor');
+  const admins = STAFF.filter(s=>s.role==='admin');
+  openModal(`
+    <div class="modal-head"><h3>Modo demo</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Vas a ver la app exactamente como la ve esa cuenta. Nada de lo que hagas en modo demo se guarda.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Socio</p>
+        ${SOCIOS.length?`<select id="demo_socio" style="margin-bottom:6px;">${SOCIOS.map((s,i)=>`<option value="${i}">${esc(s.n)}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', Number($('#demo_socio').value))">Entrar</button>`
+        :`<p style="color:var(--text2);font-size:12px;">No hay socios cargados todavía.</p>`}
+      </div>
+      <div>
+        <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Profesor</p>
+        ${profes.length?`<select id="demo_profe" style="margin-bottom:6px;">${profes.map(s=>`<option value="${s.id}">${esc(s.n)}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('profesor', $('#demo_profe').value)">Entrar</button>`
+        :`<p style="color:var(--text2);font-size:12px;">No hay profesores cargados todavía.</p>`}
+      </div>
+      <div>
+        <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Admin</p>
+        ${admins.length?`<select id="demo_admin" style="margin-bottom:6px;">${admins.map(s=>`<option value="${s.id}">${esc(s.n)}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('admin', $('#demo_admin').value)">Entrar</button>`
+        :`<p style="color:var(--text2);font-size:12px;">No hay admins cargados todavía.</p>`}
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button></div>
+  `);
+}
+function enterDemo(role, idOrIdx){
+  demoPrev = {role: currentRole, staffId: currentStaffId, socioIdx: currentSocioIdx};
+  demoMode = true;
+  closeModal();
+  document.body.style.paddingTop = '42px';
+  const bar = $('#demoBar');
+  if(bar) bar.classList.remove('hidden');
+  if(role==='socio'){
+    currentRole='socio'; currentSocioIdx=idOrIdx;
+    const txt = $('#demoBarTxt'); if(txt) txt.textContent = `Modo demo — viendo como socio: ${esc(SOCIOS[idOrIdx].n)}`;
+    $('#staff').classList.add('hidden');
+    $('#socio').classList.remove('hidden');
+    socioPage='inicio'; renderSocio();
+  } else {
+    currentRole=role; currentStaffId=idOrIdx;
+    const st = currentStaff();
+    const txt = $('#demoBarTxt'); if(txt) txt.textContent = `Modo demo — viendo como ${role==='admin'?'admin':'profesor'}: ${st?esc(st.n):''}`;
+    $('#socio').classList.add('hidden');
+    enterStaff();
+  }
+}
+async function exitDemo(){
+  if(!demoPrev) return;
+  demoMode = false;
+  document.body.style.paddingTop = '0';
+  const bar = $('#demoBar');
+  if(bar) bar.classList.add('hidden');
+  currentRole = demoPrev.role; currentStaffId = demoPrev.staffId; currentSocioIdx = demoPrev.socioIdx;
+  demoPrev = null;
+  await loadState();
+  $('#socio').classList.add('hidden');
+  enterStaff();
 }
 
 /* ============ QR DEL GIMNASIO (socio escanea desde su celular) ============ */
@@ -1051,6 +1123,7 @@ function staffMenu(){
   items.push({id:'horarios', icon:'ti-clock', label:'Horarios'});
   items.push({id:'qr', icon:'ti-qrcode', label:'QR y Asistencia'});
   items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
+  if(isDueno()) items.push({id:'demo', icon:'ti-eye', label:'Modo demo'});
   return items;
 }
 
@@ -1076,6 +1149,7 @@ function renderStaffSidebar(){
     ${items.map(it=>`<div class="nav-item ${it.id===staffPage?'active':''}" data-page="${it.id}"><i class="ti ${it.icon}"></i>${it.label}</div>`).join('')}
   `;
   $all('.nav-item',$('#staffSidebar')).forEach(el=>el.addEventListener('click',()=>{
+    if(el.dataset.page==='demo'){ openDemoChooserModal(); toggleStaffSidebar(false); return; }
     staffPage = el.dataset.page;
     renderStaffSidebar();
     renderStaff();
