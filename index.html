@@ -1317,9 +1317,9 @@ function pageCuentas(){
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th>Especialidad</th><th></th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${esc(s.esp||'-')}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
         ${isSuperOwner()?`<button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','admin')">Ascender a admin</button>
         <button class="btn btn-outline btn-sm" onclick="promoteStaff('${s.id}','dueno')">Ascender a dueño</button>`:''}
