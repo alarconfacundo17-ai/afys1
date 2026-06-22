@@ -2277,10 +2277,9 @@ function pageEjercicios(){
           <div class="ej-row">
             <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
-              ${EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
-              ${canVideo?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="${EJ_VIDEOS[e]?'Cambiar video':'Subir video'}"><i class="ti ti-${EJ_VIDEOS[e]?'edit':'upload'}"></i></button>`:''}
-              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="openImageModal('${esc(e)}')"><i class="ti ti-photo"></i></button>
-              <button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
+              ${(canVideo||canEdit)?`<button class="btn btn-outline btn-sm" onclick="openMediaModal('${esc(e)}')" title="Foto y video">${(EJ_VIDEOS[e]||EJ_IMAGES[e])?`<i class="ti ti-photo-video" style="color:var(--primary);"></i>`:`<i class="ti ti-photo-video"></i>`}</button>`
+                :(EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:'')}
+              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
               <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>`:''}
             </span>
           </div>`).join('')}
@@ -2363,6 +2362,71 @@ function saveImage(name){
   if(v) EJ_IMAGES[name]=v; else delete EJ_IMAGES[name];
   persist();
   closeModal(); openImageModal(name);
+}
+function openMediaModal(name){
+  const canVideo = isSuperOwner() || hasPerm('subirVideos');
+  const canEdit = isSuperOwner() || hasPerm('cargarEjercicios');
+  const curV = EJ_VIDEOS[name]||'';
+  const curI = EJ_IMAGES[name]||'';
+  openModal(`
+    <div class="modal-head"><h3>Foto y video — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
+    <h3 style="font-size:13.5px;margin-bottom:8px;">Video</h3>
+    ${curV?videoPreviewHTML(curV):emptyState('ti-video-off','Sin video cargado todavía.')}
+    ${canVideo?`
+      <div class="field"><label>Link de YouTube u otra página</label><input id="vid_link" placeholder="https://..." value="${esc(curV)}"></div>
+      <div class="field"><label>O subí un video desde tu dispositivo</label><input id="vid_file" type="file" accept="video/*"></div>
+      <p id="vid_status" style="font-size:12px;color:var(--text2);margin-bottom:4px;"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+        ${curV?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteVideoM('${esc(name)}')">Eliminar video</button>`:''}
+        <button class="btn btn-outline" onclick="saveVideoLinkM('${esc(name)}')">Guardar link</button>
+        <button class="btn btn-primary" onclick="uploadVideoM('${esc(name)}')">Subir archivo</button>
+      </div>
+    `:'<div style="margin-bottom:18px;"></div>'}
+    <h3 style="font-size:13.5px;margin-bottom:8px;">Foto</h3>
+    ${curI?`<img src="${esc(curI)}" style="width:100%;border-radius:8px;margin-bottom:12px;object-fit:contain;max-height:260px;background:var(--bg2);" onerror="this.style.display='none'">`:`<p style="color:var(--text2);font-size:13px;">Sin imagen cargada todavía.</p>`}
+    ${canEdit?`<div class="field"><label>Link de imagen</label><input id="img_url" placeholder="https://..." value="${esc(curI)}"></div>`:''}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
+      ${canEdit?`<button class="btn btn-primary" onclick="saveImageM('${esc(name)}')">Guardar foto</button>`:''}
+    </div>
+  `);
+}
+function saveVideoLinkM(name){
+  const url = $('#vid_link').value.trim();
+  if(!url){ alert('Pegá un link primero.'); return; }
+  EJ_VIDEOS[name] = url;
+  persist();
+  closeModal(); openMediaModal(name);
+}
+async function uploadVideoM(name){
+  const input = $('#vid_file');
+  const file = input && input.files && input.files[0];
+  if(!file){ alert('Elegí un archivo de video primero.'); return; }
+  const status = $('#vid_status');
+  if(status) status.textContent = 'Subiendo...';
+  const path = `${Date.now()}_${name.replace(/[^a-z0-9.]+/gi,'_')}`;
+  const {error} = await sb.storage.from('ejercicio-videos').upload(path, file, {upsert:true});
+  if(error){
+    if(status) status.textContent = '';
+    alert('No se pudo subir el video: '+error.message);
+    return;
+  }
+  const {data} = sb.storage.from('ejercicio-videos').getPublicUrl(path);
+  EJ_VIDEOS[name] = data.publicUrl;
+  persist();
+  closeModal(); openMediaModal(name);
+}
+function deleteVideoM(name){
+  if(!confirm('¿Eliminar el video de "'+name+'"?')) return;
+  delete EJ_VIDEOS[name];
+  persist();
+  closeModal(); openMediaModal(name);
+}
+function saveImageM(name){
+  const v = $('#img_url').value.trim();
+  if(v) EJ_IMAGES[name]=v; else delete EJ_IMAGES[name];
+  persist();
+  closeModal(); openMediaModal(name);
 }
 function deleteEjercicio(g,name){
   EJD[g]=EJD[g].filter(e=>e!==name);
