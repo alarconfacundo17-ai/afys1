@@ -2267,7 +2267,10 @@ function pageEjercicios(){
     <div class="group-block">
       <div class="group-head" onclick="toggleGroup('${g}')" style="cursor:pointer;">
         <span>${g} <span class="badge" style="background:${EJC[g]}22;color:${EJC[g]}">${items.length}</span></span>
-        <span><i class="ti ti-chevron-${open?'down':'right'}"></i></span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          ${canEdit?`<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:12px;" title="Agregar ejercicio en ${esc(g)}" onclick="event.stopPropagation();openNuevoEjercicio('${g}')"><i class="ti ti-plus"></i></button>`:''}
+          <i class="ti ti-chevron-${open?'down':'right'}"></i>
+        </span>
       </div>
       <div class="group-body ${open?'':'hidden'}">
         ${items.map((e,i)=>`
@@ -2398,11 +2401,11 @@ function nextEjColor(){
   const free = EJ_COLOR_PALETTE.find(c=>!used.has(c));
   return free || EJ_COLOR_PALETTE[Object.keys(EJC).length % EJ_COLOR_PALETTE.length];
 }
-function openNuevoEjercicio(){
+function openNuevoEjercicio(presetGroup){
   openModal(`
     <div class="modal-head"><h3>Nuevo ejercicio</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="ej_n"></div>
-    <div class="field"><label>Tipo / grupo</label><select id="ej_g" onchange="document.getElementById('ej_g_new_wrap').classList.toggle('hidden', this.value!=='__new__')">${Object.keys(EJD).map(g=>`<option>${g}</option>`).join('')}<option value="__new__">+ Crear nuevo tipo...</option></select></div>
+    <div class="field"><label>Tipo / grupo</label><select id="ej_g" onchange="document.getElementById('ej_g_new_wrap').classList.toggle('hidden', this.value!=='__new__')">${Object.keys(EJD).map(g=>`<option ${g===presetGroup?'selected':''}>${g}</option>`).join('')}<option value="__new__">+ Crear nuevo tipo...</option></select></div>
     <div id="ej_g_new_wrap" class="field hidden"><label>Nombre del nuevo tipo (ej: Movilidad, Potencia)</label><input id="ej_g_new" placeholder="Movilidad"></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveEjercicio()">Guardar</button></div>
   `);
