@@ -2354,8 +2354,8 @@ function pageEjercicios(){
       </div>
       <div class="group-body ${open?'':'hidden'}">
         ${items.map((e,i)=>`
-          <div class="ej-row">
-            <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
+          <div class="ej-row" ${(canEdit&&!q)?`draggable="true" ondragstart="dragSrcIdx=${i}" ondragover="event.preventDefault()" ondrop="dragReorder(EJD['${g.replace(/'/g,"\\'")}'],dragSrcIdx,${i},renderStaff)"`:''} style="${(canEdit&&!q)?'cursor:grab;':''}">
+            <span>${(canEdit&&!q)?`<i class="ti ti-grip-vertical" style="color:var(--text2);margin-right:6px;"></i>`:''}<span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
               ${(canVideo||canEdit)?`<button class="btn btn-outline btn-sm" onclick="openMediaModal('${esc(e)}')" title="Foto y video">${(EJ_VIDEOS[e]||EJ_IMAGES[e])?`<i class="ti ti-photo-video" style="color:var(--primary);"></i>`:`<i class="ti ti-photo-video"></i>`}</button>`
                 :(EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:'')}
