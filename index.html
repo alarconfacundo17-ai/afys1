@@ -1562,13 +1562,14 @@ function openSocioRutinasModal(si, search){
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(r.n)}</b>
-          ${has?`<span style="display:flex;gap:6px;">
-              <button class="btn btn-outline btn-sm" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Editar ejercicios'}</button>
-              <button class="btn btn-outline btn-sm" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
+          ${has?`<span style="display:flex;align-items:center;gap:8px;">
+              <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
+              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Ejercicios'}</button>
+              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
             </span>`
-                :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
+                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
-        ${has?`<div style="margin-top:10px;">
+        ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <p style="color:var(--text2);font-size:12px;margin:0;">¿Qué días la hace? (opcional)</p>
             <span>
@@ -1858,7 +1859,7 @@ function pageRutinas(){
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
       <td>${r.ejs.length}</td><td>${socCount}</td>
       <td style="display:flex;gap:6px;">
-        ${canAssign?`<button class="btn btn-green btn-sm" onclick="openAsignarModal(${idx})">Asignar</button>`:''}
+        ${canAssign?`<button class="btn btn-green btn-sm" style="padding:5px 10px;" title="Asignar a socios" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i></button>`:''}
         <button class="btn btn-outline btn-sm" onclick="openVerRutinaModal(${idx})">👁</button>
         ${canCreate?`<button class="btn btn-outline btn-sm" title="Editar rutina" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i></button>
         <button class="btn btn-outline btn-sm" title="Eliminar rutina" onclick="deleteRutina(${idx})">✕</button>`:''}
@@ -1905,12 +1906,15 @@ function openAsignarModal(idx, search){
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
-          ${has?`<button class="btn btn-outline btn-sm" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>`
-                :`<button class="btn btn-green btn-sm" ${maxed?'disabled':''} onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">+ ${maxed?'(máx 4)':'Asignar'}</button>`}
+          ${has?`<span style="display:flex;align-items:center;gap:8px;">
+              <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
+              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>
+            </span>`
+                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
-        <div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
-          ${esc(t)}<span class="x" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>
-        ${has?`<div style="margin-top:10px;">
+        ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
+          ${esc(t)}<span class="x" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
+        ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <p style="color:var(--text2);font-size:12px;margin:0;">¿Qué días la hace? (opcional)</p>
             <span>
