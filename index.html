@@ -526,6 +526,7 @@ function fmtFechaCorta(iso){
   if(isNaN(d)) return '-';
   return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
 }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
 function recalcEstados(opts){
   const notify = opts && opts.notify;
   let changed = false;
@@ -2847,28 +2848,70 @@ function socioRutina(){
   const s = SOCIOS[currentSocioIdx];
   const misRutinas = s.rs.map(n=>RUTINAS.find(r=>r.n===n)).filter(Boolean);
   if(!misRutinas.length) return `<h2>Rutina</h2>${emptyState('ti-barbell-off','No tienes rutinas asignadas.')}`;
-  if(socioActiveRutinaIdx>=misRutinas.length) socioActiveRutinaIdx=0;
-  const r = misRutinas[socioActiveRutinaIdx];
   return `
   <h2>Rutina</h2>
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-    ${misRutinas.map((m,i)=>`<button class="btn btn-sm ${i===socioActiveRutinaIdx?'btn-primary':'btn-outline'}" onclick="socioActiveRutinaIdx=${i};renderSocio();">${esc(m.n)}</button>`).join('')}
-  </div>
-  ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">${esc(r.ob)}</p>`:''}
-  ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;">📅 Días: <b>${s.rsDias[r.n].join(', ')}</b></p>`:''}
-  ${(s.rsNotas&&s.rsNotas[r.n])?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;background:var(--bg2);padding:8px 10px;border-radius:8px;">📝 ${esc(s.rsNotas[r.n])}</p>`:''}
-  <div class="card">
-    ${(()=>{
+  <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Elegí qué rutina vas a hacer.</p>
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    ${misRutinas.map((r,i)=>{
       const ejs = (s.rsOverride&&s.rsOverride[r.n]) ? s.rsOverride[r.n] : r.ejs;
-      const miPeso = (s.rsMiPeso&&s.rsMiPeso[r.n]) || {};
-      return ejs.map((e,i)=>`<div class="ej-row"><span><span class="dot-num" style="background:var(--primary)">${i+1}</span>${esc(e.n)} <span style="color:var(--text2);">(${e.s}x${esc(e.r)}${e.kg?` · ${esc(e.kg)}kg`:''})</span></span>
-        <span style="display:flex;align-items:center;gap:6px;">
-          <input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${r.n.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:64px;font-size:11.5px;padding:5px 7px;">
-          ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
-        </span>
-      </div>`).join('');
-    })()}
+      const hechos = (s.rsHechos&&s.rsHechos[r.n])||{};
+      const hoy = todayISO();
+      const doneCount = ejs.filter(e=>hechos[e.n]===hoy).length;
+      return `<div class="card" style="cursor:pointer;margin-bottom:0;" onclick="socioActiveRutinaIdx=${i};openSocioRutinaDetalleModal('${r.n.replace(/'/g,"\\'")}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div>
+            <b style="font-size:14.5px;">${esc(r.n)}</b>
+            ${r.ob?`<p style="color:var(--text2);font-size:12px;margin:2px 0 0;">${esc(r.ob)}</p>`:''}
+          </div>
+          <span class="badge ${ejs.length&&doneCount===ejs.length?'b-ok':''}">${doneCount}/${ejs.length} hechos hoy</span>
+        </div>
+        ${(s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].length)?`<p style="color:var(--text2);font-size:11.5px;margin-top:8px;margin-bottom:0;">📅 ${s.rsDias[r.n].join(', ')}</p>`:''}
+      </div>`;
+    }).join('')}
   </div>`;
+}
+function openSocioRutinaDetalleModal(rname){
+  const s = SOCIOS[currentSocioIdx];
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+  const ejs = (s.rsOverride&&s.rsOverride[rname]) ? s.rsOverride[rname] : r.ejs;
+  const miPeso = (s.rsMiPeso&&s.rsMiPeso[rname]) || {};
+  const hechos = (s.rsHechos&&s.rsHechos[rname]) || {};
+  const hoy = todayISO();
+  openModal(`
+    <div class="modal-head"><h3>${esc(rname)}</h3><button onclick="closeModal()">✕</button></div>
+    ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">${esc(r.ob)}</p>`:''}
+    ${(s.rsNotas&&s.rsNotas[rname])?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;background:var(--bg2);padding:8px 10px;border-radius:8px;">📝 ${esc(s.rsNotas[rname])}</p>`:''}
+    <div id="modalScrollList" style="max-height:430px;overflow:auto;display:flex;flex-direction:column;gap:10px;">
+    ${ejs.map(e=>{
+      const done = hechos[e.n]===hoy;
+      const img = EJ_IMAGES[e.n];
+      return `<div style="display:flex;gap:10px;padding:10px;border:1px solid var(--border2);border-radius:10px;${done?'background:var(--bg2);':''}">
+        ${img?`<img src="${esc(img)}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
+        <div style="flex:1;min-width:0;">
+          <b style="font-size:13.5px;">${esc(e.n)}</b>
+          <p style="color:var(--text2);font-size:12px;margin:2px 0 6px;">${e.s} series x ${esc(e.r)} reps${e.kg?` · ${esc(e.kg)}kg`:''}</p>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:64px;font-size:11.5px;padding:5px 7px;">
+            ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
+            <button class="btn btn-sm ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}')">${done?'✓ Hecho':'Marcar hecho'}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal();renderSocio();">Cerrar</button></div>
+  `,'wide');
+}
+function toggleEjercicioHecho(rname, ejName){
+  const s = SOCIOS[currentSocioIdx];
+  if(!s.rsHechos) s.rsHechos = {};
+  if(!s.rsHechos[rname]) s.rsHechos[rname] = {};
+  const hoy = todayISO();
+  if(s.rsHechos[rname][ejName]===hoy) delete s.rsHechos[rname][ejName];
+  else s.rsHechos[rname][ejName] = hoy;
+  persist();
+  openSocioRutinaDetalleModal(rname);
 }
 function setMiPesoEj(si, rname, ejName, val){
   const s = SOCIOS[si];
