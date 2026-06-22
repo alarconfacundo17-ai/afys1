@@ -2095,6 +2095,12 @@ function selectEjAt(i, name){
     badge.style.color = g?EJC[g]:'';
   }
 }
+function srValue(e){ return `${e.s!=null&&e.s!==''?e.s:''}x${e.r||''}`; }
+function parseSeriesReps(e, val){
+  const m = val.match(/^\s*(\d+)\s*[xX×]\s*(.*)$/);
+  if(m){ e.s = parseInt(m[1])||3; e.r = m[2].trim(); }
+  else { e.r = val.trim(); }
+}
 function ejRowHTML(i, e, showKg, draggable){
   const g = ejGrupo(e.n);
   return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ${draggable?`ondragover="event.preventDefault()" ondrop="dragReorder(currentEjsArr,dragSrcIdx,${i},currentEjsRenderFn)"`:''}>
@@ -2105,8 +2111,7 @@ function ejRowHTML(i, e, showKg, draggable){
       <input id="rtEjSearch${i}" type="text" autocomplete="off" placeholder="Buscar ejercicio..." value="${esc(e.n)}" oninput="renderEjPickerList(${i},this.value)" onfocus="renderEjPickerList(${i},this.value)" onblur="setTimeout(()=>hideEjPicker(${i}),150)">
       <div id="rtEjList${i}" class="ej-picker-list hidden"></div>
     </div>
-    <input placeholder="Series" value="${e.s}" oninput="currentEjsArr[${i}].s=this.value" style="flex:1;">
-    <input placeholder="Reps" value="${esc(e.r)}" oninput="currentEjsArr[${i}].r=this.value" style="flex:1;">
+    <input placeholder="Series x reps (ej: 3x10)" value="${esc(srValue(e))}" oninput="parseSeriesReps(currentEjsArr[${i}],this.value)" style="flex:1.4;">
     ${showKg?`<input placeholder="Kg" value="${esc(e.kg||'')}" oninput="currentEjsArr[${i}].kg=this.value" style="flex:1;">`:''}
     <button class="btn btn-outline btn-sm" onclick="removeEjRow(${i})">×</button>
   </div>`;
@@ -2585,8 +2590,7 @@ function openCrearDesdeBateria(){
         <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
         <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:12px;">${i+1}</span>
         <span style="flex:2;">${esc(e.n)}</span>
-        <input placeholder="Series" value="${e.s}" oninput="bateriaSel[${i}].s=this.value" style="flex:1;">
-        <input placeholder="Reps" value="${esc(e.r)}" oninput="bateriaSel[${i}].r=this.value" style="flex:1;">
+        <input placeholder="Series x reps (ej: 3x10)" value="${esc(srValue(e))}" oninput="parseSeriesReps(bateriaSel[${i}],this.value)" style="flex:1.4;">
         <button class="btn btn-outline btn-sm" onclick="bateriaSel.splice(${i},1);openCrearDesdeBateria()">×</button>
       </div>`).join('')}
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBateriaRutina()">Guardar rutina</button></div>
