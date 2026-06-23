@@ -2434,7 +2434,8 @@ function pageEjercicios(){
             <span>
               ${(canVideo||canEdit)?`<button class="btn btn-outline btn-sm" onclick="openMediaModal('${esc(e)}')" title="Foto y video">${(EJ_VIDEOS[e]||EJ_IMAGES[e])?`<i class="ti ti-photo-video" style="color:var(--primary);"></i>`:`<i class="ti ti-photo-video"></i>`}</button>`
                 :(EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:'')}
-              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
+              ${canEdit?`<button class="btn btn-outline btn-sm" onclick="openRenombrarEjercicioModal('${esc(e)}')" title="Renombrar"><i class="ti ti-pencil"></i></button>
+              <button class="btn btn-outline btn-sm" onclick="openEjercicioGruposModal('${esc(e)}')" title="Cambiar tipo(s)"><i class="ti ti-tags"></i></button>
               <button class="btn btn-outline btn-sm" onclick="deleteEjercicio('${g}','${esc(e)}')"><i class="ti ti-trash"></i></button>`:''}
             </span>
           </div>`).join('')}
@@ -2539,12 +2540,40 @@ function openMediaModal(name){
     `:'<div style="margin-bottom:18px;"></div>'}
     <h3 style="font-size:13.5px;margin-bottom:8px;">Foto</h3>
     ${curI?`<img src="${esc(curI)}" style="width:100%;border-radius:8px;margin-bottom:12px;object-fit:contain;max-height:260px;background:var(--bg2);" onerror="this.style.display='none'">`:`<p style="color:var(--text2);font-size:13px;">Sin imagen cargada todavía.</p>`}
-    ${canEdit?`<div class="field"><label>Link de imagen</label><input id="img_url" placeholder="https://..." value="${esc(curI)}"></div>`:''}
+    ${canEdit?`
+      <div class="field"><label>Link de imagen</label><input id="img_url" placeholder="https://..." value="${esc(curI)}"></div>
+      <div class="field"><label>O subí una foto desde tu dispositivo</label><input id="img_file" type="file" accept="image/*"></div>
+      <p id="img_status" style="font-size:12px;color:var(--text2);margin-bottom:4px;"></p>
+    `:''}
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
-      ${canEdit?`<button class="btn btn-primary" onclick="saveImageM('${esc(name)}')">Guardar foto</button>`:''}
+      ${canEdit?(curI?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteImageM('${esc(name)}')">Eliminar foto</button>`:'')+`<button class="btn btn-outline" onclick="saveImageM('${esc(name)}')">Guardar link</button>
+      <button class="btn btn-primary" onclick="uploadImageM('${esc(name)}')">Subir archivo</button>`:''}
     </div>
   `);
+}
+function deleteImageM(name){
+  if(!confirm('¿Eliminar la foto de "'+name+'"?')) return;
+  delete EJ_IMAGES[name];
+  persist();
+  closeModal(); openMediaModal(name);
+}
+async function uploadImageM(name){
+  const input = $('#img_file');
+  const file = input && input.files && input.files[0];
+  if(!file){ alert('Elegí un archivo de imagen primero.'); return; }
+  const status = $('#img_status');
+  if(status) status.textContent = 'Subiendo...';
+  const path = `${Date.now()}_${name.replace(/[^a-z0-9.]+/gi,'_')}`;
+  const {error} = await sb.storage.from('ejercicio-imagenes').upload(path, file, {upsert:true});
+  if(error){
+    if(status) status.textContent = 'Error al subir: '+error.message;
+    return;
+  }
+  const {data} = sb.storage.from('ejercicio-imagenes').getPublicUrl(path);
+  EJ_IMAGES[name] = data.publicUrl;
+  persist();
+  closeModal(); openMediaModal(name);
 }
 function saveVideoLinkM(name){
   const url = $('#vid_link').value.trim();
@@ -2586,6 +2615,30 @@ function saveImageM(name){
 function deleteEjercicio(g,name){
   EJD[g]=EJD[g].filter(e=>e!==name);
   persist();
+  renderStaff();
+}
+function openRenombrarEjercicioModal(name){
+  openModal(`
+    <div class="modal-head"><h3>Renombrar ejercicio</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="ren_ej_nombre" value="${esc(name)}"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="renombrarEjercicio('${esc(name).replace(/'/g,"\\'")}')">Guardar</button></div>
+  `);
+}
+function renombrarEjercicio(oldName){
+  const newName = $('#ren_ej_nombre').value.trim();
+  if(!newName || newName===oldName){ closeModal(); return; }
+  if(ejFlatList().some(e=>e.n===newName)){ alert('Ya existe un ejercicio con ese nombre.'); return; }
+  Object.keys(EJD).forEach(g=>{ EJD[g] = EJD[g].map(e=>e===oldName?newName:e); });
+  if(EJ_VIDEOS[oldName]!==undefined){ EJ_VIDEOS[newName] = EJ_VIDEOS[oldName]; delete EJ_VIDEOS[oldName]; }
+  if(EJ_IMAGES[oldName]!==undefined){ EJ_IMAGES[newName] = EJ_IMAGES[oldName]; delete EJ_IMAGES[oldName]; }
+  RUTINAS.forEach(r=>{ r.ejs.forEach(e=>{ if(e.n===oldName) e.n = newName; }); });
+  SOCIOS.forEach(s=>{
+    if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ ejs.forEach(e=>{ if(e.n===oldName) e.n = newName; }); });
+    if(s.rsMiPeso) Object.values(s.rsMiPeso).forEach(mp=>{ if(mp[oldName]!==undefined){ mp[newName] = mp[oldName]; delete mp[oldName]; } });
+    if(s.rsHechos) Object.values(s.rsHechos).forEach(h=>{ if(h[oldName]!==undefined){ h[newName] = h[oldName]; delete h[oldName]; } });
+  });
+  persist();
+  closeModal();
   renderStaff();
 }
 function openEjercicioGruposModal(name){
