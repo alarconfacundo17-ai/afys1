@@ -3052,12 +3052,6 @@ function socioInicio(){
   const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
   const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const edad = getEdad(s);
-  const misRegs = REGS.filter(r=>r.i===s.i);
-  const hoy = new Date();
-  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
-  const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
-  const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
   return `
   ${welcomeHTML}
   <div class="profile-card">
@@ -3072,15 +3066,6 @@ function socioInicio(){
     </div>
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
-  <div class="grid-metrics">
-    <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Clases este mes</div></div>
-    <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Entradas semana</div></div>
-  </div>
-  <div class="card" style="margin-bottom:14px;padding:16px 18px;">
-    <h3 style="font-size:14px;">Estado de hoy</h3>
-    ${s.hoy?`<p style="color:var(--green);font-weight:600;font-size:13.5px;">✅ Presente hoy — ${s.entradaHora}</p>`
-           :`<p style="color:var(--text2);font-size:13px;">Todavía no marcaste tu entrada hoy. Escaneá el QR del gimnasio para registrar tu ingreso.</p>`}
-  </div>
   <div class="card" style="margin-bottom:14px;padding:16px 18px;">
     <h3 style="font-size:14px;">Próximas clases reservadas</h3>
     ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
