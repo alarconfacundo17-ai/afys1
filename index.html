@@ -2077,6 +2077,7 @@ function pageRutinas(){
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
       <td>${r.ejs.length}</td><td>${socCount}</td>
       <td>
+        ${canAssign?`<button class="btn btn-outline btn-sm" title="Asignar a socios" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i></button>`:''}
         <button class="btn btn-outline btn-sm" title="Opciones" onclick="openRutinaOpcionesModal(${idx})"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
@@ -2087,11 +2088,9 @@ function pageRutinas(){
 function openRutinaOpcionesModal(idx){
   const r = RUTINAS[idx];
   const canCreate = isSuperOwner() || hasPerm('editarRutinas');
-  const canAssign = isSuperOwner() || hasPerm('asignarRutinas');
   openModal(`
     <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      ${canAssign?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i>Asignar a socios</button>`:''}
       ${canCreate?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i>Editar rutina</button>
       <button class="btn btn-outline" style="justify-content:flex-start;" onclick="duplicarRutina(${idx})"><i class="ti ti-copy"></i>Duplicar rutina</button>
       <button class="btn btn-outline" style="justify-content:flex-start;color:var(--red);" onclick="deleteRutina(${idx})"><i class="ti ti-trash"></i>Eliminar rutina</button>`:''}
