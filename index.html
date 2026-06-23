@@ -2700,7 +2700,16 @@ function saveImageM(name){
   closeModal(); openMediaModal(name);
 }
 function deleteEjercicio(g,name){
-  EJD[g]=EJD[g].filter(e=>e!==name);
+  if(!confirm(`¿Eliminar "${name}"? Si está en más de un tipo, se quita de todos, y también se quita de las rutinas que lo tengan.`)) return;
+  Object.keys(EJD).forEach(grp=>{ EJD[grp] = EJD[grp].filter(e=>e!==name); });
+  delete EJ_VIDEOS[name];
+  delete EJ_IMAGES[name];
+  RUTINAS.forEach(r=>{ r.ejs = r.ejs.filter(e=>e.n!==name); });
+  SOCIOS.forEach(s=>{
+    if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ for(let i=ejs.length-1;i>=0;i--){ if(ejs[i].n===name) ejs.splice(i,1); } });
+    if(s.rsMiPeso) Object.values(s.rsMiPeso).forEach(mp=>delete mp[name]);
+    if(s.rsHechos) Object.values(s.rsHechos).forEach(h=>delete h[name]);
+  });
   persist();
   renderStaff();
 }
