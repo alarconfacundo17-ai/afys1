@@ -2073,17 +2073,29 @@ function pageRutinas(){
       ${canCreate?`<td style="cursor:grab;color:var(--text2);text-align:center;" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></td>`:''}
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
       <td>${r.ejs.length}</td><td>${socCount}</td>
-      <td style="display:flex;gap:6px;">
-        ${canAssign?`<button class="btn btn-green btn-sm" style="padding:5px 10px;" title="Asignar a socios" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i></button>`:''}
-        <button class="btn btn-outline btn-sm" onclick="openVerRutinaModal(${idx})">👁</button>
-        ${canCreate?`<button class="btn btn-outline btn-sm" title="Editar rutina" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i></button>
-        <button class="btn btn-outline btn-sm" title="Duplicar rutina" onclick="duplicarRutina(${idx})"><i class="ti ti-copy"></i></button>
-        <button class="btn btn-outline btn-sm" title="Eliminar rutina" onclick="deleteRutina(${idx})">✕</button>`:''}
+      <td>
+        <button class="btn btn-outline btn-sm" title="Opciones" onclick="openRutinaOpcionesModal(${idx})"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
   }).join('')}
   </tbody></table>
   </div>`;
+}
+function openRutinaOpcionesModal(idx){
+  const r = RUTINAS[idx];
+  const canCreate = isSuperOwner() || hasPerm('editarRutinas');
+  const canAssign = isSuperOwner() || hasPerm('asignarRutinas');
+  openModal(`
+    <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="openVerRutinaModal(${idx})"><i class="ti ti-eye"></i>Ver ejercicios</button>
+      ${canAssign?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i>Asignar a socios</button>`:''}
+      ${canCreate?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i>Editar rutina</button>
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="duplicarRutina(${idx})"><i class="ti ti-copy"></i>Duplicar rutina</button>
+      <button class="btn btn-outline" style="justify-content:flex-start;color:var(--red);" onclick="deleteRutina(${idx})"><i class="ti ti-trash"></i>Eliminar rutina</button>`:''}
+      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
 }
 function duplicarRutina(idx){
   const r = RUTINAS[idx];
