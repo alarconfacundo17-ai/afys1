@@ -1673,12 +1673,37 @@ function openEditSocioModal(idx){
     <div class="field"><label>Plan</label><select id="es_pl">${['Mensual','Trimestral','Semestral'].map(p=>`<option ${s.pl===p?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
     <div class="modal-actions" style="justify-content:space-between;">
-      <button class="btn btn-outline" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell"></i>Rutinas</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell"></i>Rutinas</button>
+        <button class="btn btn-outline" onclick="openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history"></i>Sesiones</button>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="saveEditSocio(${idx})">Guardar</button>
       </div>
     </div>
+  `);
+}
+function openSocioAsistenciaStaffModal(idx){
+  const s = SOCIOS[idx];
+  const misRegs = REGS.filter(r=>r.i===s.i);
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
+  const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
+  const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
+  openModal(`
+    <div class="modal-head"><h3>Sesiones — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="grid-metrics">
+      <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Esta semana</div></div>
+      <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Este mes</div></div>
+      <div class="metric"><div class="num">${misRegs.length}</div><div class="lbl">Total histórico</div></div>
+    </div>
+    <div class="card">
+      <h3>Historial</h3>
+      ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(r.f.slice(0,10)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="openEditSocioModal(${idx})">Volver</button></div>
   `);
 }
 function saveEditSocio(idx){
