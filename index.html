@@ -2077,12 +2077,22 @@ function pageRutinas(){
         ${canAssign?`<button class="btn btn-green btn-sm" style="padding:5px 10px;" title="Asignar a socios" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i></button>`:''}
         <button class="btn btn-outline btn-sm" onclick="openVerRutinaModal(${idx})">👁</button>
         ${canCreate?`<button class="btn btn-outline btn-sm" title="Editar rutina" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-outline btn-sm" title="Duplicar rutina" onclick="duplicarRutina(${idx})"><i class="ti ti-copy"></i></button>
         <button class="btn btn-outline btn-sm" title="Eliminar rutina" onclick="deleteRutina(${idx})">✕</button>`:''}
       </td>
     </tr>`;
   }).join('')}
   </tbody></table>
   </div>`;
+}
+function duplicarRutina(idx){
+  const r = RUTINAS[idx];
+  let base = r.n+' (copia)', n = base, i = 2;
+  while(RUTINAS.some(x=>x.n===n)){ n = base+' '+i; i++; }
+  const copia = {n, t:r.t, ob:r.ob, cr:'Tú', ejs:r.ejs.map(e=>({...e}))};
+  RUTINAS.push(copia);
+  persist();
+  openRutinaModal(RUTINAS.length-1);
 }
 function deleteRutina(idx){
   const r = RUTINAS[idx];
