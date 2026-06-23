@@ -1732,6 +1732,16 @@ function openSocioRutinasModal(si, search){
   if(!s.rsNombre) s.rsNombre = {};
   openModal(`
     <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    ${s.rs.length?`<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
+      <p style="color:var(--text2);font-size:12px;margin:0 0 8px;">Cambiar rutina asignada</p>
+      ${s.rs.map(rn=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12.5px;flex:1;">${esc((s.rsNombre&&s.rsNombre[rn])||rn)}</span>
+        <select id="swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}" style="flex:1.2;font-size:12px;">
+          ${RUTINAS.filter(r=>r.n!==rn).map(r=>`<option value="${esc(r.n)}">${esc(r.n)}</option>`).join('')}
+        </select>
+        <button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="cambiarRutinaSocio(${si},'${rn.replace(/'/g,"\\'")}',$('#swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}').value,'${search.replace(/'/g,"\\'")}')">Cambiar</button>
+      </div>`).join('')}
+    </div>`:''}
     <input placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
     <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.length?list.map(r=>{
@@ -1791,6 +1801,20 @@ function quitarRutinaSocio(si, rname, search){
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
+  persist();
+  openSocioRutinasModal(si, search);
+}
+function cambiarRutinaSocio(si, oldName, newName, search){
+  const s = SOCIOS[si];
+  if(!newName || newName===oldName || !s.rs.includes(oldName)) return;
+  if(s.rs.includes(newName)){ alert('Esa rutina ya está asignada.'); return; }
+  s.rs = s.rs.map(r=>r===oldName?newName:r);
+  if(s.rsDias && s.rsDias[oldName]) delete s.rsDias[oldName];
+  if(s.rsNotas && s.rsNotas[oldName]) delete s.rsNotas[oldName];
+  if(s.rsNombre && s.rsNombre[oldName]) delete s.rsNombre[oldName];
+  if(s.rsOverride && s.rsOverride[oldName]) delete s.rsOverride[oldName];
+  if(s.rsMiPeso && s.rsMiPeso[oldName]) delete s.rsMiPeso[oldName];
+  if(s.rsHechos && s.rsHechos[oldName]) delete s.rsHechos[oldName];
   persist();
   openSocioRutinasModal(si, search);
 }
