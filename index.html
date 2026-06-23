@@ -1249,15 +1249,18 @@ function pagePanel(){
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
   const asistenciasHoy = REGS.filter(r=>r.f && r.f.slice(0,10)===todayISO()).length;
   const verAsistencias = isSuperOwner() || hasPerm('verAsistenciasHoy');
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const diaHoy = DIAS_JS[new Date().getDay()];
+  const clasesHoyCount = CLASES_HOY.filter(c=>c.d===diaHoy).length;
   let metrics = `
     <div class="metric"><div class="num">${activos}</div><div class="lbl">Socios activos</div></div>
     ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
-    <div class="metric"><div class="num">${CLASES_HOY.length}</div><div class="lbl">Clases hoy</div></div>
+    <div class="metric"><div class="num">${clasesHoyCount}</div><div class="lbl">Clases hoy</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Pagos vencidos</div></div>
   `;
   if(currentRole==='profesor'){
     const st = currentStaff();
-    const misClases = st ? CLASES_HOY.filter(c=>c.ins===st.n).length : 0;
+    const misClases = st ? CLASES_HOY.filter(c=>c.ins===st.n && c.d===diaHoy).length : 0;
     metrics = `
     <div class="metric"><div class="num">${misClases}</div><div class="lbl">Clases hoy</div></div>
     ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
@@ -3123,15 +3126,20 @@ function openInscriptosModal(idx){
 function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
 function socioClases(){
   const misReservas = socioReservas();
-  if(!CLASES_HOY.length) return `<h2>Clases disponibles</h2>${emptyState('ti-calendar-plus','Próximamente... todavía no hay clases cargadas.')}`;
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const diaHoy = DIAS_JS[new Date().getDay()];
+  const idxHoy = DIAS_SEMANA.indexOf(diaHoy);
+  const clasesSemana = CLASES_HOY.map((c,i)=>({c,i})).filter(({c})=>DIAS_SEMANA.indexOf(c.d)>=idxHoy);
+  if(!clasesSemana.length) return `<h2>Clases disponibles</h2>${emptyState('ti-calendar-plus','No hay clases programadas para el resto de esta semana.')}`;
   return `
   <h2>Clases disponibles</h2>
-  ${CLASES_HOY.map((c,i)=>{
+  ${clasesSemana.map(({c,i})=>{
     const [act,tot] = c.cu.split('/').map(Number);
     const full = act>=tot;
     const booked = !!misReservas[claseKey(c)];
+    const esHoy = c.d===diaHoy;
     return `<div class="class-card">
-      <div><b>${esc(c.n)}</b><div style="font-size:12px;color:var(--text2);">${c.h} · ${esc(c.ins)} · ${c.cu}</div></div>
+      <div><b>${esc(c.n)}</b><div style="font-size:12px;color:var(--text2);">${esHoy?'<b style="color:var(--primary);">Hoy</b>':esc(c.d)} · ${c.h} · ${esc(c.ins)} · ${c.cu}</div></div>
       <button class="btn btn-sm ${booked?'btn-outline':full?'btn-outline':'btn-primary'}" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${booked?'Reservada':full?'Sin cupo':'Reservar'}</button>
     </div>`;
   }).join('')}`;
