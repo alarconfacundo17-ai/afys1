@@ -2117,6 +2117,7 @@ function deleteRutina(idx){
 }
 function openAsignarModal(idx, search){
   const r = RUTINAS[idx];
+  if(search===undefined) asignarDiasAbierto = null;
   search = search||'';
   const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
   openModal(`
@@ -2131,18 +2132,20 @@ function openAsignarModal(idx, search){
       if(!s.rsNotas) s.rsNotas = {};
       const dias = s.rsDias[r.n]||[];
       const nota = s.rsNotas[r.n]||'';
+      const abierto = asignarDiasAbierto===si;
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
           ${has?`<span style="display:flex;align-items:center;gap:8px;">
               <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
+              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="toggleAsignarDiasAbierto(${si},${idx},'${search.replace(/'/g,"\\'")}')" title="Días y nota"><i class="ti ti-calendar-event"></i></button>
               <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>
             </span>`
                 :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
         ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
           ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
-        ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
+        ${(has&&abierto)?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <p style="color:var(--text2);font-size:12px;margin:0;">¿Qué días la hace? (opcional)</p>
             <span>
@@ -2162,10 +2165,16 @@ function openAsignarModal(idx, search){
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
   `,'wide');
 }
+let asignarDiasAbierto = null;
+function toggleAsignarDiasAbierto(si, idx, search){
+  asignarDiasAbierto = asignarDiasAbierto===si ? null : si;
+  openAsignarModal(idx, search);
+}
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
   persist();
+  asignarDiasAbierto = si;
   openAsignarModal(idx, search);
 }
 function toggleRutinaDia(si, rname, dia, idx, search){
