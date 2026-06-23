@@ -3185,9 +3185,9 @@ function socioRutina(){
   return `
   <h2>Rutina</h2>
   <div class="card" style="margin-bottom:14px;border-left:4px solid var(--primary);">
-    <p style="font-size:16px;font-weight:700;margin:0 0 4px;">📅 Hoy es ${diaHoy}</p>
-    <p style="font-size:13.5px;margin:0;color:${rutinasHoy.length?'var(--text)':'var(--text2)'};">${rutinasHoy.length?`Te toca: <b>${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n)).join(', ')}</b>`:'Hoy no tenés ninguna rutina asignada.'}</p>
-    <p style="font-size:12px;margin:8px 0 0;color:var(--text2);">${ultimoEntrenoTexto(s)}</p>
+    ${rutinasHoy.length?`<p style="font-size:16px;font-weight:700;margin:0 0 4px;">📅 Hoy es ${diaHoy}</p>
+    <p style="font-size:13.5px;margin:0;color:var(--text);">Te toca: <b>${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n)).join(', ')}</b></p>`:''}
+    <p style="font-size:12px;margin:${rutinasHoy.length?'8px':'0'} 0 0;color:var(--text2);">${ultimoEntrenoTexto(s)}</p>
   </div>
   <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Elegí qué rutina vas a hacer.</p>
   <div style="display:flex;flex-direction:column;gap:10px;">
