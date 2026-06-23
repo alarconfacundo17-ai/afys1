@@ -2069,8 +2069,8 @@ function pageRutinas(){
   <tbody>
   ${RUTINAS.map((r,idx)=>{
     const socCount = SOCIOS.filter(s=>s.rs.includes(r.n)).length;
-    return `<tr ${canCreate?`draggable="true" ondragstart="dragSrcIdx=${idx}" ondragover="event.preventDefault()" ondrop="dragReorder(RUTINAS,dragSrcIdx,${idx},renderStaff)"`:''}>
-      ${canCreate?`<td style="cursor:grab;color:var(--text2);text-align:center;" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></td>`:''}
+    return `<tr ${canCreate?`ondragover="event.preventDefault()" ondrop="dragReorder(RUTINAS,dragSrcIdx,${idx},renderStaff)"`:''}>
+      ${canCreate?`<td style="cursor:grab;color:var(--text2);text-align:center;" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical" draggable="true" ondragstart="dragSrcIdx=${idx}"></i></td>`:''}
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
       <td>${r.ejs.length}</td><td>${socCount}</td>
       <td>
@@ -2150,7 +2150,7 @@ function openAsignarModal(idx, search){
                 :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
         ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
-          ${esc(t)}<span class="x" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
+          ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
         ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <p style="color:var(--text2);font-size:12px;margin:0;">¿Qué días la hace? (opcional)</p>
@@ -2527,8 +2527,8 @@ function pageEjercicios(){
       </div>
       <div class="group-body ${open?'':'hidden'}">
         ${items.map((e,i)=>`
-          <div class="ej-row" ${(canEdit&&!q)?`draggable="true" ondragstart="dragSrcIdx=${i}" ondragover="event.preventDefault()" ondrop="dragReorder(EJD['${g.replace(/'/g,"\\'")}'],dragSrcIdx,${i},renderStaff)"`:''} style="${(canEdit&&!q)?'cursor:grab;':''}">
-            <span>${(canEdit&&!q)?`<i class="ti ti-grip-vertical" style="color:var(--text2);margin-right:6px;"></i>`:''}<span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
+          <div class="ej-row" ${(canEdit&&!q)?`ondragover="event.preventDefault()" ondrop="dragReorder(EJD['${g.replace(/'/g,"\\'")}'],dragSrcIdx,${i},renderStaff)"`:''}>
+            <span>${(canEdit&&!q)?`<i class="ti ti-grip-vertical" draggable="true" ondragstart="dragSrcIdx=${i}" style="color:var(--text2);margin-right:6px;cursor:grab;"></i>`:''}<span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
               ${(canVideo||canEdit)?`<button class="btn btn-outline btn-sm" onclick="openMediaModal('${esc(e)}')" title="Foto y video">${(EJ_VIDEOS[e]||EJ_IMAGES[e])?`<i class="ti ti-photo-video" style="color:var(--primary);"></i>`:`<i class="ti ti-photo-video"></i>`}</button>`
                 :(EJ_VIDEOS[e]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${esc(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:'')}
