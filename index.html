@@ -372,6 +372,7 @@ const PERM_LABELS = {
   clases:'Clases', editarRutinas:'Editar rutinas', asignarRutinas:'Asignar rutinas a socios',
   cargarEjercicios:'Cargar/editar ejercicios', subirVideos:'Subir videos de ejercicios',
   horarios:'Editar horarios del gimnasio', cuentas:'Gestionar cuentas y permisos',
+  verAsistenciasHoy:'Ver cuántos socios asistieron hoy',
 };
 let STAFF = [];
 let currentStaffId = null;
@@ -1246,9 +1247,11 @@ function ingresosUltimosMeses(n){
 function pagePanel(){
   const activos = SOCIOS.filter(s=>s.activo).length;
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
+  const asistenciasHoy = REGS.filter(r=>r.f && r.f.slice(0,10)===todayISO()).length;
+  const verAsistencias = isSuperOwner() || hasPerm('verAsistenciasHoy');
   let metrics = `
     <div class="metric"><div class="num">${activos}</div><div class="lbl">Socios activos</div></div>
-    <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
+    ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
     <div class="metric"><div class="num">${CLASES_HOY.length}</div><div class="lbl">Clases hoy</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Pagos vencidos</div></div>
   `;
@@ -1257,7 +1260,7 @@ function pagePanel(){
     const misClases = st ? CLASES_HOY.filter(c=>c.ins===st.n).length : 0;
     metrics = `
     <div class="metric"><div class="num">${misClases}</div><div class="lbl">Clases hoy</div></div>
-    <div class="metric"><div class="num">${entradasHoy}</div><div class="lbl">Entradas hoy</div></div>
+    ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
     `;
   }
   return `
