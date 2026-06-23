@@ -963,7 +963,7 @@ function renderStaffGateSignup(staffError){
     <input id="sg_dom" type="text" placeholder="Calle 123, Ciudad">
     <label>Edad</label>
     <input id="sg_edad" type="number" min="0" placeholder="30">
-    ${role==='profesor'?`<label>Especialidad</label><input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">`:''}
+    ${role==='profesor'?`<label>Especialidad (opcional)</label><input id="sg_esp" type="text" placeholder="Spinning, Funcional, etc.">`:''}
     ${staffError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(staffError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="staffGateCreate()">Crear cuenta</button>
     ${pendingInvite?'':`<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderStaffGateLogin()">Volver</button>`}
@@ -979,7 +979,7 @@ async function staffGateCreate(){
   const tel = $('#sg_tel').value.trim();
   const dom = $('#sg_dom').value.trim();
   const edadStr = $('#sg_edad').value;
-  if(!n || !email || pass.length<6 || !tel || !dom || !edadStr || (role==='profesor' && !esp)){ renderStaffGateSignup('Completá todos los datos: nombre, email, contraseña (mínimo 6 caracteres), teléfono, domicilio y edad'+(role==='profesor'?' y especialidad.':'.')); return; }
+  if(!n || !email || pass.length<6 || !tel || !dom || !edadStr){ renderStaffGateSignup('Completá nombre, email, contraseña (mínimo 6 caracteres), teléfono, domicilio y edad.'); return; }
   const edad = parseInt(edadStr);
   if(STAFF.find(s=>s.email===email) || email===DUENO_EMAIL){ renderStaffGateSignup('Ya existe una cuenta con ese email. Iniciá sesión.'); return; }
   const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
