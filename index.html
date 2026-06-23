@@ -191,11 +191,11 @@ h3{font-size:15px;margin-bottom:10px;}
 
 /* horarios - calendario semanal */
 .cal-wrap{overflow-x:auto;}
-.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:440px;font-size:10.5px;}
+.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:320px;font-size:9.5px;}
 .cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);}
-.cal-daylabel{grid-row:1;padding:3px 2px;text-align:center;font-weight:600;font-size:10px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
+.cal-daylabel{grid-row:1;padding:3px 1px;text-align:center;font-weight:600;font-size:9px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
 .cal-hours{border-right:1px solid var(--border);}
-.cal-hour{font-size:9px;color:var(--text2);padding:0 3px;border-top:1px solid var(--border2);box-sizing:border-box;}
+.cal-hour{font-size:8px;color:var(--text2);padding:0 2px;border-top:1px solid var(--border2);box-sizing:border-box;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
 .cal-event{position:absolute;left:2px;right:2px;border-radius:4px;padding:1px 3px;font-size:9px;line-height:1.2;overflow:hidden;cursor:pointer;box-sizing:border-box;}
@@ -287,7 +287,6 @@ h3{font-size:15px;margin-bottom:10px;}
     <div class="bn-item active" data-tab="inicio"><i class="ti ti-home"></i>Inicio</div>
     <div class="bn-item" data-tab="clases"><i class="ti ti-calendar"></i>Clases</div>
     <div class="bn-item" data-tab="rutina"><i class="ti ti-barbell"></i>Rutina</div>
-    <div class="bn-item" data-tab="asistencia"><i class="ti ti-check"></i>Asistencia</div>
     <div class="bn-item" data-tab="cuenta"><i class="ti ti-user"></i>Cuenta</div>
   </div>
 </div>
@@ -2389,7 +2388,7 @@ function pageHorarios(){
       ${profes.map(p=>`<span class="badge" style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
     </div>
     <div class="cal-wrap">
-      <div class="cal-grid" style="grid-template-columns:38px repeat(7,1fr);">
+      <div class="cal-grid" style="grid-template-columns:28px repeat(7,1fr);">
         <div class="cal-corner"></div>
         ${DIAS_SEMANA.map(d=>`<div class="cal-daylabel">${d}</div>`).join('')}
         <div class="cal-hours" style="grid-row:2;grid-column:1;height:${totalH*CAL_PXH}px;">
@@ -3023,7 +3022,6 @@ function renderSocio(){
   if(socioPage==='inicio') c.innerHTML = socioInicio();
   else if(socioPage==='clases') c.innerHTML = socioClases();
   else if(socioPage==='rutina') c.innerHTML = socioRutina();
-  else if(socioPage==='asistencia') c.innerHTML = socioAsistencia();
   else if(socioPage==='cuenta') c.innerHTML = socioCuenta();
   updateNotifDots();
 }
@@ -3280,27 +3278,6 @@ function setMiPesoEj(si, rname, ejName, val){
   s.rsMiPeso[rname][ejName] = val;
   persist();
 }
-function socioAsistencia(){
-  const s = SOCIOS[currentSocioIdx];
-  const misRegs = REGS.filter(r=>r.i===s.i);
-  const hoy = new Date();
-  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
-  const esteMes = misRegs.filter(r=>r.f && new Date(r.f)>=inicioMes).length;
-  const estaSemana = misRegs.filter(r=>r.f && new Date(r.f)>=inicioSemana).length;
-  return `
-  <h2>Asistencia</h2>
-  <div class="grid-metrics">
-    <div class="metric"><div class="num">${estaSemana}</div><div class="lbl">Esta semana</div></div>
-    <div class="metric"><div class="num">${esteMes}</div><div class="lbl">Este mes</div></div>
-    <div class="metric"><div class="num">${misRegs.length}</div><div class="lbl">Total histórico</div></div>
-  </div>
-  <div class="card">
-    <h3>Historial</h3>
-    ${misRegs.map(r=>`<div class="day-row"><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
-  </div>`;
-}
-
 function socioCuenta(){
   const s = SOCIOS[currentSocioIdx];
   const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
