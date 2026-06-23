@@ -2088,7 +2088,6 @@ function openRutinaOpcionesModal(idx){
   openModal(`
     <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="openVerRutinaModal(${idx})"><i class="ti ti-eye"></i>Ver ejercicios</button>
       ${canAssign?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openAsignarModal(${idx})"><i class="ti ti-user-plus"></i>Asignar a socios</button>`:''}
       ${canCreate?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openRutinaModal(${idx})"><i class="ti ti-edit"></i>Editar rutina</button>
       <button class="btn btn-outline" style="justify-content:flex-start;" onclick="duplicarRutina(${idx})"><i class="ti ti-copy"></i>Duplicar rutina</button>
@@ -2113,16 +2112,6 @@ function deleteRutina(idx){
   RUTINAS.splice(idx,1);
   persist();
   renderStaff();
-}
-function openVerRutinaModal(idx){
-  const r = RUTINAS[idx];
-  openModal(`
-    <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">${esc(r.ob)||''}</p>
-    <table><thead><tr><th>Ejercicio</th><th>Series</th><th>Reps</th></tr></thead>
-    <tbody>${r.ejs.map(e=>`<tr><td>${esc(e.n)}</td><td>${e.s}</td><td>${esc(e.r)}</td></tr>`).join('')}</tbody></table>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
-  `,'wide');
 }
 function openAsignarModal(idx, search){
   const r = RUTINAS[idx];
@@ -3152,8 +3141,15 @@ function socioRutina(){
   const s = SOCIOS[currentSocioIdx];
   const misRutinas = s.rs.map(n=>RUTINAS.find(r=>r.n===n)).filter(Boolean);
   if(!misRutinas.length) return `<h2>Rutina</h2>${emptyState('ti-barbell-off','No tienes rutinas asignadas.')}`;
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const diaHoy = DIAS_JS[new Date().getDay()];
+  const rutinasHoy = misRutinas.filter(r=>s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].includes(diaHoy));
   return `
   <h2>Rutina</h2>
+  <div class="card" style="margin-bottom:14px;border-left:4px solid var(--primary);">
+    <p style="font-size:16px;font-weight:700;margin:0 0 4px;">📅 Hoy es ${diaHoy}</p>
+    <p style="font-size:13.5px;margin:0;color:${rutinasHoy.length?'var(--text)':'var(--text2)'};">${rutinasHoy.length?`Te toca: <b>${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n)).join(', ')}</b>`:'Hoy no tenés ninguna rutina asignada.'}</p>
+  </div>
   <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Elegí qué rutina vas a hacer.</p>
   <div style="display:flex;flex-direction:column;gap:10px;">
     ${misRutinas.map((r,i)=>{
@@ -3182,8 +3178,12 @@ function openSocioRutinaDetalleModal(rname){
   const miPeso = (s.rsMiPeso&&s.rsMiPeso[rname]) || {};
   const hechos = (s.rsHechos&&s.rsHechos[rname]) || {};
   const hoy = todayISO();
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const diaHoy = DIAS_JS[new Date().getDay()];
+  const tocaHoy = s.rsDias&&s.rsDias[rname]&&s.rsDias[rname].includes(diaHoy);
   openModal(`
     <div class="modal-head"><h3>${esc((s.rsNombre&&s.rsNombre[rname])||rname)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="font-size:15px;font-weight:700;margin:0 0 10px;">📅 Hoy es ${diaHoy}${tocaHoy?' — te toca esta rutina':''}</p>
     ${r.ob?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">${esc(r.ob)}</p>`:''}
     ${(s.rsNotas&&s.rsNotas[rname])?`<p style="color:var(--text2);font-size:12.5px;margin-bottom:12px;background:var(--bg2);padding:8px 10px;border-radius:8px;">📝 ${esc(s.rsNotas[rname])}</p>`:''}
     <div id="modalScrollList" style="max-height:430px;overflow:auto;display:flex;flex-direction:column;gap:10px;">
