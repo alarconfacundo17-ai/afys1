@@ -3077,17 +3077,19 @@ function socioInicio(){
 function openEditPerfil(){
   const s = SOCIOS[currentSocioIdx];
   const hasCumple = !!s.cumple;
+  const lblSt = 'font-size:14px;';
+  const inSt = 'font-size:15.5px;padding:11px 12px;';
   openModal(`
-    <div class="modal-head"><h3>Editar mis datos</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre y apellido</label><input id="ep_n" value="${esc(s.n||'')}"></div>
-    <div class="field"><label>Email</label><input id="ep_email" type="email" value="${esc(s.email||'')}"></div>
-    <div class="field"><label>Teléfono</label><input id="ep_tel" type="tel" value="${esc(s.tel||'')}" placeholder="011 1234-5678"></div>
-    <div class="field"><label>Domicilio</label><input id="ep_dom" value="${esc(s.dom||'')}" placeholder="Calle 123, Ciudad"></div>
-    <div class="field"><label>Peso (kg)</label><input id="ep_pe" type="number" value="${s.pe||''}"></div>
-    <div class="field"><label>Fecha de cumpleaños</label><input id="ep_cumple" type="date" value="${s.cumple||''}" oninput="onCumpleInput()"></div>
-    <div class="field"><label>Edad${hasCumple?' (calculada automáticamente)':''}</label><input id="ep_ed" type="number" value="${getEdad(s)||''}" ${hasCumple?'disabled':''}></div>
-    <div class="field"><label>Objetivo</label><input id="ep_ob" value="${esc(s.ob||'')}"></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePerfil()">Guardar</button></div>
+    <div class="modal-head"><h3 style="font-size:18px;">Editar mis datos</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Nombre y apellido</label><input id="ep_n" style="${inSt}" value="${esc(s.n||'')}"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Email</label><input id="ep_email" style="${inSt}" type="email" value="${esc(s.email||'')}"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Teléfono</label><input id="ep_tel" style="${inSt}" type="tel" value="${esc(s.tel||'')}" placeholder="011 1234-5678"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Domicilio</label><input id="ep_dom" style="${inSt}" value="${esc(s.dom||'')}" placeholder="Calle 123, Ciudad"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Peso (kg)</label><input id="ep_pe" style="${inSt}" type="number" value="${s.pe||''}"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Fecha de cumpleaños</label><input id="ep_cumple" style="${inSt}" type="date" value="${s.cumple||''}" oninput="onCumpleInput()"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Edad${hasCumple?' (calculada automáticamente)':''}</label><input id="ep_ed" style="${inSt}" type="number" value="${getEdad(s)||''}" ${hasCumple?'disabled':''}></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Objetivo</label><input id="ep_ob" style="${inSt}" value="${esc(s.ob||'')}"></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="savePerfil()">Guardar</button></div>
   `);
 }
 function onCumpleInput(){
@@ -3281,19 +3283,19 @@ function socioCuenta(){
   const edad = getEdad(s);
   return `
   <h2>Cuenta</h2>
-  <div class="card" style="margin-bottom:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <h3 style="margin:0;">Mis datos</h3>
-      <button class="btn btn-outline btn-sm" onclick="openEditPerfil()"><i class="ti ti-pencil"></i> Editar</button>
+  <div class="card" style="margin-bottom:14px;padding:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="margin:0;font-size:17px;">Mis datos</h3>
+      <button class="btn btn-outline" style="font-size:14px;font-weight:600;padding:10px 16px;display:flex;align-items:center;gap:7px;" onclick="openEditPerfil()"><i class="ti ti-pencil" style="font-size:18px;"></i> Editar</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
-      <div><b>Nombre:</b> ${esc(s.n)}</div>
-      <div><b>Email:</b> ${esc(s.email||'-')}</div>
-      <div><b>Teléfono:</b> ${esc(s.tel||'-')}</div>
-      <div><b>Domicilio:</b> ${esc(s.dom||'-')}</div>
-      <div><b>Edad:</b> ${edad?edad+' años':'-'}</div>
-      <div><b>Peso:</b> ${s.pe?s.pe+' kg':'-'}</div>
-      <div><b>Objetivo:</b> ${esc(s.ob||'-')}</div>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:15.5px;">
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Nombre</span><b>${esc(s.n)}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Email</span><b>${esc(s.email||'-')}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Teléfono</span><b>${esc(s.tel||'-')}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Domicilio</span><b>${esc(s.dom||'-')}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Edad</span><b>${edad?edad+' años':'-'}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Peso</span><b>${s.pe?s.pe+' kg':'-'}</b></div>
+      <div><span style="color:var(--text2);font-size:12.5px;display:block;margin-bottom:2px;">Objetivo</span><b>${esc(s.ob||'-')}</b></div>
     </div>
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
