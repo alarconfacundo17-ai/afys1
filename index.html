@@ -1527,10 +1527,10 @@ function pageSocios(){
       <td>${esc(s.pl)}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
-      <td style="display:flex;gap:6px;">
-        ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline btn-sm" title="Registrar pago" onclick="openPagoModal(${idx})">💵</button>`:''}
-        <button class="btn btn-outline btn-sm" title="Notas" onclick="openNotasModal(${idx})">📝</button>
-        <button class="btn btn-outline btn-sm" title="Opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots"></i></button>
+      <td style="display:flex;gap:8px;">
+        ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="padding:8px 10px;" title="Registrar pago" onclick="openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:18px;color:var(--green);"></i></button>`:''}
+        <button class="btn btn-outline" style="padding:8px 10px;" title="Notas" onclick="openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:18px;"></i></button>
+        <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
       </td>
     </tr>
   `).join('')}
@@ -1541,15 +1541,20 @@ function openSocioOpcionesModal(idx){
   const s = SOCIOS[idx];
   const canEdit = hasPerm('editarSocios')||hasPerm('editarFichas')||isSuperOwner();
   const canRemove = hasPerm('removerSocios')||isSuperOwner();
+  const optSt = 'justify-content:flex-start;width:100%;padding:13px 16px;font-size:15px;gap:10px;';
   openModal(`
-    <div class="modal-head"><h3>${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${canEdit?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit"></i>Editar ficha</button>`:''}
+    <div class="modal-head"><h3 style="font-size:18px;">${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
+      <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
+      ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
+      ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
+      ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${canRemove?(s.activo===false
-        ?`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate"></i>Reactivar socio</button>`
-        :`<button class="btn btn-outline" style="justify-content:flex-start;" onclick="openBajaModal(${idx})"><i class="ti ti-user-off"></i>Dar de baja</button>`):''}
-      ${canRemove?`<button class="btn btn-outline" style="justify-content:flex-start;color:var(--red);" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash"></i>Eliminar completamente</button>`:''}
-      <button class="btn btn-outline" style="justify-content:flex-start;" onclick="closeModal()">Cancelar</button>
+        ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
+        :`<button class="btn btn-outline" style="${optSt}" onclick="openBajaModal(${idx})"><i class="ti ti-user-off" style="font-size:20px;color:var(--orange,#d97706);"></i>Dar de baja</button>`):''}
+      ${canRemove?`<button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash" style="font-size:20px;"></i>Eliminar completamente</button>`:''}
+      <button class="btn btn-outline" style="${optSt}" onclick="closeModal()">Cancelar</button>
     </div>
   `);
 }
@@ -1560,7 +1565,7 @@ function openBajaModal(idx){
     <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">El socio quedará inactivo pero sus datos permanecen guardados en la nube por si retoma en el futuro.</p>
     <div class="field"><label>Motivo</label><select id="bj_m"><option>No pago</option><option>Decisión propia</option><option>Mudanza</option><option>Otro</option></select></div>
     <div class="field"><label>Nota adicional (opcional)</label><textarea id="bj_n" rows="2"></textarea></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="confirmBaja(${idx})">Dar de baja</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button><button class="btn btn-red" style="font-size:15px;padding:12px 20px;" onclick="confirmBaja(${idx})">Dar de baja</button></div>
   `);
 }
 function confirmBaja(idx){
@@ -1585,7 +1590,7 @@ function openEliminarSocioModal(idx){
     <div class="modal-head"><h3>Eliminar a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--red);font-size:13px;margin-bottom:10px;"><b>Esta acción no se puede deshacer.</b> Se va a borrar completamente del sistema: ficha, notas, pagos asociados, reservas y no va a poder volver a entrar a la app con esa cuenta.</p>
     <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Si preferís conservar su historial, usá "Dar de baja" en lugar de eliminar.</p>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-red" onclick="eliminarSocioCompleto(${idx})">Eliminar definitivamente</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button><button class="btn btn-red" style="font-size:15px;padding:12px 20px;" onclick="eliminarSocioCompleto(${idx})">Eliminar definitivamente</button></div>
   `);
 }
 function eliminarSocioCompleto(idx){
@@ -1666,15 +1671,9 @@ function openEditSocioModal(idx){
     <div class="field"><label>Objetivo de entrenamiento</label><input id="es_ob" value="${esc(s.ob||'')}"></div>
     <div class="field"><label>Plan</label><select id="es_pl">${['Mensual','Trimestral','Semestral'].map(p=>`<option ${s.pl===p?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
-    <div class="modal-actions" style="justify-content:space-between;">
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-outline" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell"></i>Rutinas</button>
-        <button class="btn btn-outline" onclick="openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history"></i>Sesiones</button>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveEditSocio(${idx})">Guardar</button>
-      </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="saveEditSocio(${idx})">Guardar</button>
     </div>
   `);
 }
@@ -1697,7 +1696,7 @@ function openSocioAsistenciaStaffModal(idx){
       <h3>Historial</h3>
       ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(r.f.slice(0,10)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="openEditSocioModal(${idx})">Volver</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button></div>
   `);
 }
 function saveEditSocio(idx){
