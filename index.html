@@ -129,10 +129,10 @@ h3{font-size:15px;margin-bottom:10px;}
 #socio{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;display:flex;flex-direction:column;}
 .socio-topbar{padding:10px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
 .socio-logo{height:34px;}
-.socio-content{flex:1;padding:16px 18px;padding-bottom:80px;}
+.socio-content{flex:1;padding:16px 18px;padding-bottom:92px;}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#fff;border-top:1px solid var(--border);display:flex;}
-.bn-item{flex:1;text-align:center;padding:10px 0 8px;font-size:11px;color:var(--text2);}
-.bn-item i{display:block;font-size:20px;margin-bottom:2px;}
+.bn-item{flex:1;text-align:center;padding:12px 0 10px;font-size:12.5px;font-weight:600;color:var(--text2);}
+.bn-item i{display:block;font-size:25px;margin-bottom:3px;}
 .bn-item.active{color:var(--primary);}
 .s-page{display:none;}
 .s-page.active{display:block;}
@@ -3066,6 +3066,7 @@ function socioInicio(){
     </div>
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
+  ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:700;padding:18px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:26px;"></i>Ver mi rutina</button>`:''}
   <div class="card" style="margin-bottom:14px;padding:16px 18px;">
     <h3 style="font-size:14px;">Próximas clases reservadas</h3>
     ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
