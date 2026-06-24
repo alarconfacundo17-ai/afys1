@@ -1273,20 +1273,6 @@ function pagePanel(){
   }
   return `
   <div class="grid-metrics">${metrics}</div>
-  ${currentRole==='dueno'?(()=>{
-    const hoy = new Date();
-    const enUnaSemana = new Date(hoy.getTime()+7*86400000);
-    const vencenSemana = SOCIOS.filter(s=>s.activo!==false && s.vence && new Date(s.vence)>=hoy && new Date(s.vence)<=enUnaSemana).length;
-    const atraso15 = SOCIOS.filter(s=>{
-      if(s.activo===false || s.es!=='de' || !s.vence) return false;
-      const d = new Date(s.vence);
-      return !isNaN(d) && Math.floor((hoy-d)/86400000)>=15;
-    }).length;
-    return `<div class="card" style="margin-bottom:18px;display:flex;gap:28px;">
-      <div><b style="font-size:22px;">${vencenSemana}</b><div style="color:var(--text2);font-size:12.5px;">Vencen esta semana</div></div>
-      <div><b style="font-size:22px;">${atraso15}</b><div style="color:var(--text2);font-size:12.5px;">Atraso +15 días</div></div>
-    </div>`;
-  })():''}
   <div class="card" style="margin-bottom:18px;">
     <h3>Últimas entradas por QR</h3>
     <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
