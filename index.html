@@ -279,7 +279,7 @@ h3{font-size:15px;margin-bottom:10px;}
     <img src="logo.jpg" alt="AFYS" class="socio-logo">
     <div style="display:flex;gap:10px;align-items:center;">
       <div class="notif-wrap">
-        <button class="bell" onclick="toggleNotif('socio')">🔔<span class="dot hidden" id="socioNotifDot"></span></button>
+        <button class="bell" onclick="toggleNotif('socio')"><i class="ti ti-bell"></i><span class="dot hidden" id="socioNotifDot"></span></button>
         <div class="notif-panel hidden" id="socioNotifPanel" style="right:-10px;"></div>
       </div>
       <button class="btn btn-outline btn-sm" onclick="logout()">Salir</button>
@@ -3110,7 +3110,7 @@ function socioInicio(){
   return `
   ${welcomeHTML}
   <div class="profile-card">
-    <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:16px;" onclick="openEditPerfil()">✏️</button>
+    <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:18px;background:rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" onclick="openEditPerfil()" title="Editar"><i class="ti ti-pencil" style="font-size:16px;"></i></button>
     <div class="avatar">${s.i}</div>
     <div class="pname">${esc(s.n)}</div>
     <div style="font-size:12px;opacity:.9;margin-bottom:2px;">${esc(s.pl)}</div>
@@ -3301,7 +3301,7 @@ function openSocioRutinaDetalleModal(rname){
     ${ejs.map((e,ei)=>{
       const done = hechos[e.n]===hoy;
       const img = EJ_IMAGES[e.n];
-      return `<div style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;${done?'background:var(--bg2);':''}">
+      return `<div id="ejRow${ei}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;transition:background-color .35s ease;${done?'background:var(--bg2);':''}">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:15.5px;">${ei+1}. ${esc(e.n)}</b>
@@ -3309,16 +3309,16 @@ function openSocioRutinaDetalleModal(rname){
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:78px;font-size:13px;padding:7px 9px;">
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
-            <button class="btn btn-sm ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}')"><i class="ti ti-check" style="font-size:19px;"></i>${done?'Hecho':'Marcar hecho'}</button>
+            <button id="ejBtn${ei}" class="btn btn-sm ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;transition:background-color .25s ease,color .25s ease,border-color .25s ease;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
           </div>
         </div>
       </div>`;
     }).join('')}
     </div>
-    <div class="modal-actions"><button class="btn btn-primary" style="font-size:15px;padding:12px 0;" onclick="closeModal();renderSocio();">Cerrar</button></div>
+    <div class="modal-actions"><button class="btn btn-primary" style="font-size:15px;padding:12px 0;border-radius:10px;" onclick="closeModal();renderSocio();">Cerrar</button></div>
   `,'wide');
 }
-function toggleEjercicioHecho(rname, ejName){
+function toggleEjercicioHecho(rname, ejName, ei){
   const s = SOCIOS[currentSocioIdx];
   if(!s.rsHechos) s.rsHechos = {};
   if(!s.rsHechos[rname]) s.rsHechos[rname] = {};
@@ -3326,6 +3326,17 @@ function toggleEjercicioHecho(rname, ejName){
   if(s.rsHechos[rname][ejName]===hoy) delete s.rsHechos[rname][ejName];
   else { s.rsHechos[rname][ejName] = hoy; s.ultimoEntreno = {r:rname, f:hoy}; }
   persist();
+  const done = s.rsHechos[rname][ejName]===hoy;
+  if(typeof ei==='number'){
+    const row = document.getElementById('ejRow'+ei);
+    const btn = document.getElementById('ejBtn'+ei);
+    if(row && btn){
+      row.style.backgroundColor = done ? 'var(--bg2)' : '';
+      btn.className = 'btn btn-sm '+(done?'btn-primary':'btn-outline');
+      btn.querySelector('span').textContent = done ? 'Hecho' : 'Marcar hecho';
+      return;
+    }
+  }
   openSocioRutinaDetalleModal(rname);
 }
 function setMiPesoEj(si, rname, ejName, val){
