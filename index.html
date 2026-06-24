@@ -1527,9 +1527,7 @@ function pageSocios(){
       <td>${esc(s.pl)}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
-      <td style="display:flex;gap:8px;">
-        ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="padding:8px 10px;" title="Registrar pago" onclick="openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:18px;color:var(--green);"></i></button>`:''}
-        <button class="btn btn-outline" style="padding:8px 10px;" title="Notas" onclick="openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:18px;"></i></button>
+      <td>
         <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
       </td>
     </tr>
