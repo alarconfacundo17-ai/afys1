@@ -3078,7 +3078,11 @@ function openEditPerfil(){
   const s = SOCIOS[currentSocioIdx];
   const hasCumple = !!s.cumple;
   openModal(`
-    <div class="modal-head"><h3>Editar perfil</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Editar mis datos</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre y apellido</label><input id="ep_n" value="${esc(s.n||'')}"></div>
+    <div class="field"><label>Email</label><input id="ep_email" type="email" value="${esc(s.email||'')}"></div>
+    <div class="field"><label>Teléfono</label><input id="ep_tel" type="tel" value="${esc(s.tel||'')}" placeholder="011 1234-5678"></div>
+    <div class="field"><label>Domicilio</label><input id="ep_dom" value="${esc(s.dom||'')}" placeholder="Calle 123, Ciudad"></div>
     <div class="field"><label>Peso (kg)</label><input id="ep_pe" type="number" value="${s.pe||''}"></div>
     <div class="field"><label>Fecha de cumpleaños</label><input id="ep_cumple" type="date" value="${s.cumple||''}" oninput="onCumpleInput()"></div>
     <div class="field"><label>Edad${hasCumple?' (calculada automáticamente)':''}</label><input id="ep_ed" type="number" value="${getEdad(s)||''}" ${hasCumple?'disabled':''}></div>
@@ -3098,10 +3102,16 @@ function onCumpleInput(){
 }
 function savePerfil(){
   const s = SOCIOS[currentSocioIdx];
+  s.n = $('#ep_n').value.trim()||s.n;
+  s.i = initials(s.n);
+  s.email = $('#ep_email').value.trim()||s.email;
+  s.tel = $('#ep_tel').value.trim()||null;
+  s.dom = $('#ep_dom').value.trim()||null;
   s.pe = parseInt($('#ep_pe').value)||s.pe;
   s.cumple = $('#ep_cumple').value || null;
   s.ed = s.cumple ? calcAge(s.cumple) : (parseInt($('#ep_ed').value)||s.ed);
   s.ob = $('#ep_ob').value||s.ob;
+  persist();
   closeModal(); renderSocio();
 }
 
@@ -3268,8 +3278,24 @@ function socioCuenta(){
   const s = SOCIOS[currentSocioIdx];
   const payTxt = {ok:'Tu pago está al día',ve:'Tu pago está por vencer',de:'Tienes un pago vencido'}[s.es];
   const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  const edad = getEdad(s);
   return `
   <h2>Cuenta</h2>
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;">Mis datos</h3>
+      <button class="btn btn-outline btn-sm" onclick="openEditPerfil()"><i class="ti ti-pencil"></i> Editar</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+      <div><b>Nombre:</b> ${esc(s.n)}</div>
+      <div><b>Email:</b> ${esc(s.email||'-')}</div>
+      <div><b>Teléfono:</b> ${esc(s.tel||'-')}</div>
+      <div><b>Domicilio:</b> ${esc(s.dom||'-')}</div>
+      <div><b>Edad:</b> ${edad?edad+' años':'-'}</div>
+      <div><b>Peso:</b> ${s.pe?s.pe+' kg':'-'}</div>
+      <div><b>Objetivo:</b> ${esc(s.ob||'-')}</div>
+    </div>
+  </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="card">
     <h3>Historial de pagos</h3>
