@@ -3066,15 +3066,12 @@ function socioInicio(){
     </div>
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
-  ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:700;padding:18px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:26px;"></i>Ver mi rutina</button>`:''}
+  ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
   <div class="card" style="margin-bottom:14px;padding:16px 18px;">
     <h3 style="font-size:14px;">Próximas clases reservadas</h3>
     ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:13px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
   </div>
-  <div class="card" style="padding:16px 18px;">
-    <h3 style="font-size:14px;">Rutinas activas</h3>
-    ${s.rs.map(r=>`<div class="badge b-purple" style="margin-right:6px;cursor:pointer;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();">${esc(r)}</div>`).join('')||emptyState('ti-barbell-off','Sin rutinas asignadas')}
-  </div>`;
+  `;
 }
 
 function openEditPerfil(){
