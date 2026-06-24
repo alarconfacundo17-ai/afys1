@@ -105,6 +105,9 @@ h3{font-size:15px;margin-bottom:10px;}
 .field{margin-bottom:12px;}
 .field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:999;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast i{color:var(--green);font-size:19px;}
 
 /* toggle */
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
@@ -471,6 +474,20 @@ function migrateProfesorDefaultPerms(){
 }
 
 let persistTimer = null;
+let toastTimer = null;
+function showToast(msg){
+  let t = document.getElementById('appToast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'appToast';
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = `<i class="ti ti-circle-check"></i>${esc(msg)}`;
+  clearTimeout(toastTimer);
+  t.classList.add('show');
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2000);
+}
 function persist(){
   if(demoMode) return;
   clearTimeout(persistTimer);
@@ -1450,6 +1467,7 @@ function saveStaffFicha(id){
   s.edad = $('#fc_edad').value ? parseInt($('#fc_edad').value) : null;
   if(s.role==='profesor') s.esp = $('#fc_esp').value.trim()||null;
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 
@@ -1507,21 +1525,9 @@ function togglePerm(staffId,key,el){
 }
 
 /* ---- SOCIOS ---- */
-function pageSocios(){
+function socioRowHTML(s, idx){
   const showPay = isSuperOwner() || hasPerm('verPagos');
-  const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
-  const ordered = withIdx
-    .filter(o=>o.s.activo!==false)
-    .sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'))
-    .concat(withIdx.filter(o=>o.s.activo===false).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')));
   return `
-  <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
-  ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
-  </div>
-  <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Plan</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Estado</th><th></th></tr></thead>
-  <tbody>
-  ${ordered.map(({s,idx})=>`
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       <td>${esc(s.pl)}</td>
@@ -1531,7 +1537,36 @@ function pageSocios(){
         <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
       </td>
     </tr>
-  `).join('')}
+  `;
+}
+function sociosOrdenados(){
+  const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
+  return withIdx
+    .filter(o=>o.s.activo!==false)
+    .sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'))
+    .concat(withIdx.filter(o=>o.s.activo===false).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')));
+}
+function filterSociosTable(q){
+  q = (q||'').toLowerCase().trim();
+  const tbody = document.getElementById('sociosTableBody');
+  if(!tbody) return;
+  const list = sociosOrdenados().filter(({s})=>s.n.toLowerCase().includes(q));
+  tbody.innerHTML = list.length ? list.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
+}
+function pageSocios(){
+  const showPay = isSuperOwner() || hasPerm('verPagos');
+  const ordered = sociosOrdenados();
+  return `
+  <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
+  ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
+  </div>
+  <div class="field" style="max-width:320px;margin-bottom:14px;position:relative;">
+    <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
+  </div>
+  <div class="card">
+  <table><thead><tr><th>Nombre</th><th>Plan</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Estado</th><th></th></tr></thead>
+  <tbody id="sociosTableBody">
+  ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
   </div>`;
 }
@@ -1656,6 +1691,7 @@ function saveSocio(){
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 
@@ -1711,6 +1747,7 @@ function saveEditSocio(idx){
   if(oldEmail && oldEmail!==newEmail) delete SOCIOS_LOGIN[oldEmail];
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 function openSocioRutinasModal(si, search){
@@ -1865,6 +1902,7 @@ function saveSocioRutinaEjs(){
   if(!s.rsOverride) s.rsOverride = {};
   s.rsOverride[socioEjEditRname] = ejs;
   persist();
+  showToast('Guardado');
   openSocioRutinasModal(socioEjEditSi);
 }
 function resetSocioRutinaEjs(si, rname){
@@ -1906,6 +1944,7 @@ function savePago(){
   }
   editPagoIdx = null;
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 function deletePago(payIdx){
@@ -1913,6 +1952,7 @@ function deletePago(payIdx){
   PAGOS.splice(payIdx,1);
   editPagoIdx = null;
   persist();
+  showToast('Eliminado');
   closeModal(); renderStaff();
 }
 
@@ -1953,6 +1993,7 @@ function saveEditNota(idx,i){
   if(v) SOCIOS[idx].nt[i]=v;
   editNotaIdx=null;
   persist();
+  showToast('Guardado');
   openNotasModal(idx);
 }
 function removeNota(idx,i){
@@ -2024,6 +2065,7 @@ function saveClase(){
   }
   syncClaseTurno(c);
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 function deleteClase(idx){
@@ -2326,6 +2368,7 @@ function saveRutina(){
     RUTINAS.push({n, t, ob, cr:'Tú', ejs});
   }
   persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 
@@ -2488,6 +2531,8 @@ function saveTurno(turnoId){
   } else {
     TURNOS.push({id:turnoSeq++, ...data});
   }
+  persist();
+  showToast('Guardado');
   closeModal(); renderStaff();
 }
 function deleteTurno(turnoId){
@@ -2573,6 +2618,7 @@ function saveVideoLink(name){
   if(!url){ alert('Pegá un link primero.'); return; }
   EJ_VIDEOS[name] = url;
   persist();
+  showToast('Guardado');
   closeModal(); openVideoModal(name);
 }
 async function uploadVideo(name){
@@ -2591,6 +2637,7 @@ async function uploadVideo(name){
   const {data} = sb.storage.from('ejercicio-videos').getPublicUrl(path);
   EJ_VIDEOS[name] = data.publicUrl;
   persist();
+  showToast('Guardado');
   closeModal(); openVideoModal(name);
 }
 function deleteVideo(name){
@@ -3097,6 +3144,7 @@ function savePerfil(){
   s.ed = s.cumple ? calcAge(s.cumple) : (parseInt($('#ep_ed').value)||s.ed);
   s.ob = $('#ep_ob').value||s.ob;
   persist();
+  showToast('Guardado');
   closeModal(); renderSocio();
 }
 
