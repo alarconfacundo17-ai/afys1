@@ -349,15 +349,14 @@ const EJD = {
   'Piernas':   ['Sentadilla con barra','Prensa de piernas','Extensión cuádriceps','Curl femoral','Peso muerto rumano','Hip thrust','Elevación pantorrillas','Vasto externo derecho','Vasto interno derecho','Sentadilla por delante','Sentadilla por detrás','Sentadilla a una pierna','Estocada','Step isométrico','Tibial anterior','Tibial posterior','Peroneos','Aductores','Abductores','Gemelos de pie','Femorales y glúteos'],
   'Glúteos':   ['Hip thrust con barra','Patada de glúteo en polea','Abducción en máquina','Sentadilla sumo','Step up con mancuernas','Abducción de cadera','Aducción de cadera','Extensión de cadera','Flexión de cadera','Flexión y extensión de cadera'],
   'Hombros':   ['Press militar con barra','Elevaciones laterales','Elevaciones frontales','Pájaro con mancuernas','Remo al mentón','Press Arnold','Press de hombros alternos','Press de hombros mecánico','Deltoides alternos','Deltoides posterior + tríceps','Gesto de drive','Isométrico MM pared','Rotación y extensión de hombro','Trapecio'],
-  'Tríceps':   ['Press francés barra','Extensiones en polea','Fondos en banco','Patada de tríceps','Press cerrado','Tríceps vertical','Extensiones de brazos'],
-  'Bíceps':    ['Curl con barra recta','Curl martillo','Curl concentrado','Curl predicador','Curl mancuernas alterno','Bíceps y gemelos','Bíceps + deltoides','Flexión de muñeca','Extensión de antebrazo'],
+  'Brazos':    ['Press francés barra','Extensiones en polea','Fondos en banco','Patada de tríceps','Press cerrado','Tríceps vertical','Extensiones de brazos','Curl con barra recta','Curl martillo','Curl concentrado','Curl predicador','Curl mancuernas alterno','Bíceps y gemelos','Bíceps + deltoides','Flexión de muñeca','Extensión de antebrazo'].sort((a,b)=>a.localeCompare(b,'es')),
   'Core':      ['Plancha abdominal','Plancha lateral','Crunch en polea','Elevación de piernas','Russian twist','Rueda abdominal','Abdominal inferior','Abdominales + oblicuos','Abd. superior + intercostales','Abd. c/obl. y trasero','Abd. inf. pasivo inclinado cruzado','Abd. inf. pasivo interno','Lumbares','Lumbares II','Lumbares + femorales','Relajación lumbar','Intercostales','Cervicales c/rolo','Extensión de cuello','Psoas','Psoas isométrico','Stability core','TRX sentadilla','TRX sentadilla a 1 mml','Mariposa anterior','Movilidad de caderas','Elasticidad psoas'],
   'Full body': ['Burpees','Sentadilla + press','Peso muerto + remo','Clean y press','Thruster','Escalador','Minitrans','Romboides'],
   'Cardio':    ['Cinta','Bicicleta','Elíptico','Elongación general','Retorno / vuelta a la calma'],
 };
 const EJC = {
   'Pecho':'#534AB7','Espalda':'#059669','Piernas':'#D85A30','Glúteos':'#D4537E',
-  'Hombros':'#378ADD','Tríceps':'#BA7517','Bíceps':'#8B45C6','Core':'#2B9E9E','Full body':'#666','Cardio':'#0E7490'
+  'Hombros':'#378ADD','Brazos':'#BA7517','Core':'#2B9E9E','Full body':'#666','Cardio':'#0E7490'
 };
 // ejercicio -> link de video (editable)
 const EJ_VIDEOS = {};
@@ -463,6 +462,7 @@ function applyState(s){
   migrateClasesTurnos();
   migrateSocioIds();
   RUTINAS.forEach(r=>{ if(Array.isArray(r.ejs)) r.ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); });
+  migrateBrazosGroup();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
   SOCIOS.forEach(s=>{ if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ if(Array.isArray(ejs)) ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); }); });
 }
@@ -478,6 +478,22 @@ function migrateClasesTurnos(){
   if(changed) persist();
 }
 
+function migrateBrazosGroup(){
+  const olds = ['Tríceps','Bíceps'];
+  const hasOld = olds.some(g=>EJD[g]);
+  if(!hasOld) return;
+  if(!EJD['Brazos']) EJD['Brazos'] = [];
+  if(!EJC['Brazos']) EJC['Brazos'] = EJC['Tríceps'] || EJC['Bíceps'] || nextEjColor();
+  olds.forEach(g=>{
+    if(!EJD[g]) return;
+    EJD[g].forEach(e=>{ if(!EJD['Brazos'].includes(e)) EJD['Brazos'].push(e); });
+    delete EJD[g];
+    delete EJC[g];
+    delete collapsedGroups[g];
+  });
+  EJD['Brazos'].sort((a,b)=>a.localeCompare(b,'es'));
+  persist();
+}
 function migrateSocioIds(){
   let maxN = 0;
   SOCIOS.forEach(s=>{
@@ -620,8 +636,9 @@ function pagoBelongsTo(p,s){ return p.sid ? p.sid===s.id : p.n===s.n; }
 function regBelongsTo(r,s){ return r.sid ? r.sid===s.id : r.i===s.i; }
 
 /* ============ LOGIN (cuentas reales con Supabase Auth) ============ */
-let loginView = 'login'; // login | signupSocio | signupDueno
+let loginView = 'login'; // login | signupSocio | signupDueno | forgot | resetPassword
 let loginError = '';
+let loginInfo = '';
 
 function renderLogin(){
   const box = $('#loginBox');
@@ -651,6 +668,25 @@ function renderLogin(){
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitSignupDueno()">Crear cuenta</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">Volver</button>
     `;
+  } else if(loginView==='forgot'){
+    box.innerHTML = `
+      <h1 style="font-size:20px;">Recuperar contraseña</h1>
+      <p class="sub" style="margin-bottom:0;">Ingresá tu email y te mandamos un link para crear una contraseña nueva.</p>
+      <label>Email</label><input id="fp_e" type="email" placeholder="tu@email.com">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitForgotPassword()">Enviar link</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';loginInfo='';renderLogin();">Volver</button>
+    `;
+  } else if(loginView==='resetPassword'){
+    box.innerHTML = `
+      <h1 style="font-size:20px;">Nueva contraseña</h1>
+      <p class="sub" style="margin-bottom:0;">Elegí tu nueva contraseña para entrar a tu cuenta.</p>
+      <label>Contraseña nueva</label><input id="rp_p1" type="password" placeholder="Mínimo 6 caracteres">
+      <label>Repetir contraseña</label><input id="rp_p2" type="password" placeholder="Mínimo 6 caracteres">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitResetPassword()">Guardar contraseña</button>
+    `;
   } else {
     box.innerHTML = `
       <img src="logo.jpg" alt="AFYS" class="login-logo">
@@ -659,13 +695,36 @@ function renderLogin(){
       <label>Contraseña</label>
       <input id="loginPass" type="password" placeholder="••••••••">
       ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
       <div class="hint">
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='forgot';loginError='';loginInfo='';renderLogin();">¿Olvidaste tu contraseña?</button>
         ${DUENO_EMAIL?'':`<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='signupDueno';loginError='';renderLogin();">Soy el dueño del gimnasio, crear cuenta</button>`}
         <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="loginView='signupSocio';loginError='';renderLogin();">Soy socio nuevo, crear mi cuenta</button>
       </div>
     `;
   }
+}
+async function submitForgotPassword(){
+  const email = $('#fp_e').value.trim().toLowerCase();
+  if(!email){ loginError='Ingresá tu email.'; loginInfo=''; renderLogin(); return; }
+  loginError=''; loginInfo='Enviando...'; renderLogin();
+  const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: APP_URL});
+  if(error){ loginError = error.message; loginInfo=''; renderLogin(); return; }
+  loginInfo = 'Listo, revisá tu email para crear una nueva contraseña.';
+  renderLogin();
+}
+async function submitResetPassword(){
+  const p1 = $('#rp_p1').value;
+  const p2 = $('#rp_p2').value;
+  if(!p1 || p1.length<6){ loginError='La contraseña debe tener al menos 6 caracteres.'; renderLogin(); return; }
+  if(p1!==p2){ loginError='Las contraseñas no coinciden.'; renderLogin(); return; }
+  loginError=''; renderLogin();
+  const {error} = await sb.auth.updateUser({password:p1});
+  if(error){ loginError = error.message; renderLogin(); return; }
+  await sb.auth.signOut();
+  loginView='login'; loginError=''; loginInfo='Contraseña actualizada. Ingresá con tu nueva contraseña.';
+  renderLogin();
 }
 
 async function doLogin(){
@@ -674,7 +733,7 @@ async function doLogin(){
   if(!email || !password){ loginError='Completá email y contraseña.'; renderLogin(); return; }
   const {error} = await sb.auth.signInWithPassword({email, password});
   if(error){ loginError='Email o contraseña incorrectos, o todavía no confirmaste tu email (revisá tu casilla).'; renderLogin(); return; }
-  loginError='';
+  loginError=''; loginInfo='';
   await routeLoggedInUser(email);
 }
 
@@ -3443,8 +3502,14 @@ function socioCuenta(){
     invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
 
+  const isRecovery = window.location.hash.includes('type=recovery');
   const {data:{session}} = await sb.auth.getSession();
-  if(session && session.user && session.user.email){
+  if(isRecovery && session){
+    window.history.replaceState({}, '', window.location.pathname);
+    loginView='resetPassword'; loginError=''; loginInfo='';
+    $('#login').classList.remove('hidden');
+    renderLogin();
+  } else if(session && session.user && session.user.email){
     const sEmail = session.user.email.toLowerCase();
     if(isStaffQR && sEmail!==DUENO_EMAIL && !STAFF.find(s=>s.email===sEmail) && !SOCIOS_LOGIN[sEmail]){
       ensureStaffProfile(sEmail, session.user);
