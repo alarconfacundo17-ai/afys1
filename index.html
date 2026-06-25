@@ -102,6 +102,15 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-done-btn{transition:background-color .3s ease,color .3s ease,border-color .3s ease;}
 .ej-done-btn.pop{animation:checkPop .3s ease;}
 .ej-row-card{transition:background-color .35s ease,border-color .35s ease;}
+.page-fade{animation:fadeInUp .22s ease;}
+.btn{transition:opacity .15s ease,transform .12s ease,background-color .2s ease,border-color .2s ease,color .2s ease;}
+.btn:active{transform:scale(.96);}
+.bn-item{transition:color .2s ease;}
+.bn-item i{transition:transform .2s ease;}
+.bn-item.active i{transform:translateY(-2px);}
+.bell{transition:transform .15s ease;}
+.bell:active{transform:scale(.85);}
+.card{transition:box-shadow .2s ease,border-color .2s ease;}
 #staffContent>*, #socioContent>*{animation:fadeInUp .22s ease;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
@@ -3084,6 +3093,9 @@ function renderSocio(){
   else if(socioPage==='clases') c.innerHTML = socioClases();
   else if(socioPage==='rutina') c.innerHTML = socioRutina();
   else if(socioPage==='cuenta') c.innerHTML = socioCuenta();
+  c.classList.remove('page-fade');
+  void c.offsetWidth;
+  c.classList.add('page-fade');
   updateNotifDots();
 }
 
@@ -3260,10 +3272,9 @@ function socioRutina(){
   const rutinasHoy = misRutinas.filter(r=>s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].includes(diaHoy));
   return `
   <h2>Rutina</h2>
-  <div class="card" style="margin-bottom:14px;border-left:4px solid var(--primary);">
-    ${rutinasHoy.length?`<p style="font-size:16px;font-weight:700;margin:0 0 4px;">📅 Hoy es ${diaHoy}</p>
-    <p style="font-size:13.5px;margin:0;color:var(--text);">Te toca: <b>${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n)).join(', ')}</b></p>`:''}
-    <p style="font-size:12px;margin:${rutinasHoy.length?'8px':'0'} 0 0;color:var(--text2);">${ultimoEntrenoTexto(s)}</p>
+  <div class="card" style="margin-bottom:14px;text-align:center;">
+    ${rutinasHoy.length?`<p style="font-size:17px;font-weight:800;letter-spacing:.5px;margin:0;color:var(--primary);">${diaHoy.toUpperCase()}, HOY: <span style="color:var(--text);">${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n).toUpperCase()).join(', ')}</span></p>`:`<p style="font-size:14.5px;font-weight:700;margin:0;color:var(--text2);">${diaHoy.toUpperCase()}</p>`}
+    <p style="font-size:12.5px;margin:${rutinasHoy.length?'8px':'4px'} 0 0;color:var(--text2);">${ultimoEntrenoTexto(s)}</p>
   </div>
   <p style="color:var(--text2);font-size:13.5px;margin-bottom:14px;">Elegí qué rutina vas a hacer:</p>
   <div style="display:flex;flex-direction:column;gap:12px;">
