@@ -98,6 +98,10 @@ h3{font-size:15px;margin-bottom:10px;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+@keyframes checkPop{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
+.ej-done-btn{transition:background-color .3s ease,color .3s ease,border-color .3s ease;}
+.ej-done-btn.pop{animation:checkPop .3s ease;}
+.ej-row-card{transition:background-color .35s ease,border-color .35s ease;}
 #staffContent>*, #socioContent>*{animation:fadeInUp .22s ease;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
@@ -3301,7 +3305,7 @@ function openSocioRutinaDetalleModal(rname){
     ${ejs.map((e,ei)=>{
       const done = hechos[e.n]===hoy;
       const img = EJ_IMAGES[e.n];
-      return `<div id="ejRow${ei}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;transition:background-color .35s ease;${done?'background:var(--bg2);':''}">
+      return `<div id="ejRow${ei}" class="ej-row-card" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;${done?'background:var(--bg2);':''}">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:15.5px;">${ei+1}. ${esc(e.n)}</b>
@@ -3309,7 +3313,7 @@ function openSocioRutinaDetalleModal(rname){
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:78px;font-size:13px;padding:7px 9px;">
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
-            <button id="ejBtn${ei}" class="btn btn-sm ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;transition:background-color .25s ease,color .25s ease,border-color .25s ease;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
+            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;width:128px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
           </div>
         </div>
       </div>`;
@@ -3332,8 +3336,11 @@ function toggleEjercicioHecho(rname, ejName, ei){
     const btn = document.getElementById('ejBtn'+ei);
     if(row && btn){
       row.style.backgroundColor = done ? 'var(--bg2)' : '';
-      btn.className = 'btn btn-sm '+(done?'btn-primary':'btn-outline');
+      btn.className = 'btn btn-sm ej-done-btn '+(done?'btn-primary':'btn-outline');
       btn.querySelector('span').textContent = done ? 'Hecho' : 'Marcar hecho';
+      btn.classList.remove('pop');
+      void btn.offsetWidth;
+      btn.classList.add('pop');
       return;
     }
   }
