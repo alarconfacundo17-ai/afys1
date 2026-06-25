@@ -463,6 +463,7 @@ function applyState(s){
   migrateClasesTurnos();
   migrateSocioIds();
   RUTINAS.forEach(r=>{ if(Array.isArray(r.ejs)) r.ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); });
+  Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
   SOCIOS.forEach(s=>{ if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ if(Array.isArray(ejs)) ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); }); });
 }
 
@@ -2619,8 +2620,8 @@ function pageEjercicios(){
       </div>
       <div class="group-body ${open?'':'hidden'}">
         ${items.map((e,i)=>`
-          <div class="ej-row" ${(canEdit&&!q)?`ondragover="event.preventDefault()" ondrop="dragReorder(EJD['${g.replace(/'/g,"\\'")}'],dragSrcIdx,${i},renderStaff)"`:''}>
-            <span>${(canEdit&&!q)?`<i class="ti ti-grip-vertical" draggable="true" ondragstart="dragSrcIdx=${i}" style="color:var(--text2);margin-right:6px;cursor:grab;"></i>`:''}<span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
+          <div class="ej-row">
+            <span><span class="dot-num" style="background:${EJC[g]}">${i+1}</span>${esc(e)}</span>
             <span>
               ${(!canVideo&&!canEdit&&EJ_VIDEOS[e])?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);"></i></button>`:''}
               ${(canVideo||canEdit)?`<button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openEjercicioOpcionesModal('${jsAttr(g)}','${jsAttr(e)}')"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>`:''}
@@ -2841,7 +2842,7 @@ function renombrarEjercicio(oldName){
   const newName = $('#ren_ej_nombre').value.trim();
   if(!newName || newName===oldName){ closeModal(); return; }
   if(ejFlatList().some(e=>e.n===newName)){ alert('Ya existe un ejercicio con ese nombre.'); return; }
-  Object.keys(EJD).forEach(g=>{ EJD[g] = EJD[g].map(e=>e===oldName?newName:e); });
+  Object.keys(EJD).forEach(g=>{ EJD[g] = EJD[g].map(e=>e===oldName?newName:e).sort((a,b)=>a.localeCompare(b,'es')); });
   if(EJ_VIDEOS[oldName]!==undefined){ EJ_VIDEOS[newName] = EJ_VIDEOS[oldName]; delete EJ_VIDEOS[oldName]; }
   if(EJ_IMAGES[oldName]!==undefined){ EJ_IMAGES[newName] = EJ_IMAGES[oldName]; delete EJ_IMAGES[oldName]; }
   RUTINAS.forEach(r=>{ r.ejs.forEach(e=>{ if(e.n===oldName) e.n = newName; }); });
@@ -2877,6 +2878,7 @@ function saveEjercicioGrupos(name){
     if(should && !has) EJD[g].push(name);
     else if(!should && has) EJD[g] = EJD[g].filter(e=>e!==name);
   });
+  Object.keys(EJD).forEach(g=>EJD[g].sort((a,b)=>a.localeCompare(b,'es')));
   persist();
   closeModal(); renderStaff();
 }
@@ -2905,6 +2907,7 @@ function saveEjercicio(){
     g = newG;
   }
   if(n) EJD[g].push(n);
+  EJD[g].sort((a,b)=>a.localeCompare(b,'es'));
   persist();
   closeModal(); renderStaff();
 }
