@@ -547,7 +547,7 @@ function timeSelectHTML(id, value, onchange, small){
   const hours = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
   const mins = ['00','05','10','15','20','25','30','35','40','45','50','55'];
   const oc = onchange ? ` onchange="${onchange}"` : '';
-  const selSt = small ? 'width:auto;font-size:10.5px;padding:3px 3px;' : 'width:auto;';
+  const selSt = small ? 'width:auto;font-size:10.5px;padding:2px 1px;text-align:center;-webkit-appearance:none;-moz-appearance:none;appearance:none;' : 'width:auto;';
   return `<div style="display:flex;gap:${small?'2px':'4px'};align-items:center;">
     <select id="${id}_h" style="${selSt}"${oc}>${hours.map(hh=>`<option value="${hh}" ${hh===h?'selected':''}>${hh}</option>`).join('')}</select>
     <span>:</span>
@@ -2405,7 +2405,7 @@ function saveRutina(){
 function canEditHorarios(){ return isSuperOwner() || hasPerm('horarios'); }
 const CAL_START = 6;   // 06:00
 const CAL_END = 23;    // 23:00
-const CAL_PXH = 16;    // px por hora
+const CAL_PXH = 21;    // px por hora
 function hToMin(h){ const [hh,mm]=h.split(':').map(Number); return hh*60+mm; }
 function staffColor(id){
   const idx = STAFF.findIndex(s=>s.id===id);
