@@ -207,14 +207,14 @@ h3{font-size:15px;margin-bottom:10px;}
 
 /* horarios - calendario semanal */
 .cal-wrap{overflow-x:auto;}
-.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:0;width:100%;font-size:8.5px;}
-.cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);}
-.cal-daylabel{grid-row:1;padding:2px 1px;text-align:center;font-weight:600;font-size:8px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);}
-.cal-hours{border-right:1px solid var(--border);}
-.cal-hour{font-size:7px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;}
+.cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;width:100%;font-size:8.5px;}
+.cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);min-width:0;}
+.cal-daylabel{grid-row:1;padding:2px 1px;text-align:center;font-weight:600;font-size:7.5px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);min-width:0;overflow:hidden;white-space:normal;word-break:break-word;line-height:1.1;}
+.cal-hours{border-right:1px solid var(--border);min-width:0;}
+.cal-hour{font-size:6.5px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;overflow:hidden;white-space:nowrap;}
+.cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;min-width:0;overflow:hidden;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-event{position:absolute;left:1px;right:1px;border-radius:3px;padding:0 2px;font-size:7.5px;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
+.cal-event{position:absolute;left:1px;right:1px;border-radius:3px;padding:0 1px;font-size:6.5px;line-height:1.1;overflow:hidden;cursor:pointer;box-sizing:border-box;white-space:nowrap;text-overflow:ellipsis;}
 </style>
 </head>
 <body>
@@ -2416,23 +2416,30 @@ function pageHorarios(){
   const totalH = CAL_END-CAL_START;
   return `
   <div class="card" style="margin-bottom:18px;font-size:12px;">
-    <h3 style="font-size:14px;margin-bottom:8px;">Horario del gimnasio</h3>
-    <table style="font-size:11.5px;"><thead><tr>${DIAS_SEMANA.map(d=>`<th style="padding:4px 6px;">${d}</th>`).join('')}</tr></thead>
-    <tbody><tr>${DIAS_SEMANA.map(d=>{
+    <h3 style="font-size:14px;margin-bottom:10px;">Horario del gimnasio</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+    ${DIAS_SEMANA.map(d=>{
       const h = GYM_HOURS[d];
       if(canEdit){
-        return `<td style="min-width:108px;padding:4px 6px;">
-          ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;">
-            ${timeSelectHTML('gh_'+d+'_'+i+'_de', tr.desde, `saveGymHour('${d}',${i},'desde',timeSelectValue('gh_${d}_${i}_de'))`)}
-            <span style="color:var(--text2);font-size:10px;">-</span>
-            ${timeSelectHTML('gh_'+d+'_'+i+'_ha', tr.hasta, `saveGymHour('${d}',${i},'hasta',timeSelectValue('gh_${d}_${i}_ha'))`)}
-            <button class="btn btn-outline btn-sm" style="padding:1px 5px;font-size:10px;" onclick="removeGymTramo('${d}',${i})">×</button>
-          </div>`).join('')}
-          <button class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10.5px;" onclick="addGymTramo('${d}')">+ tramo</button>
-        </td>`;
+        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;">
+          <b style="width:78px;flex:0 0 auto;font-size:12.5px;padding-top:6px;">${d}</b>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;">
+            ${h.map((tr,i)=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+              ${timeSelectHTML('gh_'+d+'_'+i+'_de', tr.desde, `saveGymHour('${d}',${i},'desde',timeSelectValue('gh_${d}_${i}_de'))`)}
+              <span style="color:var(--text2);font-size:10px;">-</span>
+              ${timeSelectHTML('gh_'+d+'_'+i+'_ha', tr.hasta, `saveGymHour('${d}',${i},'hasta',timeSelectValue('gh_${d}_${i}_ha'))`)}
+              <button class="btn btn-outline btn-sm" style="padding:1px 5px;font-size:10px;" onclick="removeGymTramo('${d}',${i})">×</button>
+            </div>`).join('')}
+            <button class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10.5px;align-self:flex-start;" onclick="addGymTramo('${d}')">+ tramo</button>
+          </div>
+        </div>`;
       }
-      return `<td style="padding:4px 6px;">${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join('<br>'):'<span style="color:var(--text2)">Cerrado</span>'}</td>`;
-    }).join('')}</tr></tbody></table>
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2);">
+        <b style="width:78px;flex:0 0 auto;font-size:12.5px;">${d}</b>
+        <span>${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join(', '):'<span style="color:var(--text2)">Cerrado</span>'}</span>
+      </div>`;
+    }).join('')}
+    </div>
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">Semana — turnos y clases</h3>
