@@ -365,6 +365,7 @@ const EJ_VIDEOS = {};
 const EJ_IMAGES = {};
 // reservas de clases: { [idxSocio]: { [claseKey]: true } }
 const RESERVAS = {};
+let socioSeq = 1; // contador de IDs únicos de socio
 
 
 /* ============ STATE ============ */
@@ -430,7 +431,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
   };
 }
 
@@ -457,8 +458,10 @@ function applyState(s){
   if(typeof s.entradasHoy==='number') entradasHoy = s.entradasHoy;
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
+  if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
   migrateProfesorDefaultPerms();
   migrateClasesTurnos();
+  migrateSocioIds();
   RUTINAS.forEach(r=>{ if(Array.isArray(r.ejs)) r.ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); });
   SOCIOS.forEach(s=>{ if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ if(Array.isArray(ejs)) ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); }); });
 }
@@ -472,6 +475,18 @@ function migrateClasesTurnos(){
     }
   });
   if(changed) persist();
+}
+
+function migrateSocioIds(){
+  let maxN = 0;
+  SOCIOS.forEach(s=>{
+    const n = s.id ? parseInt(String(s.id).replace('soc','')) : NaN;
+    if(!isNaN(n) && n>maxN) maxN = n;
+  });
+  SOCIOS.forEach(s=>{ if(!s.id){ maxN++; s.id = 'soc'+maxN; } });
+  if(socioSeq <= maxN) socioSeq = maxN+1;
+  PAGOS.forEach(p=>{ if(!p.sid){ const s = SOCIOS.find(s=>s.n===p.n); if(s) p.sid = s.id; } });
+  REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
 }
 
 function migrateProfesorDefaultPerms(){
@@ -600,6 +615,8 @@ function recalcEstados(opts){
   if(changed) persist();
 }
 function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+function pagoBelongsTo(p,s){ return p.sid ? p.sid===s.id : p.n===s.n; }
+function regBelongsTo(r,s){ return r.sid ? r.sid===s.id : r.i===s.i; }
 
 /* ============ LOGIN (cuentas reales con Supabase Auth) ============ */
 let loginView = 'login'; // login | signupSocio | signupDueno
@@ -1064,7 +1081,7 @@ function finishScan(){
   socio.hoy = true;
   socio.entradaHora = hora;
   entradasHoy++;
-  REGS.unshift({i:socio.i, n:socio.n, h:hora, cl:t.clase||null, f:new Date().toISOString()});
+  REGS.unshift({sid:socio.id, i:socio.i, n:socio.n, h:hora, cl:t.clase||null, f:new Date().toISOString()});
 
   const idx = SOCIOS.indexOf(socio);
   const detail = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
@@ -1704,7 +1721,7 @@ function saveSocio(){
   const pe = parseInt($('#ns_pe').value)||null;
   const ob = $('#ns_ob').value.trim()||null;
   const pl = $('#ns_pl').value;
-  SOCIOS.push({i:initials(n), n, email:email||null, tel:tel||null, cumple, pl, es:'ok', vence:addDaysISO(null,PLAN_DAYS[pl]||30), rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, pl, es:'ok', vence:addDaysISO(null,PLAN_DAYS[pl]||30), rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
   const idx = SOCIOS.length-1;
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
@@ -1731,7 +1748,7 @@ function openEditSocioModal(idx){
 }
 function openSocioAsistenciaStaffModal(idx){
   const s = SOCIOS[idx];
-  const misRegs = REGS.filter(r=>r.i===s.i);
+  const misRegs = REGS.filter(r=>regBelongsTo(r,s));
   const hoy = new Date();
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
   const inicioSemana = new Date(hoy); inicioSemana.setDate(hoy.getDate()-hoy.getDay());
@@ -1935,7 +1952,7 @@ let editPagoIdx = null;
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
-  const selIdx = p ? SOCIOS.findIndex(s=>s.n===p.n) : idx;
+  const selIdx = p ? SOCIOS.findIndex(s=>p.sid?s.id===p.sid:s.n===p.n) : idx;
   openModal(`
     <div class="modal-head"><h3>${p?'Editar pago':'Registrar pago'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Socio</label><select id="pg_s">${SOCIOS.map((s,i)=>`<option value="${i}" ${i===selIdx?'selected':''}>${esc(s.n)}</option>`).join('')}</select></div>
@@ -1953,7 +1970,7 @@ function openPagoModal(idx, payIdx){
 function savePago(){
   const i = parseInt($('#pg_s').value);
   const s = SOCIOS[i];
-  const data = {n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value};
+  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value};
   if(editPagoIdx!==null){
     PAGOS[editPagoIdx] = data;
   } else {
@@ -3043,8 +3060,8 @@ function pagePagos(){
 function openHistorialAnualModal(idx, year){
   const s = SOCIOS[idx];
   year = year || new Date().getFullYear();
-  const entrenoMes = m => REGS.some(r=>r.i===s.i && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
-  const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return p.n===s.n && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
+  const entrenoMes = m => REGS.some(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
+  const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return pagoBelongsTo(p,s) && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
   openModal(`
     <div class="modal-head"><h3>Historial ${year} — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -3398,7 +3415,7 @@ function socioCuenta(){
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="card">
     <h3>Historial de pagos</h3>
-    ${PAGOS.filter(p=>p.n===s.n).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:12px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
+    ${PAGOS.filter(p=>pagoBelongsTo(p,s)).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:12px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
   </div>`;
 }
 
