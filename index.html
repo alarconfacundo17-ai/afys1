@@ -467,12 +467,14 @@ function migrateProfesorDefaultPerms(){
   const defaultOnKeys = ['cargarSocios','editarSocios','editarFichas','clases','editarRutinas','asignarRutinas','cargarEjercicios','horarios'];
   let changed = false;
   STAFF.forEach(st=>{
-    if(st.role!=='profesor' || !st.perms) return;
+    if(st.role!=='profesor' || !st.perms || st.permsMigratedV1) return;
     const untouched = defaultOnKeys.every(k=>st.perms[k]===false) && !st.perms.verPagos && !st.perms.cargarPagos && !st.perms.removerSocios && !st.perms.cuentas;
     if(untouched){
       defaultOnKeys.forEach(k=>st.perms[k]=true);
       changed = true;
     }
+    st.permsMigratedV1 = true;
+    changed = true;
   });
   if(changed) persist();
 }
