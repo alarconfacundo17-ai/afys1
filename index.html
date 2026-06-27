@@ -1880,7 +1880,7 @@ function openSocioRutinasModal(si, search){
         <button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="cambiarRutinaSocio(${si},'${rn.replace(/'/g,"\\'")}',$('#swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}').value,'${search.replace(/'/g,"\\'")}')">Cambiar</button>
       </div>`).join('')}
     </div>`:''}
-    <input placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
+    <input id="srm_search" placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
     <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.length?list.map(r=>{
       const has = s.rs.includes(r.n);
@@ -2279,7 +2279,7 @@ function openAsignarModal(idx, search){
   const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
   openModal(`
     <div class="modal-head"><h3>Asignar — ${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <input placeholder="Buscar socio..." value="${esc(search)}" oninput="openAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
+    <input id="asg_search" placeholder="Buscar socio..." value="${esc(search)}" oninput="openAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
     <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.map(s=>{
       const si = SOCIOS.indexOf(s);
@@ -3179,11 +3179,22 @@ function openModal(html, size){
   const prevBoxTop = prevBox ? prevBox.scrollTop : 0;
   const prevList = document.getElementById('modalScrollList');
   const prevListTop = prevList ? prevList.scrollTop : 0;
+  const active = document.activeElement;
+  const focusInfo = (active && prevBox && prevBox.contains(active) && active.id) ? {
+    id: active.id, start: active.selectionStart, end: active.selectionEnd
+  } : null;
   $('#modalHost').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box ${size==='wide'?'wide':''}">${html}</div></div>`;
   const box = document.querySelector('.modal-box');
   if(box) box.scrollTop = prevBoxTop;
   const list = document.getElementById('modalScrollList');
   if(list) list.scrollTop = prevListTop;
+  if(focusInfo){
+    const el = document.getElementById(focusInfo.id);
+    if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA')){
+      el.focus();
+      if(typeof focusInfo.start==='number'){ try{ el.setSelectionRange(focusInfo.start, focusInfo.end); }catch(e){} }
+    }
+  }
 }
 function closeModal(){ $('#modalHost').innerHTML=''; }
 
