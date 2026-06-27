@@ -121,6 +121,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:999;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast i{color:var(--green);font-size:19px;}
+.toast.toast-error i{color:var(--red);}
 
 /* toggle */
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
@@ -524,7 +525,7 @@ function migrateProfesorDefaultPerms(){
 
 let persistTimer = null;
 let toastTimer = null;
-function showToast(msg){
+function showToast(msg, type){
   let t = document.getElementById('appToast');
   if(!t){
     t = document.createElement('div');
@@ -532,17 +533,22 @@ function showToast(msg){
     t.className = 'toast';
     document.body.appendChild(t);
   }
-  t.innerHTML = `<i class="ti ti-circle-check"></i>${esc(msg)}`;
+  const icon = type==='error' ? 'ti-alert-circle' : 'ti-circle-check';
+  t.innerHTML = `<i class="ti ${icon}"></i>${esc(msg)}`;
+  t.classList.toggle('toast-error', type==='error');
   clearTimeout(toastTimer);
   t.classList.add('show');
-  toastTimer = setTimeout(()=>t.classList.remove('show'), 2000);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), type==='error'?4000:2000);
 }
 function persist(){
   if(demoMode) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(()=>{
     sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
-      if(error) console.error('Error guardando en Supabase:', error);
+      if(error){
+        console.error('Error guardando en Supabase:', error);
+        showToast('No se pudo guardar. Revisá tu conexión a internet.', 'error');
+      }
     });
   }, 500);
 }
@@ -550,10 +556,11 @@ function persist(){
 async function loadState(){
   try{
     const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
-    if(error){ console.error('Error cargando de Supabase:', error); return; }
+    if(error){ console.error('Error cargando de Supabase:', error); throw error; }
     if(data && data.data) applyState(data.data);
   }catch(e){
     console.error('Error cargando de Supabase:', e);
+    throw e;
   }
 }
 
@@ -3485,7 +3492,18 @@ function socioCuenta(){
 (async function init(){
   $('#login').classList.add('hidden');
   document.body.insertAdjacentHTML('beforeend', '<div id="loadingOverlay" style="position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary);z-index:999;">Cargando datos...</div>');
-  await loadState();
+  try{
+    await loadState();
+  }catch(e){
+    const ov = $('#loadingOverlay');
+    ov.style.flexDirection = 'column';
+    ov.style.gap = '14px';
+    ov.style.color = 'var(--red)';
+    ov.innerHTML = `<i class="ti ti-wifi-off" style="font-size:32px;"></i>
+      <span>No se pudo conectar. Revisá tu internet e intentá de nuevo.</span>
+      <button class="btn btn-primary" onclick="location.reload()">Reintentar</button>`;
+    return;
+  }
   recalcEstados({notify:true});
   $('#loadingOverlay').remove();
 
