@@ -3428,7 +3428,7 @@ function openSocioRutinaDetalleModal(rname){
   openModal(`
     <div class="modal-head"><h3 style="font-size:18px;">${esc((s.rsNombre&&s.rsNombre[rname])||rname)}</h3><button onclick="closeModal()">✕</button></div>
     ${tocaHoy?`<p style="font-size:14.5px;font-weight:700;margin:0 0 10px;color:var(--primary);">📅 Hoy te toca esta rutina</p>`:''}
-    ${r.ob?`<p style="color:var(--text2);font-size:13.5px;margin-bottom:10px;">${esc(r.ob)}</p>`:''}
+    ${r.ob?`<p style="font-size:19px;font-weight:700;margin:0 0 12px;">${esc(r.ob)}</p>`:''}
     ${(s.rsNotas&&s.rsNotas[rname])?`<p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;background:var(--bg2);padding:9px 11px;border-radius:8px;">📝 ${esc(s.rsNotas[rname])}</p>`:''}
     <div id="modalScrollList" style="max-height:430px;overflow:auto;display:flex;flex-direction:column;gap:12px;">
     ${ejs.map((e,ei)=>{
