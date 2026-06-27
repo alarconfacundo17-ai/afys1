@@ -462,11 +462,9 @@ function applyState(s){
   migrateProfesorDefaultPerms();
   migrateClasesTurnos();
   migrateSocioIds();
-  RUTINAS.forEach(r=>{ if(Array.isArray(r.ejs)) r.ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); });
   migrateBrazosGroup();
   migrateClaseInsId();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
-  SOCIOS.forEach(s=>{ if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ if(Array.isArray(ejs)) ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); }); });
 }
 
 function migrateClasesTurnos(){
@@ -2012,7 +2010,6 @@ function renderSocioEjModalBody(){
 function saveSocioRutinaEjs(){
   const s = SOCIOS[socioEjEditSi];
   const ejs = socioEjEditArr.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',kg:e.kg||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,kg:e.kg||'',v:''});
-  ejs.sort((a,b)=>a.n.localeCompare(b.n,'es'));
   if(!s.rsOverride) s.rsOverride = {};
   s.rsOverride[socioEjEditRname] = ejs;
   persist();
@@ -2499,7 +2496,6 @@ function saveRutina(){
   if(t==='Otro') t = $('#rt_t_otro_val').value.trim()||'Otro';
   const ob = $('#rt_ob').value;
   const ejs = newRutinaEjs.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,v:''});
-  ejs.sort((a,b)=>a.n.localeCompare(b.n,'es'));
   if(editRutinaIdx!==null){
     const r = RUTINAS[editRutinaIdx];
     if(r.n!==n) SOCIOS.forEach(s=>{
@@ -3040,7 +3036,6 @@ function addBateriaEj(name){
 function saveBateriaRutina(){
   const n = $('#bat_n').value.trim()||'Rutina personalizada';
   const bejs = bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}));
-  bejs.sort((a,b)=>a.n.localeCompare(b.n,'es'));
   RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bejs});
   bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
