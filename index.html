@@ -1619,10 +1619,11 @@ function openPermModal(staffId){
     <div class="modal-head"><h3>Permisos de ${esc(st.n)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">${st.role==='admin'?'Admin':'Profesor'} · El dueño puede habilitar o deshabilitar cualquier permiso individualmente.</p>
     <div id="permRows">
-      ${Object.keys(PERM_LABELS).map(k=>`
+      ${Object.keys(PERM_LABELS).filter(k=>!(k==='horarios' && st.role==='profesor')).map(k=>`
         <div class="toggle-row"><span>${PERM_LABELS[k]}</span><div class="toggle ${st.perms[k]?'on':''}" data-key="${k}" onclick="togglePerm('${st.id}','${k}',this)"></div></div>
       `).join('')}
     </div>
+    ${st.role==='profesor'?`<p style="color:var(--text2);font-size:13px;margin-top:10px;">Los profesores siempre pueden ver los horarios y sus clases asignadas, pero no pueden editarlos.</p>`:''}
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Guardar</button></div>
   `);
 }
@@ -2513,7 +2514,7 @@ function saveRutina(){
 }
 
 /* ---- HORARIOS (vista semanal tipo calendario) ---- */
-function canEditHorarios(){ return isSuperOwner() || hasPerm('horarios'); }
+function canEditHorarios(){ return isSuperOwner() || (currentRole!=='profesor' && hasPerm('horarios')); }
 const CAL_START = 6;   // 06:00
 const CAL_END = 23;    // 23:00
 const CAL_PXH = 28;    // px por hora
