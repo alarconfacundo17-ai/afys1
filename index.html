@@ -1985,6 +1985,8 @@ function openSocioRutinaEjsModal(si, rname){
   socioEjEditRname = rname;
   currentEjsArr = socioEjEditArr;
   currentEjsRenderFn = renderSocioEjModalBody;
+  currentEjsShowKg = true;
+  currentEjsDraggable = false;
   renderSocioEjModalBody();
 }
 function renderSocioEjModalBody(){
@@ -2379,6 +2381,8 @@ function openRutinaModal(idx){
   }
   currentEjsArr = newRutinaEjs;
   currentEjsRenderFn = renderRutinaModalBody;
+  currentEjsShowKg = false;
+  currentEjsDraggable = true;
   renderRutinaModalBody();
 }
 function ejGrupo(name){ return Object.keys(EJD).find(g=>EJD[g].includes(name)); }
@@ -2439,13 +2443,24 @@ function ejRowHTML(i, e, showKg, draggable){
       <div id="rtEjList${i}" class="ej-picker-list hidden"></div>
     </div>
     <input placeholder="${e.modo==='tiempo'?`Tiempo (ej: 15')`:'Series x reps (ej: 3x10)'}" value="${esc(srValue(e))}" oninput="parseSeriesReps(currentEjsArr[${i}],this.value)" style="flex:1.4;">
-    <button class="btn btn-outline btn-sm" title="${e.modo==='tiempo'?'Usar series x reps':'Usar tiempo (ej. cardio)'}" onclick="toggleEjModoTiempo(currentEjsArr[${i}],currentEjsRenderFn)"><i class="ti ti-${e.modo==='tiempo'?'repeat':'clock'}"></i></button>
+    <button class="btn btn-outline btn-sm" title="${e.modo==='tiempo'?'Usar series x reps':'Usar tiempo (ej. cardio)'}" onclick="toggleEjModoTiempo(currentEjsArr[${i}],renderEjsRows)"><i class="ti ti-${e.modo==='tiempo'?'repeat':'clock'}"></i></button>
     ${showKg?`<input placeholder="Kg" value="${esc(e.kg||'')}" oninput="currentEjsArr[${i}].kg=this.value" style="flex:1;">`:''}
     <button class="btn btn-outline btn-sm" onclick="removeEjRow(${i})">×</button>
   </div>`;
 }
-function addEjRow(){ currentEjsArr.push({n:'',s:3,r:'10',kg:''}); currentEjsRenderFn(); }
-function removeEjRow(i){ currentEjsArr.splice(i,1); currentEjsRenderFn(); }
+let currentEjsShowKg = false, currentEjsDraggable = false;
+function renderEjsRows(){
+  const c = document.getElementById('rtEjs');
+  if(!c){ currentEjsRenderFn(); return; }
+  c.innerHTML = currentEjsArr.map((e,i)=>ejRowHTML(i,e,currentEjsShowKg,currentEjsDraggable)).join('');
+}
+function addEjRow(){
+  currentEjsArr.push({n:'',s:3,r:'10',kg:''});
+  const c = document.getElementById('rtEjs');
+  if(c){ c.insertAdjacentHTML('beforeend', ejRowHTML(currentEjsArr.length-1, currentEjsArr[currentEjsArr.length-1], currentEjsShowKg, currentEjsDraggable)); }
+  else currentEjsRenderFn();
+}
+function removeEjRow(i){ currentEjsArr.splice(i,1); renderEjsRows(); }
 const RUTINA_TIPOS = ['Fuerza','Adaptación','Cardio','Movilidad','Full body','Personal'];
 function renderRutinaModalBody(){
   const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
@@ -2475,7 +2490,8 @@ function dragReorder(arr, from, to, renderFn){
   arr.splice(to,0,item);
   dragSrcIdx = null;
   persist();
-  renderFn();
+  if(arr===currentEjsArr) renderEjsRows();
+  else renderFn();
 }
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
