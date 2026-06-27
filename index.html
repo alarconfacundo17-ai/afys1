@@ -2971,40 +2971,32 @@ function saveEjercicio(){
 }
 
 let bateriaSel = [];
-let bateriaFilter = null;
 let bateriaName = '';
 function openCrearDesdeBateria(){
+  currentEjsArr = bateriaSel;
+  currentEjsRenderFn = renderBateriaModalBody;
+  currentEjsShowKg = false;
+  currentEjsDraggable = true;
+  renderBateriaModalBody();
+}
+function renderBateriaModalBody(){
   openModal(`
     <div class="modal-sticky-top">
       <div class="modal-head" style="margin-bottom:10px;"><h3>Crear rutina desde la batería</h3><button onclick="closeModal()">✕</button></div>
       <div class="field" style="margin-bottom:0;"><label>Nombre de la rutina</label><input id="bat_n" value="${esc(bateriaName)}" oninput="bateriaName=this.value"></div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-      ${Object.keys(EJD).map(g=>`<button class="btn btn-sm ${bateriaFilter===g?'btn-primary':'btn-outline'}" onclick="bateriaFilter='${g}';openCrearDesdeBateria()">${g}</button>`).join('')}
-      <button class="btn btn-sm ${!bateriaFilter?'btn-primary':'btn-outline'}" onclick="bateriaFilter=null;openCrearDesdeBateria()">Todos</button>
+    <h3>Ejercicios</h3>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:10px;">Buscá y agregá ejercicios de la batería, agrupados por tipo (Core, Piernas, Brazos, etc).</p>
+    <div id="rtEjs">
+    ${bateriaSel.map((e,i)=>ejRowHTML(i,e,false,true)).join('')}
     </div>
-    <div style="max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:14px;">
-      ${(bateriaFilter?[bateriaFilter]:Object.keys(EJD)).flatMap(g=>EJD[g]).map(e=>`<div class="ej-row" style="cursor:pointer;" onclick="addBateriaEj('${jsAttr(e)}')">${esc(e)} <span style="color:var(--primary);">+</span></div>`).join('')}
-    </div>
-    <h3>Ejercicios seleccionados</h3>
-    ${bateriaSel.map((e,i)=>`
-      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ondragover="event.preventDefault()" ondrop="dragReorder(bateriaSel,dragSrcIdx,${i},openCrearDesdeBateria)">
-        <span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>
-        <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:13px;">${i+1}</span>
-        <span style="flex:2;">${esc(e.n)}</span>
-        <input placeholder="Series x reps (ej: 3x10)" value="${esc(srValue(e))}" oninput="parseSeriesReps(bateriaSel[${i}],this.value)" style="flex:1.4;">
-        <button class="btn btn-outline btn-sm" onclick="bateriaSel.splice(${i},1);openCrearDesdeBateria()">×</button>
-      </div>`).join('')}
+    <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveBateriaRutina()">Guardar rutina</button></div>
   `,'wide');
 }
-function addBateriaEj(name){
-  if(!bateriaSel.find(b=>b.n===name)) bateriaSel.push({n:name,s:3,r:'10'});
-  openCrearDesdeBateria();
-}
 function saveBateriaRutina(){
   const n = $('#bat_n').value.trim()||'Rutina personalizada';
-  const bejs = bateriaSel.map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}));
+  const bejs = bateriaSel.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}));
   RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bejs});
   bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
