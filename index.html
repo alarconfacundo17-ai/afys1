@@ -2025,13 +2025,24 @@ function resetSocioRutinaEjs(si, rname){
 }
 
 let editPagoIdx = null;
+function pagoSocioOptionsHTML(q, selId){
+  q = (q||'').toLowerCase().trim();
+  return SOCIOS.filter(s=>s.n.toLowerCase().includes(q)).map(s=>`<option value="${esc(s.id)}" ${s.id===selId?'selected':''}>${esc(s.n)}</option>`).join('') || `<option value="" disabled>Sin resultados</option>`;
+}
+function filterPagoSocioSelect(q){
+  const sel = document.getElementById('pg_s');
+  if(sel) sel.innerHTML = pagoSocioOptionsHTML(q, null);
+}
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
-  const selIdx = p ? SOCIOS.findIndex(s=>p.sid?s.id===p.sid:s.n===p.n) : idx;
+  const selId = p ? (p.sid || (SOCIOS.find(s=>s.n===p.n)||{}).id) : (SOCIOS[idx]||{}).id;
   openModal(`
     <div class="modal-head"><h3>${p?'Editar pago':'Registrar pago'}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Socio</label><select id="pg_s">${SOCIOS.map((s,i)=>`<option value="${i}" ${i===selIdx?'selected':''}>${esc(s.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Socio</label>
+      <input placeholder="Buscar socio..." oninput="filterPagoSocioSelect(this.value)" style="margin-bottom:6px;">
+      <select id="pg_s">${pagoSocioOptionsHTML('', selId)}</select>
+    </div>
     <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
     <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
     <div class="field"><label>Tipo</label><select id="pg_t"><option ${p&&p.t==='Total'?'selected':''}>Total</option><option ${p&&p.t==='Parcial'?'selected':''}>Parcial</option></select></div>
@@ -2044,8 +2055,8 @@ function openPagoModal(idx, payIdx){
   `);
 }
 function savePago(){
-  const i = parseInt($('#pg_s').value);
-  const s = SOCIOS[i];
+  const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
+  if(!s){ showToast('Elegí un socio.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value};
   if(editPagoIdx!==null){
     PAGOS[editPagoIdx] = data;
@@ -2274,7 +2285,6 @@ function deleteRutina(idx){
 }
 function openAsignarModal(idx, search){
   const r = RUTINAS[idx];
-  if(search===undefined) asignarDiasAbierto = null;
   search = search||'';
   const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
   openModal(`
@@ -2285,68 +2295,26 @@ function openAsignarModal(idx, search){
       const si = SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
       const maxed = s.rs.length>=4;
-      if(!s.rsDias) s.rsDias = {};
-      if(!s.rsNotas) s.rsNotas = {};
-      const dias = s.rsDias[r.n]||[];
-      const nota = s.rsNotas[r.n]||'';
-      const abierto = asignarDiasAbierto===si;
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
           ${has?`<span style="display:flex;align-items:center;gap:8px;">
               <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
-              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="toggleAsignarDiasAbierto(${si},${idx},'${search.replace(/'/g,"\\'")}')" title="Días y nota"><i class="ti ti-calendar-event"></i></button>
               <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>
             </span>`
                 :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
         ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
           ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
-        ${(has&&abierto)?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <p style="color:var(--text2);font-size:13px;margin:0;">¿Qué días la hace? (opcional)</p>
-            <span>
-              <button class="day-pill-quick" onclick="setRutinaDiasGlobal(${si},'${r.n.replace(/'/g,"\\'")}',['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],${idx},'${search.replace(/'/g,"\\'")}')">Todos</button>
-              · <button class="day-pill-quick" onclick="setRutinaDiasGlobal(${si},'${r.n.replace(/'/g,"\\'")}',[],${idx},'${search.replace(/'/g,"\\'")}')">Ninguno</button>
-            </span>
-          </div>
-          <div class="day-pills">
-            ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDia(${si},'${r.n.replace(/'/g,"\\'")}','${d}',${idx},'${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
-          </div>
-          <p style="color:var(--text2);font-size:11.5px;margin-top:10px;margin-bottom:4px;">Nota para el socio (opcional)</p>
-          <textarea oninput="setRutinaNota(${si},'${r.n.replace(/'/g,"\\'")}',this.value)" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:50px;font-size:12.5px;">${esc(nota)}</textarea>
-        </div>`:''}
       </div>`;
     }).join('')}
     </div>
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
   `,'wide');
 }
-let asignarDiasAbierto = null;
-function toggleAsignarDiasAbierto(si, idx, search){
-  asignarDiasAbierto = asignarDiasAbierto===si ? null : si;
-  openAsignarModal(idx, search);
-}
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
-  persist();
-  asignarDiasAbierto = si;
-  openAsignarModal(idx, search);
-}
-function toggleRutinaDia(si, rname, dia, idx, search){
-  const s = SOCIOS[si];
-  if(!s.rsDias) s.rsDias = {};
-  const dias = s.rsDias[rname] = s.rsDias[rname]||[];
-  const i = dias.indexOf(dia);
-  if(i>=0) dias.splice(i,1); else dias.push(dia);
-  persist();
-  openAsignarModal(idx, search);
-}
-function setRutinaDiasGlobal(si, rname, dias, idx, search){
-  const s = SOCIOS[si];
-  if(!s.rsDias) s.rsDias = {};
-  s.rsDias[rname] = [...dias];
   persist();
   openAsignarModal(idx, search);
 }
@@ -3114,6 +3082,15 @@ function openClaseQR(name){
 }
 
 /* ---- PAGOS ---- */
+function historialSociosRowsHTML(q){
+  q = (q||'').toLowerCase().trim();
+  const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.n.toLowerCase().includes(q)).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
+  return list.length ? list.map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--text2);padding:20px;">${q?`Sin resultados para "${esc(q)}"`:'Sin socios todavía'}</td></tr>`;
+}
+function filterHistorialSociosTable(q){
+  const tbody = document.getElementById('histSociosTableBody');
+  if(tbody) tbody.innerHTML = historialSociosRowsHTML(q);
+}
 function pagePagos(){
   const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
   const activos = SOCIOS.filter(s=>s.activo).length;
@@ -3137,9 +3114,10 @@ function pagePagos(){
   <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
   </div>`:''}
   <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
+  <input id="histSocioSearch" placeholder="Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
   <div class="card" style="margin-bottom:16px;">
   <table><thead><tr><th>Nombre</th><th>Plan</th><th></th></tr></thead>
-  <tbody>${SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('')||emptyRow('ti-users','Sin socios todavía',3)}</tbody></table>
+  <tbody id="histSociosTableBody">${historialSociosRowsHTML('')}</tbody></table>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
   ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
