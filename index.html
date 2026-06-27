@@ -464,6 +464,7 @@ function applyState(s){
   migrateSocioIds();
   RUTINAS.forEach(r=>{ if(Array.isArray(r.ejs)) r.ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); });
   migrateBrazosGroup();
+  migrateClaseInsId();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
   SOCIOS.forEach(s=>{ if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ if(Array.isArray(ejs)) ejs.sort((a,b)=>a.n.localeCompare(b.n,'es')); }); });
 }
@@ -479,6 +480,14 @@ function migrateClasesTurnos(){
   if(changed) persist();
 }
 
+function migrateClaseInsId(){
+  CLASES_HOY.forEach(c=>{
+    if(!c.insId){
+      const st = STAFF.find(s=>s.n===c.ins);
+      if(st) c.insId = st.id;
+    }
+  });
+}
 function migrateBrazosGroup(){
   const olds = ['Tríceps','Bíceps'];
   const hasOld = olds.some(g=>EJD[g]);
@@ -1384,7 +1393,7 @@ function pagePanel(){
   `;
   if(currentRole==='profesor'){
     const st = currentStaff();
-    const misClases = st ? CLASES_HOY.filter(c=>c.ins===st.n && c.d===diaHoy).length : 0;
+    const misClases = st ? CLASES_HOY.filter(c=>(c.insId?c.insId===st.id:c.ins===st.n) && c.d===diaHoy).length : 0;
     metrics = `
     <div class="metric"><div class="num">${misClases}</div><div class="lbl">Clases hoy</div></div>
     ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
@@ -2130,7 +2139,7 @@ function openClaseModal(idx){
   const c = editClaseIdx!==null ? CLASES_HOY[editClaseIdx] : null;
   const profes = STAFF.filter(s=>s.role==='profesor');
   const cupoMax = c ? (c.cu.split('/')[1]||12) : 12;
-  const isOtro = c && !profes.find(p=>p.n===c.ins);
+  const isOtro = c && !profes.find(p=>c.insId?p.id===c.insId:p.n===c.ins);
   openModal(`
     <div class="modal-head"><h3>${c?'Editar clase':'Nueva clase'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre</label><input id="cl_n" value="${c?esc(c.n):''}"></div>
@@ -2140,7 +2149,7 @@ function openClaseModal(idx){
     <div class="field"><label>Duración (minutos)</label><input id="cl_dur" type="number" step="5" value="${c?(c.dur||60):60}"></div>
     <div class="field"><label>Profesor a cargo</label>
       <select id="cl_ins" onchange="$('#cl_ins_otro_wrap').classList.toggle('hidden', this.value!=='__otro__')">
-        ${profes.map(p=>`<option value="${esc(p.n)}" ${c&&c.ins===p.n?'selected':''}>${esc(p.n)}</option>`).join('')}
+        ${profes.map(p=>`<option value="${esc(p.id)}" ${c&&(c.insId?c.insId===p.id:c.ins===p.n)?'selected':''}>${esc(p.n)}</option>`).join('')}
         <option value="__otro__" ${isOtro?'selected':''}>Otro / profesor externo...</option>
       </select>
     </div>
@@ -2154,15 +2163,17 @@ function saveClase(){
   const h=timeSelectValue('cl_h')||'08:00';
   const dur=parseInt($('#cl_dur').value)||60;
   const insSel = $('#cl_ins').value;
-  const ins = insSel==='__otro__' ? ($('#cl_ins_otro').value.trim()||'Sin asignar') : insSel;
+  let ins, insId;
+  if(insSel==='__otro__'){ ins = $('#cl_ins_otro').value.trim()||'Sin asignar'; insId = null; }
+  else { const p = STAFF.find(s=>s.id===insSel); ins = p?p.n:'Sin asignar'; insId = p?p.id:null; }
   const cupo = $('#cl_c').value||12;
   let c;
   if(editClaseIdx!==null){
     c = CLASES_HOY[editClaseIdx];
     const entradas = (c.cu.split('/')[0])||0;
-    Object.assign(c, {n,d,h,dur,ins,cu:`${entradas}/${cupo}`});
+    Object.assign(c, {n,d,h,dur,ins,insId,cu:`${entradas}/${cupo}`});
   } else {
-    c = {n,d,h,dur,ins,cu:`0/${cupo}`,cId:'cl_'+Date.now()};
+    c = {n,d,h,dur,ins,insId,cu:`0/${cupo}`,cId:'cl_'+Date.now()};
     CLASES_HOY.push(c);
   }
   syncClaseTurno(c);
@@ -2199,7 +2210,7 @@ function addMinutes(hhmm, minutes){
 function syncClaseTurno(c){
   if(!c.cId) c.cId = 'cl_'+Date.now();
   if(!DIAS_SEMANA.includes(c.d)) return; // sin día válido de la semana, no se puede ubicar en el calendario
-  const staffMatch = STAFF.find(s=>s.n===c.ins);
+  const staffMatch = c.insId ? STAFF.find(s=>s.id===c.insId) : STAFF.find(s=>s.n===c.ins);
   const data = {dia:c.d, desde:c.h, hasta:addMinutes(c.h,c.dur||60), clase:c.n, staffId: staffMatch?staffMatch.id:null, claseId:c.cId};
   const existing = TURNOS.find(t=>t.claseId===c.cId);
   if(existing) Object.assign(existing, data);
