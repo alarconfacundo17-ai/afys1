@@ -511,14 +511,17 @@ function migrateBrazosGroup(){
   persist();
 }
 function migrateCoordinacionGrupo(){
-  const old = 'Coordniacion';
-  if(!EJD[old]) return;
+  const norm = s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const olds = Object.keys(EJD).filter(g=>g!=='Coordinación' && (norm(g)==='coordinacion' || norm(g)==='coordniacion'));
+  if(!olds.length) return;
   if(!EJD['Coordinación']) EJD['Coordinación'] = [];
-  EJD[old].forEach(e=>{ if(!EJD['Coordinación'].includes(e)) EJD['Coordinación'].push(e); });
-  if(!EJC['Coordinación']) EJC['Coordinación'] = EJC[old] || nextEjColor();
-  delete EJD[old];
-  delete EJC[old];
-  if(collapsedGroups[old]){ collapsedGroups['Coordinación'] = collapsedGroups[old]; delete collapsedGroups[old]; }
+  olds.forEach(old=>{
+    EJD[old].forEach(e=>{ if(!EJD['Coordinación'].includes(e)) EJD['Coordinación'].push(e); });
+    if(!EJC['Coordinación']) EJC['Coordinación'] = EJC[old] || nextEjColor();
+    delete EJD[old];
+    delete EJC[old];
+    if(collapsedGroups[old]){ collapsedGroups['Coordinación'] = collapsedGroups[old]; delete collapsedGroups[old]; }
+  });
   EJD['Coordinación'].sort((a,b)=>a.localeCompare(b,'es'));
   persist();
 }
