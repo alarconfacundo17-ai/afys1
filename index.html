@@ -2608,12 +2608,12 @@ function pageHorarios(){
     }).join('')}</tr></tbody></table>
   </div>
   <div class="card">
-    <div class="section-head"><h3 style="margin:0;">Semana — turnos y clases</h3>
+    <div class="section-head"><h3 style="margin:0;">${currentRole==='profesor'?'Semana — mis turnos y clases':'Semana — turnos y clases'}</h3>
       ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    ${currentRole!=='profesor'?`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
       ${profes.map(p=>`<span class="badge" style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
-    </div>
+    </div>`:''}
     <div class="cal-wrap">
       <div class="cal-grid" style="grid-template-columns:30px repeat(7,1fr);">
         <div class="cal-corner"></div>
@@ -2622,7 +2622,7 @@ function pageHorarios(){
           ${Array.from({length:totalH+1},(_,i)=>`<div class="cal-hour" style="height:${CAL_PXH}px;">${String(CAL_START+i).padStart(2,'0')}:00</div>`).join('')}
         </div>
         ${DIAS_SEMANA.map((d,di)=>{
-          const turnos = TURNOS.filter(t=>t.dia===d);
+          const turnos = TURNOS.filter(t=>t.dia===d && (currentRole!=='profesor' || t.staffId===currentStaffId));
           return `<div class="cal-daycol" style="grid-row:2;grid-column:${di+2};height:${totalH*CAL_PXH}px;" ${canEdit?`onclick="if(event.target===this) openTurnoModal(null,'${d}')"`:''}>
             ${Array.from({length:totalH},(_,i)=>{
               const hStart = (CAL_START+i)*60, hEnd = hStart+60;
