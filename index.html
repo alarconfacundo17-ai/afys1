@@ -961,6 +961,8 @@ function renderQRGateSignup(qrError){
     <input id="qrg_pe" type="number" placeholder="70">
     <label>Objetivo de entrenamiento</label>
     <input id="qrg_ob" type="text" placeholder="Bajar peso, ganar músculo, etc.">
+    <label>Observaciones (opcional)</label>
+    <textarea id="qrg_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea>
     ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateCreateSocio()">Crear cuenta y registrar ingreso</button>
     <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateLoginForm()">Ya tengo cuenta, iniciar sesión</button>
@@ -976,6 +978,7 @@ async function qrGateCreateSocio(){
   const cumple = $('#qrg_cumple').value || null;
   const pe = parseInt($('#qrg_pe').value)||null;
   const ob = $('#qrg_ob').value.trim()||null;
+  const obs = $('#qrg_obs').value.trim()||null;
   if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
   const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
@@ -983,7 +986,7 @@ async function qrGateCreateSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
@@ -1811,6 +1814,7 @@ function openSocioModal(){
     <div class="field"><label>Edad</label><input id="ns_ed" type="number"></div>
     <div class="field"><label>Peso (kg, opcional)</label><input id="ns_pe" type="number"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="ns_ob" placeholder="Bajar peso, ganar músculo, etc."></div>
+    <div class="field"><label>Observaciones (opcional)</label><textarea id="ns_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea></div>
     <div class="field"><label>Plan</label><select id="ns_pl"><option>Mensual</option><option>Trimestral</option><option>Semestral</option></select></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
   `);
@@ -1829,8 +1833,9 @@ function saveSocio(){
   const ed = cumple ? calcAge(cumple) : (parseInt($('#ns_ed').value)||null);
   const pe = parseInt($('#ns_pe').value)||null;
   const ob = $('#ns_ob').value.trim()||null;
+  const obs = $('#ns_obs').value.trim()||null;
   const pl = $('#ns_pl').value;
-  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, pl, es:'ok', vence:addDaysISO(null,PLAN_DAYS[pl]||30), rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, pl, es:'ok', vence:addDaysISO(null,PLAN_DAYS[pl]||30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
   const idx = SOCIOS.length-1;
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
@@ -1847,6 +1852,7 @@ function openEditSocioModal(idx){
     <div class="field"><label>Teléfono</label><input id="es_tel" type="tel" value="${esc(s.tel||'')}"></div>
     <div class="field"><label>Peso (kg, opcional)</label><input id="es_pe" type="number" value="${s.pe||''}"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="es_ob" value="${esc(s.ob||'')}"></div>
+    <div class="field"><label>Observaciones (opcional)</label><textarea id="es_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio...">${esc(s.obs||'')}</textarea></div>
     <div class="field"><label>Plan</label><select id="es_pl">${['Mensual','Trimestral','Semestral'].map(p=>`<option ${s.pl===p?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
     <div class="modal-actions">
@@ -1885,6 +1891,7 @@ function saveEditSocio(idx){
   s.tel = $('#es_tel').value.trim()||null;
   s.pe = parseInt($('#es_pe').value)||null;
   s.ob = $('#es_ob').value.trim()||null;
+  s.obs = $('#es_obs').value.trim()||null;
   s.pl = $('#es_pl').value;
   s.vence = $('#es_vence').value || null;
   recalcEstados({notify:false});
