@@ -470,6 +470,7 @@ function applyState(s){
   migrateClasesTurnos();
   migrateSocioIds();
   migrateBrazosGroup();
+  migrateCoordinacionGrupo();
   migrateClaseInsId();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
 }
@@ -507,6 +508,18 @@ function migrateBrazosGroup(){
     delete collapsedGroups[g];
   });
   EJD['Brazos'].sort((a,b)=>a.localeCompare(b,'es'));
+  persist();
+}
+function migrateCoordinacionGrupo(){
+  const old = 'Coordniacion';
+  if(!EJD[old]) return;
+  if(!EJD['Coordinación']) EJD['Coordinación'] = [];
+  EJD[old].forEach(e=>{ if(!EJD['Coordinación'].includes(e)) EJD['Coordinación'].push(e); });
+  if(!EJC['Coordinación']) EJC['Coordinación'] = EJC[old] || nextEjColor();
+  delete EJD[old];
+  delete EJC[old];
+  if(collapsedGroups[old]){ collapsedGroups['Coordinación'] = collapsedGroups[old]; delete collapsedGroups[old]; }
+  EJD['Coordinación'].sort((a,b)=>a.localeCompare(b,'es'));
   persist();
 }
 function migrateSocioIds(){
