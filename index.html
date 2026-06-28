@@ -424,6 +424,7 @@ let notifSocio = {}; // by socio idx -> array
 SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
 
 let collapsedGroups = {}; // group name -> bool collapsed
+let ultimoResetSemana = null; // string YYYY-MM-DD del lunes de la última semana ya reseteada
 
 /* ============ PERSISTENCIA EN SUPABASE ============ */
 const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
@@ -437,7 +438,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, ultimoResetSemana,
   };
 }
 
@@ -465,6 +466,7 @@ function applyState(s){
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
+  if(typeof s.ultimoResetSemana==='string') ultimoResetSemana = s.ultimoResetSemana;
   migrateProfesorDefaultPerms();
   migrateProfesorDefaultPermsV2();
   migrateClasesTurnos();
@@ -472,7 +474,27 @@ function applyState(s){
   migrateBrazosGroup();
   migrateCoordinacionGrupo();
   migrateClaseInsId();
+  resetSemanal();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
+}
+// Lunes (00:00) de la semana a la que pertenece la fecha dada, como 'YYYY-MM-DD'
+function lunesDeSemana(d){
+  const dt = new Date(d);
+  const dia = dt.getDay(); // 0=domingo..6=sábado
+  const diff = dia===0 ? -6 : 1-dia;
+  dt.setDate(dt.getDate()+diff);
+  dt.setHours(0,0,0,0);
+  return dt.toISOString().slice(0,10);
+}
+// Reinicia las reservas/inscripciones a clases al empezar una semana nueva (domingo a la noche / lunes 00:00)
+function resetSemanal(){
+  const semanaActual = lunesDeSemana(new Date());
+  if(ultimoResetSemana === semanaActual) return;
+  if(ultimoResetSemana){
+    Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]);
+  }
+  ultimoResetSemana = semanaActual;
+  persist();
 }
 
 function migrateClasesTurnos(){
