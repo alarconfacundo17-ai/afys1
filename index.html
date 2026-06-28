@@ -1438,6 +1438,7 @@ function pagePanel(){
     <div class="metric"><div class="num">${clasesHoyCount}</div><div class="lbl">Clases hoy</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Pagos vencidos</div></div>
   `;
+  let profesorIntro = '';
   if(currentRole==='profesor'){
     const st = currentStaff();
     const misClases = st ? CLASES_HOY.filter(c=>(c.insId?c.insId===st.id:c.ins===st.n) && c.d===diaHoy).length : 0;
@@ -1445,8 +1446,29 @@ function pagePanel(){
     <div class="metric"><div class="num">${misClases}</div><div class="lbl">Clases hoy</div></div>
     ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
     `;
+    const proximo = proximoTurnoProfesor(st);
+    profesorIntro = `
+    <div class="card" style="margin-bottom:18px;background:linear-gradient(135deg,var(--primary),#7a6ef0);color:#fff;">
+      <h3 style="margin:0 0 6px;color:#fff;">Bienvenido, ${esc(st?st.n:'')} a la app de AFYS</h3>
+      <p style="margin:0;opacity:.92;font-size:14px;line-height:1.5;">Desde aquí podés ver tus turnos y clases, anotar observaciones de tus alumnos en sus fichas, y asignarles rutinas. Cualquier cambio que necesites en tu horario, pedíselo al dueño del gimnasio.</p>
+    </div>
+    <div class="card" style="margin-bottom:18px;">
+      <h3>Tu próximo turno</h3>
+      ${proximo?`
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="background:${TURNO_COLORS[0]}1a;color:${TURNO_COLORS[0]};border-radius:12px;padding:14px 18px;text-align:center;min-width:90px;">
+          <div style="font-size:12px;font-weight:600;letter-spacing:.5px;">${esc(proximo.dia.toUpperCase())}</div>
+          <div style="font-size:20px;font-weight:700;">${esc(proximo.desde)}</div>
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:15px;">${proximo.clase?esc(proximo.clase):'Turno de trabajo'}</div>
+          <div style="color:var(--text2);font-size:13.5px;">${esc(proximo.desde)} a ${esc(proximo.hasta)}</div>
+        </div>
+      </div>`:emptyState('ti-calendar-off','No tenés turnos cargados todavía')}
+    </div>`;
   }
   return `
+  ${profesorIntro}
   <div class="grid-metrics">${metrics}</div>
   ${currentRole!=='profesor'?`
   <div class="card" style="margin-bottom:18px;">
@@ -2603,6 +2625,21 @@ const CAL_START = 7;   // 07:00
 const CAL_END = 22;    // 22:00
 const CAL_PXH = 28;    // px por hora
 function hToMin(h){ const [hh,mm]=h.split(':').map(Number); return hh*60+mm; }
+function proximoTurnoProfesor(st){
+  if(!st) return null;
+  const turnos = TURNOS.filter(t=>t.staffId===st.id);
+  if(!turnos.length) return null;
+  const now = new Date();
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const idxHoy = DIAS_SEMANA.indexOf(DIAS_JS[now.getDay()]);
+  const nowMin = now.getHours()*60+now.getMinutes();
+  for(let off=0; off<7; off++){
+    const dia = DIAS_SEMANA[(idxHoy+off)%7];
+    const deDia = turnos.filter(t=>t.dia===dia && (off>0 || hToMin(t.desde)>nowMin)).sort((a,b)=>hToMin(a.desde)-hToMin(b.desde));
+    if(deDia.length) return deDia[0];
+  }
+  return null;
+}
 function staffColor(id){
   const idx = STAFF.findIndex(s=>s.id===id);
   return TURNO_COLORS[idx>=0?idx%TURNO_COLORS.length:0];
