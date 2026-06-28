@@ -2235,7 +2235,7 @@ function openClaseModal(idx){
       </select>
     </div>
     <div class="field ${isOtro?'':'hidden'}" id="cl_ins_otro_wrap"><label>Nombre del profesor</label><input id="cl_ins_otro" placeholder="Nombre completo" value="${isOtro?esc(c.ins):''}"></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveClase()">Guardar</button></div>
+    <div class="modal-actions">${c?`<button class="btn btn-outline" style="color:var(--red);" onclick="deleteClase(${editClaseIdx})">Eliminar</button>`:''}<button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveClase()">Guardar</button></div>
   `);
 }
 function saveClase(){
@@ -2268,6 +2268,7 @@ function deleteClase(idx){
   if(c.cId) TURNOS = TURNOS.filter(t=>t.claseId!==c.cId);
   CLASES_HOY.splice(idx,1);
   persist();
+  closeModal();
   renderStaff();
 }
 function openClaseOpcionesModal(idx){
