@@ -1208,7 +1208,7 @@ function finishScan(){
 
   const idx = SOCIOS.indexOf(socio);
   const detail = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
-  notifStaff.unshift({txt:`${socio.n} registró su entrada (${detail}) a las ${hora}`, new:true});
+  notifStaff.unshift({txt:`${socio.n} registró su entrada (${detail}) a las ${hora}`, new:true, tipo:'entrada'});
   notifSocio[idx] = notifSocio[idx]||[];
   notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. ${detail}`, new:true});
 
@@ -1240,15 +1240,18 @@ function closeScan(){
 }
 
 /* ============ NOTIFICATIONS ============ */
+function notifStaffParaRol(){
+  return currentRole==='profesor' ? notifStaff.filter(n=>n.tipo!=='entrada') : notifStaff;
+}
 function updateNotifDots(){
-  $('#staffNotifDot').classList.toggle('hidden', !notifStaff.some(n=>n.new));
+  $('#staffNotifDot').classList.toggle('hidden', !notifStaffParaRol().some(n=>n.new));
   const mine = notifSocio[currentSocioIdx]||[];
   $('#socioNotifDot').classList.toggle('hidden', !mine.some(n=>n.new));
 }
 
 function renderNotifPanel(who){
   const panel = who==='staff' ? $('#staffNotifPanel') : $('#socioNotifPanel');
-  const list = who==='staff' ? notifStaff : (notifSocio[currentSocioIdx]||[]);
+  const list = who==='staff' ? notifStaffParaRol() : (notifSocio[currentSocioIdx]||[]);
   const canResolve = who==='staff' && (currentRole==='dueno' || currentRole==='admin');
   panel.innerHTML = list.length ? list.map(n=>{
     const showAlta = n.altaIdx!=null && SOCIOS[n.altaIdx] && SOCIOS[n.altaIdx].altaPendiente;
