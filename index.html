@@ -2483,8 +2483,8 @@ function saveRutina(){
 
 /* ---- HORARIOS (vista semanal tipo calendario) ---- */
 function canEditHorarios(){ return isSuperOwner() || (currentRole!=='profesor' && hasPerm('horarios')); }
-const CAL_START = 6;   // 06:00
-const CAL_END = 23;    // 23:00
+const CAL_START = 7;   // 07:00
+const CAL_END = 22;    // 22:00
 const CAL_PXH = 28;    // px por hora
 function hToMin(h){ const [hh,mm]=h.split(':').map(Number); return hh*60+mm; }
 function staffColor(id){
