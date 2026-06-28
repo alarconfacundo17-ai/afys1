@@ -1891,7 +1891,7 @@ function saveEditSocio(idx){
   showToast('Guardado');
   closeModal(); renderStaff();
 }
-function openSocioRutinasModal(si, search){
+function socioRutinasBodyHTML(si, search){
   const s = SOCIOS[si];
   search = search||'';
   const list = RUTINAS.filter(r=>r.n.toLowerCase().includes(search.toLowerCase()));
@@ -1899,8 +1899,7 @@ function openSocioRutinasModal(si, search){
   if(!s.rsNotas) s.rsNotas = {};
   if(!s.rsOverride) s.rsOverride = {};
   if(!s.rsNombre) s.rsNombre = {};
-  openModal(`
-    <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+  return `
     ${s.rs.length?`<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
       <p style="color:var(--text2);font-size:13px;margin:0 0 8px;">Cambiar rutina asignada</p>
       ${s.rs.map(rn=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
@@ -1911,7 +1910,7 @@ function openSocioRutinasModal(si, search){
         <button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="cambiarRutinaSocio(${si},'${rn.replace(/'/g,"\\'")}',$('#swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}').value,'${search.replace(/'/g,"\\'")}')">Cambiar</button>
       </div>`).join('')}
     </div>`:''}
-    <input id="srm_search" placeholder="Buscar rutina..." value="${esc(search)}" oninput="openSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
+    <input id="srm_search" placeholder="Buscar rutina..." value="${esc(search)}" oninput="refreshSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
     <div id="modalScrollList" style="max-height:340px;overflow:auto;">
     ${list.length?list.map(r=>{
       const has = s.rs.includes(r.n);
@@ -1949,7 +1948,19 @@ function openSocioRutinasModal(si, search){
     }).join(''):emptyState('ti-barbell-off','No hay rutinas creadas todavía')}
     </div>
     <div class="modal-actions"><button class="btn btn-primary" onclick="openEditSocioModal(${si})">Volver</button></div>
+  `;
+}
+function openSocioRutinasModal(si, search){
+  const s = SOCIOS[si];
+  openModal(`
+    <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div id="srm_body">${socioRutinasBodyHTML(si, search||'')}</div>
   `,'wide');
+}
+function refreshSocioRutinasModal(si, search){
+  const box = document.getElementById('srm_body');
+  if(box) box.innerHTML = socioRutinasBodyHTML(si, search||'');
+  else openSocioRutinasModal(si, search);
 }
 function setRutinaNombreSocio(si, rname, val, search){
   const s = SOCIOS[si];
@@ -1962,7 +1973,7 @@ function asignarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
   persist();
-  openSocioRutinasModal(si, search);
+  refreshSocioRutinasModal(si, search);
 }
 function quitarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
@@ -1971,7 +1982,7 @@ function quitarRutinaSocio(si, rname, search){
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
   persist();
-  openSocioRutinasModal(si, search);
+  refreshSocioRutinasModal(si, search);
 }
 function cambiarRutinaSocio(si, oldName, newName, search){
   const s = SOCIOS[si];
@@ -1985,7 +1996,7 @@ function cambiarRutinaSocio(si, oldName, newName, search){
   if(s.rsMiPeso && s.rsMiPeso[oldName]) delete s.rsMiPeso[oldName];
   if(s.rsHechos && s.rsHechos[oldName]) delete s.rsHechos[oldName];
   persist();
-  openSocioRutinasModal(si, search);
+  refreshSocioRutinasModal(si, search);
 }
 function toggleRutinaDiaSocio(si, rname, dia, search){
   const s = SOCIOS[si];
@@ -1994,14 +2005,14 @@ function toggleRutinaDiaSocio(si, rname, dia, search){
   const i = dias.indexOf(dia);
   if(i>=0) dias.splice(i,1); else dias.push(dia);
   persist();
-  openSocioRutinasModal(si, search);
+  refreshSocioRutinasModal(si, search);
 }
 function setRutinaDias(si, rname, dias, search){
   const s = SOCIOS[si];
   if(!s.rsDias) s.rsDias = {};
   s.rsDias[rname] = [...dias];
   persist();
-  openSocioRutinasModal(si, search);
+  refreshSocioRutinasModal(si, search);
 }
 let socioEjEditArr = null, socioEjEditSi = null, socioEjEditRname = null;
 function openSocioRutinaEjsModal(si, rname){
@@ -2272,10 +2283,17 @@ function pageRutinas(){
   <div class="section-head"><h2 style="margin:0;">Rutinas</h2>${canCreate?`<button class="btn btn-primary" onclick="openRutinaModal()"><i class="ti ti-plus"></i>Nueva rutina</button>`:''}</div>
   <div class="card">
   <table><thead><tr>${canCreate?'<th></th>':''}<th>Nombre</th><th>Tipo</th><th>Objetivo</th><th>Ejercicios</th><th>Socios</th><th></th></tr></thead>
-  <tbody>
-  ${RUTINAS.map((r,idx)=>{
+  <tbody id="rutinasTbody">
+  ${rutinasTbodyHTML()}
+  </tbody></table>
+  </div>`;
+}
+function rutinasTbodyHTML(){
+  const canCreate = isSuperOwner() || hasPerm('editarRutinas');
+  const canAssign = isSuperOwner() || hasPerm('asignarRutinas');
+  return RUTINAS.map((r,idx)=>{
     const socCount = SOCIOS.filter(s=>s.rs.includes(r.n)).length;
-    return `<tr ${canCreate?`ondragover="event.preventDefault()" ondrop="dragReorder(RUTINAS,dragSrcIdx,${idx},renderStaff)"`:''}>
+    return `<tr ${canCreate?`ondragover="event.preventDefault()" ondrop="dragReorder(RUTINAS,dragSrcIdx,${idx},renderRutinasTable)"`:''}>
       ${canCreate?`<td style="cursor:grab;color:var(--text2);text-align:center;" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical" draggable="true" ondragstart="dragSrcIdx=${idx}"></i></td>`:''}
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
       <td>${r.ejs.length}</td><td>${socCount}</td>
@@ -2284,9 +2302,12 @@ function pageRutinas(){
         <button class="btn btn-outline btn-sm" title="Opciones" onclick="openRutinaOpcionesModal(${idx})"><i class="ti ti-dots-vertical"></i></button>
       </td>
     </tr>`;
-  }).join('')}
-  </tbody></table>
-  </div>`;
+  }).join('');
+}
+function renderRutinasTable(){
+  const box = document.getElementById('rutinasTbody');
+  if(box) box.innerHTML = rutinasTbodyHTML();
+  else renderStaff();
 }
 function openRutinaOpcionesModal(idx){
   const r = RUTINAS[idx];
@@ -2338,17 +2359,14 @@ function deleteRutina(idx){
   SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; if(s.rsNotas) delete s.rsNotas[r.n]; });
   RUTINAS.splice(idx,1);
   persist();
-  renderStaff();
+  closeModal();
+  renderRutinasTable();
 }
-function openAsignarModal(idx, search){
+function asignarModalListHTML(idx, search){
   const r = RUTINAS[idx];
   search = search||'';
   const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
-  openModal(`
-    <div class="modal-head"><h3>Asignar — ${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <input id="asg_search" placeholder="Buscar socio..." value="${esc(search)}" oninput="openAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
-    <div id="modalScrollList" style="max-height:340px;overflow:auto;">
-    ${list.map(s=>{
+  return list.map(s=>{
       const si = SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
       const maxed = s.rs.length>=4;
@@ -2361,19 +2379,33 @@ function openAsignarModal(idx, search){
             </span>`
                 :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
         </div>
-        ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>openAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
+        ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>refreshAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
           ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
       </div>`;
-    }).join('')}
+    }).join('');
+}
+function openAsignarModal(idx, search){
+  const r = RUTINAS[idx];
+  search = search||'';
+  openModal(`
+    <div class="modal-head"><h3>Asignar — ${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <input id="asg_search" placeholder="Buscar socio..." value="${esc(search)}" oninput="refreshAsignarModal(${idx}, this.value)" style="margin-bottom:12px;">
+    <div id="modalScrollList" style="max-height:340px;overflow:auto;">
+    ${asignarModalListHTML(idx, search)}
     </div>
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
   `,'wide');
+}
+function refreshAsignarModal(idx, search){
+  const box = document.getElementById('modalScrollList');
+  if(box) box.innerHTML = asignarModalListHTML(idx, search);
+  else openAsignarModal(idx, search);
 }
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
   persist();
-  openAsignarModal(idx, search);
+  refreshAsignarModal(idx, search);
 }
 function setRutinaNota(si, rname, val){
   const s = SOCIOS[si];
@@ -2387,7 +2419,7 @@ function quitarRutina(si, rname, idx, search){
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
   persist();
-  openAsignarModal(idx, search);
+  refreshAsignarModal(idx, search);
 }
 
 let newRutinaEjs = [{n:'',s:3,r:'10'}];
@@ -2535,7 +2567,7 @@ function saveRutina(){
   }
   persist();
   showToast('Guardado');
-  closeModal(); renderStaff();
+  closeModal(); renderRutinasTable();
 }
 
 /* ---- HORARIOS (vista semanal tipo calendario) ---- */
