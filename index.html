@@ -467,6 +467,7 @@ function applyState(s){
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
   migrateProfesorDefaultPerms();
   migrateProfesorDefaultPermsV2();
+  migrateClaseIdsUnicos();
   migrateClasesTurnos();
   migrateSocioIds();
   migrateBrazosGroup();
@@ -486,6 +487,18 @@ function migrateClasesTurnos(){
   if(changed) persist();
 }
 
+function migrateClaseIdsUnicos(){
+  const vistos = new Set();
+  let changed = false;
+  CLASES_HOY.forEach(c=>{
+    if(c.cId && !vistos.has(c.cId)){ vistos.add(c.cId); return; }
+    c.cId = newClaseId();
+    vistos.add(c.cId);
+    syncClaseTurno(c);
+    changed = true;
+  });
+  if(changed) persist();
+}
 function migrateClaseInsId(){
   CLASES_HOY.forEach(c=>{
     if(!c.insId){
@@ -2241,7 +2254,7 @@ function saveClase(){
     const entradas = (c.cu.split('/')[0])||0;
     Object.assign(c, {n,d,h,dur,ins,insId,cu:`${entradas}/${cupo}`});
   } else {
-    c = {n,d,h,dur,ins,insId,cu:`0/${cupo}`,cId:'cl_'+Date.now()};
+    c = {n,d,h,dur,ins,insId,cu:`0/${cupo}`,cId:newClaseId()};
     CLASES_HOY.push(c);
   }
   syncClaseTurno(c);
@@ -2275,8 +2288,11 @@ function addMinutes(hhmm, minutes){
   const h = Math.floor((mins%1440)/60), m = mins%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
+function newClaseId(){
+  return 'cl_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+}
 function syncClaseTurno(c){
-  if(!c.cId) c.cId = 'cl_'+Date.now();
+  if(!c.cId) c.cId = newClaseId();
   if(!DIAS_SEMANA.includes(c.d)) return; // sin día válido de la semana, no se puede ubicar en el calendario
   const staffMatch = c.insId ? STAFF.find(s=>s.id===c.insId) : STAFF.find(s=>s.n===c.ins);
   const data = {dia:c.d, desde:c.h, hasta:addMinutes(c.h,c.dur||60), clase:c.n, staffId: staffMatch?staffMatch.id:null, claseId:c.cId};
