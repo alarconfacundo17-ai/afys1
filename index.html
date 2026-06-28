@@ -1448,12 +1448,12 @@ function pagePanel(){
     `;
     const proximo = proximoTurnoProfesor(st);
     profesorIntro = `
-    <div class="card" style="margin-bottom:18px;background:#f4f6fb;border:1px solid #e3e8f3;display:flex;align-items:center;gap:14px;">
-      <img src="logo.jpg" alt="AFYS" style="width:46px;height:46px;border-radius:12px;object-fit:cover;flex-shrink:0;">
+    <div class="card" style="margin-bottom:18px;background:#f4f6fb;border:1px solid #e3e8f3;display:flex;align-items:center;justify-content:space-between;gap:18px;">
       <div>
         <h3 style="margin:0 0 4px;color:var(--primary);font-size:16px;">Bienvenido, ${esc(st?st.n:'')} a la app de AFYS</h3>
         <p style="margin:0;color:var(--primary);font-size:13.5px;line-height:1.5;">Desde aquí podés ver tus turnos y clases, anotar observaciones de tus alumnos en sus fichas, y asignarles rutinas. Cualquier cambio que necesites en tu horario, pedíselo al director del gimnasio.</p>
       </div>
+      <img src="logo.jpg" alt="AFYS" style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:#fff;padding:6px;flex-shrink:0;">
     </div>
     <div class="profile-card">
       <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:18px;background:rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" onclick="openEditPerfilStaff()" title="Editar"><i class="ti ti-pencil" style="font-size:16px;"></i></button>
