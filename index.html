@@ -1448,6 +1448,13 @@ function pagePanel(){
     `;
     const proximo = proximoTurnoProfesor(st);
     profesorIntro = `
+    <div class="profile-card">
+      <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:18px;background:rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" onclick="openEditPerfilStaff()" title="Editar"><i class="ti ti-pencil" style="font-size:16px;"></i></button>
+      <div class="avatar">${st?esc(initials(st.n)):''}</div>
+      <div class="pname">${esc(st?st.n:'')}</div>
+      <div style="font-size:13px;opacity:.9;">${st&&st.esp?esc(st.esp):'Profesor/a'}</div>
+    </div>`;
+    profesorIntro += `
     <div class="card" style="margin-bottom:18px;background:linear-gradient(135deg,var(--primary),#7a6ef0);color:#fff;">
       <h3 style="margin:0 0 6px;color:#fff;">Bienvenido, ${esc(st?st.n:'')} a la app de AFYS</h3>
       <p style="margin:0;opacity:.92;font-size:14px;line-height:1.5;">Desde aquí podés ver tus turnos y clases, anotar observaciones de tus alumnos en sus fichas, y asignarles rutinas. Cualquier cambio que necesites en tu horario, pedíselo al dueño del gimnasio.</p>
@@ -3450,6 +3457,33 @@ function savePerfil(){
   closeModal(); renderSocio();
 }
 
+function openEditPerfilStaff(){
+  const st = currentStaff();
+  if(!st) return;
+  const lblSt = 'font-size:14px;';
+  const inSt = 'font-size:15.5px;padding:11px 12px;';
+  openModal(`
+    <div class="modal-head"><h3 style="font-size:18px;">Editar mis datos</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Nombre y apellido</label><input id="eps_n" style="${inSt}" value="${esc(st.n||'')}"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Email</label><input id="eps_email" style="${inSt}" type="email" value="${esc(st.email||'')}"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Teléfono</label><input id="eps_tel" style="${inSt}" type="tel" value="${esc(st.tel||'')}" placeholder="011 1234-5678"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Domicilio</label><input id="eps_dom" style="${inSt}" value="${esc(st.dom||'')}" placeholder="Calle 123, Ciudad"></div>
+    <div class="field" style="margin-bottom:16px;"><label style="${lblSt}">Especialidad</label><input id="eps_esp" style="${inSt}" value="${esc(st.esp||'')}" placeholder="Spinning, Funcional, etc."></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="saveEditPerfilStaff()">Guardar</button></div>
+  `);
+}
+function saveEditPerfilStaff(){
+  const st = currentStaff();
+  if(!st) return;
+  st.n = $('#eps_n').value.trim()||st.n;
+  st.email = $('#eps_email').value.trim()||st.email;
+  st.tel = $('#eps_tel').value.trim()||null;
+  st.dom = $('#eps_dom').value.trim()||null;
+  st.esp = $('#eps_esp').value.trim()||null;
+  persist();
+  showToast('Guardado');
+  closeModal(); renderStaff();
+}
 function claseKey(c){ return c.cId || (c.n+'_'+c.h); }
 function inscriptosClase(c){
   const k = claseKey(c);
