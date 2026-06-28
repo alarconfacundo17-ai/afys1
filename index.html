@@ -390,6 +390,12 @@ const PERM_LABELS = {
   horarios:'Editar horarios del gimnasio', cuentas:'Gestionar cuentas y permisos',
   verAsistenciasHoy:'Ver cuántos socios asistieron hoy',
 };
+const PROFESOR_DEFAULT_PERMS = {
+  verPagos:false, cargarPagos:true, cargarSocios:false, removerSocios:false,
+  editarSocios:false, editarFichas:true, clases:false, editarRutinas:false,
+  asignarRutinas:true, cargarEjercicios:false, subirVideos:false,
+  horarios:true, cuentas:false, verAsistenciasHoy:false,
+};
 let STAFF = [];
 let currentStaffId = null;
 let DUENO_EMAIL = null;
@@ -460,6 +466,7 @@ function applyState(s){
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
   migrateProfesorDefaultPerms();
+  migrateProfesorDefaultPermsV2();
   migrateClasesTurnos();
   migrateSocioIds();
   migrateBrazosGroup();
@@ -525,6 +532,16 @@ function migrateProfesorDefaultPerms(){
       changed = true;
     }
     st.permsMigratedV1 = true;
+    changed = true;
+  });
+  if(changed) persist();
+}
+function migrateProfesorDefaultPermsV2(){
+  let changed = false;
+  STAFF.forEach(st=>{
+    if(st.role!=='profesor' || !st.perms || st.permsMigratedV2) return;
+    Object.assign(st.perms, PROFESOR_DEFAULT_PERMS);
+    st.permsMigratedV2 = true;
     changed = true;
   });
   if(changed) persist();
@@ -1063,7 +1080,7 @@ function ensureStaffProfile(email, user){
   if(email===DUENO_EMAIL || STAFF.find(s=>s.email===email)) return;
   const nombre = (user && user.user_metadata && user.user_metadata.nombre) || email.split('@')[0];
   const id = 'st_'+Date.now();
-  STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,subirVideos:false,horarios:true,cuentas:false}});
+  STAFF.push({id, n:nombre, email, role:'profesor', esp:null, perms:{...PROFESOR_DEFAULT_PERMS}, permsMigratedV1:true, permsMigratedV2:true});
   persist();
 }
 
@@ -1118,9 +1135,9 @@ async function staffGateCreate(){
   if(error){ renderStaffGateSignup(error.message); return; }
   const id = 'st_'+Date.now();
   const perms = role==='profesor'
-    ? {verPagos:false,cargarPagos:false,cargarSocios:true,removerSocios:false,editarSocios:true,editarFichas:true,clases:true,editarRutinas:true,asignarRutinas:true,cargarEjercicios:true,subirVideos:false,horarios:true,cuentas:false}
+    ? {...PROFESOR_DEFAULT_PERMS}
     : {verPagos:false,cargarPagos:false,cargarSocios:false,removerSocios:false,editarSocios:false,editarFichas:false,clases:false,editarRutinas:false,asignarRutinas:false,cargarEjercicios:false,subirVideos:false,horarios:false,cuentas:false};
-  STAFF.push({id, n, email, role, esp:esp||null, tel, dom, edad, perms});
+  STAFF.push({id, n, email, role, esp:esp||null, tel, dom, edad, perms, permsMigratedV1:true, permsMigratedV2:true});
   if(pendingInvite) PENDING_INVITES = PENDING_INVITES.filter(i=>i.token!==pendingInvite.token);
   pendingInvite = null;
   persist();
@@ -1399,11 +1416,12 @@ function pagePanel(){
   }
   return `
   <div class="grid-metrics">${metrics}</div>
+  ${currentRole!=='profesor'?`
   <div class="card" style="margin-bottom:18px;">
     <h3>Últimas entradas por QR</h3>
     <table><thead><tr><th>Nombre</th><th>Hora</th><th>Detalle</th></tr></thead>
     <tbody>${REGS.slice(0,8).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.h}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td></tr>`).join('')||emptyRow('ti-door-enter','Sin entradas todavía',3)}</tbody></table>
-  </div>
+  </div>`:''}
   ${currentRole!=='profesor'?(()=>{
     const meses = ingresosUltimosMeses(3);
     const max = Math.max(1, ...meses.map(x=>x.total));
@@ -1691,8 +1709,8 @@ function openSocioOpcionesModal(idx){
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
-      ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
-      ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
+      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
+      ${(canEdit && currentRole!=='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
         :`<button class="btn btn-outline" style="${optSt}" onclick="openBajaModal(${idx})"><i class="ti ti-user-off" style="font-size:20px;color:var(--orange,#d97706);"></i>Dar de baja</button>`):''}
@@ -2064,6 +2082,10 @@ function savePago(){
     s.vence = addDaysISO(data.f!=='-'?data.f:null, PLAN_DAYS[s.pl]||30);
     s.es='ok';
     PAGOS.unshift(data);
+    if(currentRole==='profesor'){
+      const st = currentStaff();
+      notifStaff.unshift({txt:`${st?st.n:'Un profesor'} cargó un pago de ${data.m} para ${s.n}.`, new:true});
+    }
   }
   editPagoIdx = null;
   persist();
@@ -2261,10 +2283,31 @@ function openRutinaOpcionesModal(idx){
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${canCreate?`<button class="btn btn-outline" style="${optSt}" onclick="openRutinaModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar rutina</button>
       <button class="btn btn-outline" style="${optSt}" onclick="duplicarRutina(${idx})"><i class="ti ti-copy" style="font-size:20px;"></i>Duplicar rutina</button>
-      <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="deleteRutina(${idx})"><i class="ti ti-trash" style="font-size:20px;"></i>Eliminar rutina</button>`:''}
+      <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="deleteRutina(${idx})"><i class="ti ti-trash" style="font-size:20px;"></i>Eliminar rutina</button>`:`<button class="btn btn-outline" style="${optSt}" onclick="openRutinaVerModal(${idx})"><i class="ti ti-eye" style="font-size:20px;"></i>Ver ejercicios</button>`}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal()">Cancelar</button>
     </div>
   `);
+}
+let currentRutinaVerEjs = [];
+function openRutinaVerModal(idx){
+  const r = RUTINAS[idx];
+  currentRutinaVerEjs = r.ejs;
+  openModal(`
+    <div class="modal-head"><h3>${esc(r.n)}</h3><button onclick="closeModal()">✕</button></div>
+    ${r.ob?`<p style="font-size:15px;font-weight:700;margin:0 0 10px;">${esc(r.ob)}</p>`:''}
+    <input placeholder="Buscar ejercicio..." oninput="filterRutinaVerEjs(this.value)" style="margin-bottom:10px;">
+    <div id="rutinaVerEjsList">${rutinaVerEjsHTML('')}</div>
+    <div class="modal-actions"><button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="closeModal()">Cerrar</button></div>
+  `,'wide');
+}
+function rutinaVerEjsHTML(q){
+  q = (q||'').toLowerCase().trim();
+  const list = currentRutinaVerEjs.filter(e=>e.n.toLowerCase().includes(q));
+  return list.length?list.map(e=>`<div class="card" style="margin-bottom:6px;padding:10px 12px;"><b>${esc(e.n)}</b><br><span style="color:var(--text2);font-size:13px;">${esc(srValue(e))}${e.kg?` · ${esc(e.kg)}kg`:''}</span></div>`).join(''):`<p style="color:var(--text2);text-align:center;padding:20px;">Sin resultados</p>`;
+}
+function filterRutinaVerEjs(q){
+  const box = document.getElementById('rutinaVerEjsList');
+  if(box) box.innerHTML = rutinaVerEjsHTML(q);
 }
 function duplicarRutina(idx){
   const r = RUTINAS[idx];
@@ -3041,11 +3084,12 @@ function pageQR(){
       <button class="btn btn-outline" onclick="copyLink('${jsAttr(qrUrlForStaff())}')"><i class="ti ti-link"></i> Copiar link</button>
     </div>
   </div>` : ''}
+  ${currentRole!=='profesor'?`
   <div class="card">
     <div class="section-head"><h3>Registro de entradas del día (${REGS.length})</h3></div>
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
     <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
-  </div>`;
+  </div>`:''}`;
 }
 function renderQRInto(boxId, text, opts){
   const box = document.getElementById(boxId);
@@ -3085,6 +3129,14 @@ function filterHistorialSociosTable(q){
 }
 function pagePagos(){
   const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
+  if(currentRole==='profesor'){
+    return `
+    <h2 style="margin-bottom:14px;">Pagos</h2>
+    <div class="card" style="max-width:420px;">
+      <p style="color:var(--text2);font-size:14px;margin-bottom:14px;">Registrá el pago de un socio. No vas a ver el listado ni los montos cargados por otros.</p>
+      <button class="btn btn-primary" onclick="openPagoModal(0)"><i class="ti ti-cash"></i> Cargar pago</button>
+    </div>`;
+  }
   const activos = SOCIOS.filter(s=>s.activo).length;
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
   const hoy = new Date();
@@ -3304,11 +3356,56 @@ function openInscriptosModal(idx){
   openModal(`
     <div class="modal-head"><h3>Inscriptos — ${esc(c.n)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:14px;margin-bottom:10px;">${esc(c.d||'')} ${c.h} — ${list.length} inscripto${list.length===1?'':'s'}</p>
-    ${list.length?`<table><thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead><tbody>
-      ${list.map(s=>`<tr><td>${esc(s.n)}</td><td>${esc(s.tel||'-')}</td></tr>`).join('')}
-    </tbody></table>`:emptyState('ti-users-group','Todavía nadie se anotó a esta clase.')}
+    <div id="inscriptosListBox">${inscriptosListHTML(idx)}</div>
+    <div class="field" style="margin-top:14px;"><label>Agregar socio a la clase</label>
+      <input placeholder="Buscar socio..." oninput="filterAgregarInscriptoSelect(${idx},this.value)" style="margin-bottom:6px;">
+      <div style="display:flex;gap:6px;">
+        <select id="insc_add_s" style="flex:1;">${agregarInscriptoOptionsHTML('',c)}</select>
+        <button class="btn btn-outline" onclick="agregarInscripto(${idx})">Agregar</button>
+      </div>
+    </div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
   `);
+}
+function inscriptosListHTML(idx){
+  const c = CLASES_HOY[idx];
+  const k = claseKey(c);
+  const list = [];
+  Object.keys(RESERVAS).forEach(idxStr=>{
+    const si = Number(idxStr);
+    if(RESERVAS[si] && RESERVAS[si][k] && SOCIOS[si]) list.push({s:SOCIOS[si], si});
+  });
+  return list.length?`<table><thead><tr><th>Nombre</th><th>Teléfono</th><th></th></tr></thead><tbody>
+    ${list.map(({s,si})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.tel||'-')}</td><td><button class="btn btn-outline btn-sm" onclick="quitarInscripto(${idx},${si})" title="Quitar">✕</button></td></tr>`).join('')}
+  </tbody></table>`:emptyState('ti-users-group','Todavía nadie se anotó a esta clase.');
+}
+function agregarInscriptoOptionsHTML(q,c){
+  q = (q||'').toLowerCase().trim();
+  const k = claseKey(c);
+  const candidatos = SOCIOS.map((s,idx)=>({s,idx})).filter(({s,idx})=>s.activo!==false && s.n.toLowerCase().includes(q) && !(RESERVAS[idx]&&RESERVAS[idx][k]));
+  return candidatos.length ? candidatos.map(({s,idx})=>`<option value="${idx}">${esc(s.n)}</option>`).join('') : `<option value="" disabled>Sin resultados</option>`;
+}
+function filterAgregarInscriptoSelect(idx,q){
+  const sel = document.getElementById('insc_add_s');
+  if(sel) sel.innerHTML = agregarInscriptoOptionsHTML(q, CLASES_HOY[idx]);
+}
+function agregarInscripto(idx){
+  const c = CLASES_HOY[idx];
+  const sel = document.getElementById('insc_add_s');
+  const si = parseInt(sel.value);
+  if(isNaN(si)){ showToast('Elegí un socio.', 'error'); return; }
+  const k = claseKey(c);
+  if(!RESERVAS[si]) RESERVAS[si] = {};
+  RESERVAS[si][k] = true;
+  persist();
+  openInscriptosModal(idx);
+}
+function quitarInscripto(idx, si){
+  const c = CLASES_HOY[idx];
+  const k = claseKey(c);
+  if(RESERVAS[si]) delete RESERVAS[si][k];
+  persist();
+  openInscriptosModal(idx);
 }
 function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
 function socioClases(){
