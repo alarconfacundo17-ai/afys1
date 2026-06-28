@@ -2174,10 +2174,11 @@ function pageClases(){
   </td>`:''}</tr>`).join('')}
   </tbody></table>
   </div>
+  ${currentRole!=='profesor'?`
   <div class="card">
     <h3>Asistencia por clase (mes)</h3>
     ${CLASES_HOY.map(c=>{const pct=Math.round(Math.random()*40+50);return `<div class="bar-row"><div class="lbl">${esc(c.n)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div>${pct}%</div></div>`}).join('')}
-  </div>`;
+  </div>`:''}`;
 }
 let editClaseIdx = null;
 function openClaseModal(idx){
