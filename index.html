@@ -1983,7 +1983,7 @@ function openDiasRutinaModal(si, rname, search){
   const dias = (s.rsDias&&s.rsDias[rname])||[];
   const nombre = (s.rsNombre&&s.rsNombre[rname])||rname;
   openModal(`
-    <div class="modal-head"><h3>Días — ${esc(nombre)}</h3><button onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <div class="modal-head"><h3>Días — ${esc(nombre)}</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <p style="color:var(--text2);font-size:13px;margin:0;">¿Qué días la hace ${esc(s.n)}? (opcional)</p>
       <span>
@@ -1994,34 +1994,83 @@ function openDiasRutinaModal(si, rname, search){
     <div class="day-pills" id="diaPills_${si}_${slugRutina(rname)}">
       ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDiaSocio(${si},'${rname.replace(/'/g,"\\'")}','${d}','${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
     </div>
-    <div class="modal-actions"><button class="btn btn-primary" onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">Listo</button></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Listo</button></div>
   `);
+}
+function openSocioRutinaOpciones(si, rname, search){
+  const s = SOCIOS[si];
+  const r = RUTINAS.find(r=>r.n===rname);
+  if(!s||!r) return;
+  const has = s.rs.includes(rname);
+  const maxed = s.rs.length>=4;
+  const nombre = (s.rsNombre&&s.rsNombre[rname])||'';
+  const nota = (s.rsNotas&&s.rsNotas[rname])||'';
+  const hasOverride = s.rsOverride&&s.rsOverride[rname];
+  const optSt = 'width:100%;justify-content:flex-start;margin-bottom:8px;gap:12px;';
+  openModal(`
+    <div class="modal-head"><h3>${esc(nombre||rname)}</h3><button onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">✕</button></div>
+    ${has?`<span class="badge b-ok" style="font-size:11px;margin-bottom:14px;display:inline-block;">✓ Asignada</span>`:''}
+    <div style="display:flex;flex-direction:column;">
+      ${has?`
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaEjsModal(${si},'${rname.replace(/'/g,"\\'")}')"><i class="ti ti-edit" style="font-size:18px;"></i>${hasOverride?'Ver/editar ejercicios personalizados':'Personalizar ejercicios'}</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openDiasRutinaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-calendar" style="font-size:18px;"></i>Elegir días</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNombreModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-tag" style="font-size:18px;"></i>Nombre personalizado</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNotaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-notes" style="font-size:18px;"></i>Nota para el socio</button>
+      <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="quitarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-x" style="font-size:18px;"></i>Quitar rutina</button>
+      `:`<button class="btn btn-green" style="${optSt}" ${maxed?'disabled':''} onclick="asignarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus" style="font-size:18px;"></i>${maxed?'Máximo 4 rutinas alcanzado':'Asignar esta rutina'}</button>`}
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">Volver</button></div>
+  `);
+}
+function openSocioRutinaNombreModal(si, rname, search){
+  const s = SOCIOS[si];
+  const nombre = (s.rsNombre&&s.rsNombre[rname])||'';
+  openModal(`
+    <div class="modal-head"><h3>Nombre personalizado</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Este nombre solo lo ve ${esc(s.n)}, no afecta a otros socios.</p>
+    <input id="srm_nombre_input" value="${esc(nombre)}" placeholder="${esc(rname)}" style="margin-bottom:16px;font-size:13.5px;">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSocioRutinaNombre(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Guardar</button>
+    </div>
+  `);
+}
+function saveSocioRutinaNombre(si, rname, search){
+  const s = SOCIOS[si];
+  if(!s.rsNombre) s.rsNombre = {};
+  const v = (document.getElementById('srm_nombre_input').value||'').trim();
+  if(v) s.rsNombre[rname] = v; else delete s.rsNombre[rname];
+  persist();
+  openSocioRutinaOpciones(si, rname, search);
+}
+function openSocioRutinaNotaModal(si, rname, search){
+  const s = SOCIOS[si];
+  const nota = (s.rsNotas&&s.rsNotas[rname])||'';
+  openModal(`
+    <div class="modal-head"><h3>Nota para el socio</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <textarea id="srm_nota_input" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:80px;font-size:13px;margin-bottom:16px;">${esc(nota)}</textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSocioRutinaNota(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Guardar</button>
+    </div>
+  `);
+}
+function saveSocioRutinaNota(si, rname, search){
+  const s = SOCIOS[si];
+  if(!s.rsNotas) s.rsNotas = {};
+  const v = (document.getElementById('srm_nota_input').value||'').trim();
+  if(v) s.rsNotas[rname] = v; else delete s.rsNotas[rname];
+  persist();
+  openSocioRutinaOpciones(si, rname, search);
 }
 function socioRutinaRowHTML(si, r, search){
   const s = SOCIOS[si];
   search = search||'';
   const has = s.rs.includes(r.n);
-  const maxed = s.rs.length>=4;
-  const dias = s.rsDias[r.n]||[];
-  const nota = s.rsNotas[r.n]||'';
-  const nombre = s.rsNombre[r.n]||'';
-  return `<div id="rutinaRow_${si}_${slugRutina(r.n)}" style="padding:10px 0;border-bottom:1px solid var(--border2);">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <b style="font-size:13.5px;">${esc(nombre||r.n)}</b>
-      ${has?`<span style="display:flex;align-items:center;gap:8px;">
-          <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
-          <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Ejercicios'}</button>
-          <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
-        </span>`
-            :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
-    </div>
-    ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
-      <p style="color:var(--text2);font-size:13px;margin:0 0 4px;">Nombre que ve ${esc(s.n)} (opcional, no afecta a otros socios)</p>
-      <input value="${esc(nombre)}" placeholder="${esc(r.n)}" oninput="setRutinaNombreSocio(${si},'${r.n.replace(/'/g,"\\'")}',this.value,'${search.replace(/'/g,"\\'")}')" style="margin-bottom:10px;font-size:12.5px;">
-      ${diasRutinaButtonHTML(si, r.n, search)}
-      <p style="color:var(--text2);font-size:11.5px;margin-top:10px;margin-bottom:4px;">Nota para el socio (opcional)</p>
-      <textarea oninput="setRutinaNota(${si},'${r.n.replace(/'/g,"\\'")}',this.value)" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:50px;font-size:12.5px;">${esc(nota)}</textarea>
-    </div>`:''}
+  const nombre = (s.rsNombre&&s.rsNombre[r.n])||'';
+  return `<div id="rutinaRow_${si}_${slugRutina(r.n)}" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border2);">
+    <span style="font-size:13.5px;${has?'font-weight:600;':''}">${esc(nombre||r.n)}${has?` <span class="badge b-ok" style="font-size:10px;margin-left:6px;">✓</span>`:''}</span>
+    <button class="btn btn-outline btn-sm" style="padding:4px 8px;" onclick="openSocioRutinaOpciones(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-dots-vertical"></i></button>
   </div>`;
 }
 function socioRutinasListHTML(si, search){
