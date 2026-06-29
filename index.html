@@ -2185,6 +2185,25 @@ function filterPagoSocioSelect(q){
   const sel = document.getElementById('pg_s');
   if(sel) sel.innerHTML = pagoSocioOptionsHTML(q, null);
 }
+function mesPagoOptionsHTML(selected){
+  const now = new Date();
+  const opciones = [];
+  for(let off=-3; off<=3; off++){
+    const d = new Date(now.getFullYear(), now.getMonth()+off, 1);
+    const value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    let etiqueta = `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    if(off===0) etiqueta += ' (mes actual)';
+    else if(off===-1) etiqueta += ' (mes anterior)';
+    opciones.push({value, etiqueta});
+  }
+  const sel = selected || (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  return opciones.map(o=>`<option value="${o.value}" ${o.value===sel?'selected':''}>${esc(o.etiqueta)}</option>`).join('');
+}
+function mesPagoLabel(mp){
+  if(!mp) return '-';
+  const [y,m] = mp.split('-').map(Number);
+  return `${MESES[m-1]} ${y}`;
+}
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
@@ -2197,7 +2216,7 @@ function openPagoModal(idx, payIdx){
     </div>
     <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
     <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
-    <div class="field"><label>Tipo</label><select id="pg_t"><option ${p&&p.t==='Total'?'selected':''}>Total</option><option ${p&&p.t==='Parcial'?'selected':''}>Parcial</option></select></div>
+    <div class="field"><label>Mes que pagó</label><select id="pg_mp">${mesPagoOptionsHTML(p?p.mp:'')}</select></div>
     <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional" value="${p?esc(p.nt||''):''}"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
@@ -2209,7 +2228,7 @@ function openPagoModal(idx, payIdx){
 function savePago(){
   const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
   if(!s){ showToast('Elegí un socio.', 'error'); return; }
-  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', t:$('#pg_t').value, nt:$('#pg_n').value};
+  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, nt:$('#pg_n').value};
   if(editPagoIdx!==null){
     PAGOS[editPagoIdx] = data;
   } else {
@@ -2220,7 +2239,7 @@ function savePago(){
       const st = currentStaff();
       notifStaff.unshift({txt:`${st?st.n:'Un profesor'} cargó un pago de ${data.m} para ${s.n}.`, new:true});
     }
-    logMovimiento('pago', `Pago registrado: ${data.m} de ${s.n} (${data.t})`);
+    logMovimiento('pago', `Pago registrado: ${data.m} de ${s.n} (${mesPagoLabel(data.mp)})`);
   }
   editPagoIdx = null;
   persist();
@@ -3345,8 +3364,8 @@ function pagePagos(){
   ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
-  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
+  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Mes pagado</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
+  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
   </div>`;
 }
 const MOVIMIENTO_TIPOS = {
@@ -3855,7 +3874,7 @@ function socioCuenta(){
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="card">
     <h3>Historial de pagos</h3>
-    ${PAGOS.filter(p=>pagoBelongsTo(p,s)).map(p=>`<div class="day-row"><div><b>${esc(p.t)}</b><div style="font-size:13px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
+    ${PAGOS.filter(p=>pagoBelongsTo(p,s)).map(p=>`<div class="day-row"><div><b>${mesPagoLabel(p.mp)}</b><div style="font-size:13px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
   </div>`;
 }
 
