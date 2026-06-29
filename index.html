@@ -420,6 +420,12 @@ let turnoSeq = 1;
 
 let notifStaff = [];
 let notifSocio = {}; // by socio idx -> array
+let movimientosLog = []; // historial de acciones: {tipo, txt, fecha}
+
+function logMovimiento(tipo, txt){
+  movimientosLog.unshift({tipo, txt, fecha:new Date().toISOString()});
+  if(movimientosLog.length>1000) movimientosLog.length = 1000;
+}
 
 SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
 
@@ -437,7 +443,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
+    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
   };
 }
 
@@ -460,6 +466,7 @@ function applyState(s){
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
   if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
   if(Array.isArray(s.notifStaff)) notifStaff = s.notifStaff;
+  if(Array.isArray(s.movimientosLog)) movimientosLog = s.movimientosLog;
   if(s.notifSocio) notifSocio = s.notifSocio;
   if(typeof s.entradasHoy==='number') entradasHoy = s.entradasHoy;
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
@@ -1003,6 +1010,7 @@ async function qrGateCreateSocio(){
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
+  logMovimiento('alta_socio', `Alta de socio: ${n} (${e}) vía QR`);
   persist();
   currentRole = 'socio';
   currentSocioIdx = idx;
@@ -1172,6 +1180,7 @@ async function staffGateCreate(){
   STAFF.push({id, n, email, role, esp:esp||null, tel, dom, edad, perms, permsMigratedV1:true, permsMigratedV2:true});
   if(pendingInvite) PENDING_INVITES = PENDING_INVITES.filter(i=>i.token!==pendingInvite.token);
   pendingInvite = null;
+  logMovimiento('alta_staff', `Alta de cuenta de staff: ${n} (${email}) — Rol: ${role}`);
   persist();
   $('#staffGate').classList.add('hidden');
   await routeLoggedInUser(email);
@@ -1209,6 +1218,7 @@ function finishScan(){
   const idx = SOCIOS.indexOf(socio);
   const detail = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
   notifStaff.unshift({txt:`${socio.n} registró su entrada (${detail}) a las ${hora}`, new:true, tipo:'entrada'});
+  logMovimiento('entrada_socio', `${socio.n} registró su entrada (${detail}) a las ${hora}`);
   notifSocio[idx] = notifSocio[idx]||[];
   notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. ${detail}`, new:true});
 
@@ -1317,6 +1327,7 @@ function staffMenu(){
   items.push({id:'horarios', icon:'ti-clock', label:'Horarios'});
   items.push({id:'qr', icon:'ti-qrcode', label:'QR y Asistencia'});
   items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
+  if(isDueno()) items.push({id:'movimientos', icon:'ti-history', label:'Movimientos'});
   if(isDueno()) items.push({id:'demo', icon:'ti-eye', label:'Modo demo'});
   return items;
 }
@@ -1389,7 +1400,7 @@ function staffBlocked(){
   return !!(st && st.activo===false);
 }
 function renderStaff(){
-  const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos'};
+  const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos',movimientos:'Movimientos'};
   $('#staffTitle').textContent = titles[staffPage]||'Panel';
   const c = $('#staffContent');
   if(staffBlocked()){
@@ -1408,6 +1419,7 @@ function renderStaff(){
   else if(staffPage==='horarios') c.innerHTML = pageHorarios();
   else if(staffPage==='qr') { c.innerHTML = pageQR(); mountQRCodes(); }
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
+  else if(staffPage==='movimientos') c.innerHTML = pageMovimientos();
   bindStaffEvents();
 }
 
@@ -1560,12 +1572,14 @@ function openBajaStaffModal(id){
 function confirmBajaStaff(id){
   const s = STAFF.find(x=>x.id===id);
   s.activo = false;
+  logMovimiento('baja_staff', `Baja de cuenta de staff: ${s.n} (${s.email})`);
   persist();
   closeModal(); renderStaff();
 }
 function reactivarStaff(id){
   const s = STAFF.find(x=>x.id===id);
   s.activo = true;
+  logMovimiento('reactivacion_staff', `Reactivación de cuenta de staff: ${s.n} (${s.email})`);
   persist();
   renderStaff();
 }
@@ -1579,8 +1593,10 @@ function openEliminarStaffModal(id){
   `);
 }
 function eliminarStaffCompleto(id){
+  const s = STAFF.find(x=>x.id===id);
   STAFF = STAFF.filter(s=>s.id!==id);
   TURNOS = TURNOS.filter(t=>t.staffId!==id);
+  if(s) logMovimiento('eliminacion_staff', `Eliminación definitiva de cuenta de staff: ${s.n} (${s.email})`);
   persist();
   closeModal(); renderStaff();
 }
@@ -1802,6 +1818,7 @@ function confirmBaja(idx){
   const motivo = $('#bj_m').value;
   const nota = $('#bj_n').value.trim();
   s.nt.push(`Dado de baja — Motivo: ${motivo}${nota?'. '+nota:''} (${new Date().toLocaleDateString('es-AR')})`);
+  logMovimiento('baja_socio', `Baja de socio: ${s.n} — Motivo: ${motivo}${nota?'. '+nota:''}`);
   persist();
   closeModal(); renderStaff();
 }
@@ -1809,6 +1826,7 @@ function reactivarSocio(idx){
   const s = SOCIOS[idx];
   s.activo = true;
   s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
+  logMovimiento('reactivacion_socio', `Reactivación de socio: ${s.n}`);
   persist();
   renderStaff();
 }
@@ -1822,6 +1840,8 @@ function openEliminarSocioModal(idx){
   `);
 }
 function eliminarSocioCompleto(idx){
+  const sEliminado = SOCIOS[idx];
+  logMovimiento('eliminacion_socio', `Eliminación definitiva de socio: ${sEliminado.n}`);
   SOCIOS.splice(idx,1);
   Object.keys(SOCIOS_LOGIN).forEach(email=>{
     const info = SOCIOS_LOGIN[email];
@@ -1887,6 +1907,7 @@ function saveSocio(){
   const idx = SOCIOS.length-1;
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
+  logMovimiento('alta_socio', `Alta de socio: ${n}${email?' ('+email+')':''}`);
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
@@ -2168,6 +2189,7 @@ function savePago(){
       const st = currentStaff();
       notifStaff.unshift({txt:`${st?st.n:'Un profesor'} cargó un pago de ${data.m} para ${s.n}.`, new:true});
     }
+    logMovimiento('pago', `Pago registrado: ${data.m} de ${s.n} (${data.t})`);
   }
   editPagoIdx = null;
   persist();
@@ -2176,6 +2198,8 @@ function savePago(){
 }
 function deletePago(payIdx){
   if(!confirm('¿Eliminar este pago? No se modificará el estado del socio.')) return;
+  const pEliminado = PAGOS[payIdx];
+  if(pEliminado) logMovimiento('eliminacion_pago', `Eliminación de pago: ${pEliminado.m} de ${pEliminado.n}`);
   PAGOS.splice(payIdx,1);
   editPagoIdx = null;
   persist();
@@ -3292,6 +3316,56 @@ function pagePagos(){
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Tipo</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
   <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge ${p.t==='Total'?'b-ok':'b-warn'}">${p.t}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
+  </div>`;
+}
+const MOVIMIENTO_TIPOS = {
+  alta_socio:'Alta de socio', baja_socio:'Baja de socio', reactivacion_socio:'Reactivación de socio', eliminacion_socio:'Eliminación de socio',
+  entrada_socio:'Entrada al gimnasio', alta_staff:'Alta de cuenta de staff', baja_staff:'Baja de cuenta de staff',
+  reactivacion_staff:'Reactivación de staff', eliminacion_staff:'Eliminación de staff', pago:'Pago registrado', eliminacion_pago:'Eliminación de pago',
+};
+let movFiltroTipo = '';
+let movFiltroQ = '';
+function movimientosFiltrados(){
+  return movimientosLog.filter(m=>{
+    if(movFiltroTipo && m.tipo!==movFiltroTipo) return false;
+    if(movFiltroQ && !m.txt.toLowerCase().includes(movFiltroQ.toLowerCase())) return false;
+    return true;
+  });
+}
+function movimientosTablaHTML(){
+  const list = movimientosFiltrados();
+  return list.map(m=>`<tr>
+    <td>${fmtFechaHora(m.fecha)}</td>
+    <td><span class="badge b-info">${esc(MOVIMIENTO_TIPOS[m.tipo]||m.tipo)}</span></td>
+    <td>${esc(m.txt)}</td>
+  </tr>`).join('') || emptyRow('ti-history','Sin movimientos registrados todavía',3);
+}
+function fmtFechaHora(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return '-';
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+function filterMovimientosTipo(v){ movFiltroTipo = v; renderMovimientosTabla(); }
+function filterMovimientosQ(v){ movFiltroQ = v; renderMovimientosTabla(); }
+function renderMovimientosTabla(){
+  const body = document.getElementById('movimientosTableBody');
+  if(body) body.innerHTML = movimientosTablaHTML();
+}
+function pageMovimientos(){
+  const opciones = Object.keys(MOVIMIENTO_TIPOS).map(k=>`<option value="${k}" ${movFiltroTipo===k?'selected':''}>${esc(MOVIMIENTO_TIPOS[k])}</option>`).join('');
+  return `
+  <h2 style="margin-bottom:14px;">Movimientos</h2>
+  <p style="color:var(--text2);font-size:14px;margin-bottom:16px;">Historial de todas las acciones importantes del gimnasio: entradas de socios, altas y bajas de socios y de staff, pagos, etc.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <select id="movFiltroTipoSel" style="max-width:240px;" onchange="filterMovimientosTipo(this.value)">
+      <option value="">Todas las acciones</option>
+      ${opciones}
+    </select>
+    <input id="movFiltroQInput" placeholder="Buscar por nombre, email, etc..." style="flex:1;min-width:220px;" value="${esc(movFiltroQ)}" oninput="filterMovimientosQ(this.value)">
+  </div>
+  <div class="card">
+  <table><thead><tr><th>Fecha</th><th>Acción</th><th>Detalle</th></tr></thead>
+  <tbody id="movimientosTableBody">${movimientosTablaHTML()}</tbody></table>
   </div>`;
 }
 function openHistorialAnualModal(idx, year){
