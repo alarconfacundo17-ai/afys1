@@ -271,10 +271,6 @@ h3{font-size:15px;margin-bottom:10px;}
           <div class="role-tag" id="staffRoleTag"></div>
         </div>
       </div>
-      <div class="ej-picker" style="position:relative;flex:1;max-width:240px;margin:0 12px;">
-        <input id="staffGlobalSearch" type="text" autocomplete="off" placeholder="Buscar socio..." oninput="renderStaffSearchResults(this.value)" onfocus="renderStaffSearchResults(this.value)" onblur="setTimeout(hideStaffSearchResults,150)">
-        <div id="staffSearchResults" class="ej-picker-list hidden"></div>
-      </div>
       <div style="display:flex;gap:16px;align-items:center;">
         <div class="notif-wrap">
           <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
@@ -1363,28 +1359,6 @@ function renderStaffSidebar(){
   const tags={dueno:'Dueño',admin:'Admin',profesor:'Profesor'};
   const st = currentStaff();
   $('#staffRoleTag').textContent = tags[currentRole] + (st?` · ${st.n}`:'');
-}
-function renderStaffSearchResults(q){
-  const list = document.getElementById('staffSearchResults');
-  if(!list) return;
-  q = (q||'').trim().toLowerCase();
-  if(!q){ list.classList.add('hidden'); return; }
-  const res = SOCIOS.map((s,i)=>({s,i})).filter(o=>o.s.n.toLowerCase().includes(q)).slice(0,8);
-  list.innerHTML = res.length ? res.map(o=>`<div class="ej-picker-item" onclick="goToSocioFromSearch(${o.i})">${esc(o.s.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
-  list.classList.remove('hidden');
-}
-function hideStaffSearchResults(){
-  const list = document.getElementById('staffSearchResults');
-  if(list) list.classList.add('hidden');
-}
-function goToSocioFromSearch(idx){
-  hideStaffSearchResults();
-  const input = document.getElementById('staffGlobalSearch');
-  if(input) input.value = '';
-  staffPage = 'socios';
-  renderStaffSidebar();
-  renderStaff();
-  openEditSocioModal(idx);
 }
 function toggleStaffSidebar(force){
   const sb = $('#staffSidebar'), ov = $('#staffSidebarOverlay');
