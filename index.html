@@ -1006,8 +1006,8 @@ async function qrGateCreateSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
-  SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS_LOGIN[e] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
   logMovimiento('alta_socio', `Alta de socio: ${n} (${e}) vía QR`);
@@ -3517,6 +3517,7 @@ function socioInicio(){
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
   ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
+  <button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
   <div class="card" style="margin-bottom:14px;padding:16px 18px;">
     <h3 style="font-size:14px;">Próximas clases reservadas</h3>
     ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:14px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
@@ -3524,6 +3525,24 @@ function socioInicio(){
   `;
 }
 
+function openHorariosGimModal(){
+  const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const hoy = DIAS_JS[new Date().getDay()];
+  openModal(`
+    <div class="modal-head"><h3 style="font-size:18px;"><i class="ti ti-clock" style="color:var(--primary);margin-right:6px;"></i>Horarios del gimnasio</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${DIAS_SEMANA.map(d=>{
+        const h = GYM_HOURS[d]||[];
+        const esHoy = d===hoy;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-radius:12px;background:${esHoy?'var(--primary)':'var(--bg2)'};color:${esHoy?'#fff':'var(--text)'};">
+          <span style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px;">${esc(d)}${esHoy?'<span style="font-size:11px;font-weight:600;background:rgba(255,255,255,.25);border-radius:20px;padding:2px 9px;">HOY</span>':''}</span>
+          <span style="font-size:13.5px;text-align:right;${esHoy?'':'color:var(--text2);'}">${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join(' · '):(esHoy?'<span style="opacity:.9;">Cerrado</span>':'Cerrado')}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Cerrar</button></div>
+  `);
+}
 function openEditPerfil(){
   const s = SOCIOS[currentSocioIdx];
   const hasCumple = !!s.cumple;
