@@ -2111,7 +2111,7 @@ function openSocioRutinaEjsModal(si, rname){
   currentEjsArr = socioEjEditArr;
   currentEjsRenderFn = renderSocioEjModalBody;
   currentEjsShowKg = true;
-  currentEjsDraggable = false;
+  currentEjsDraggable = true;
   renderSocioEjModalBody();
 }
 function renderSocioEjModalBody(){
@@ -2122,7 +2122,7 @@ function renderSocioEjModalBody(){
     <div class="modal-head"><h3>Ejercicios — ${esc(rname)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:10px;">Estos cambios sólo afectan a <b>${esc(s.n)}</b>. La rutina original no se modifica para los demás socios.</p>
     <div id="rtEjs">
-    ${socioEjEditArr.map((e,i)=>ejRowHTML(i,e,true,false)).join('')}
+    ${socioEjEditArr.map((e,i)=>ejRowHTML(i,e,true,true)).join('')}
     </div>
     <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <div class="modal-actions" style="justify-content:space-between;">
