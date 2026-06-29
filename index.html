@@ -2151,13 +2151,28 @@ function resetSocioRutinaEjs(si, rname){
 }
 
 let editPagoIdx = null;
-function pagoSocioOptionsHTML(q, selId){
+function pagoSocioResultsHTML(q){
   q = (q||'').toLowerCase().trim();
-  return SOCIOS.filter(s=>s.n.toLowerCase().includes(q)).map(s=>`<option value="${esc(s.id)}" ${s.id===selId?'selected':''}>${esc(s.n)}</option>`).join('') || `<option value="" disabled>Sin resultados</option>`;
+  const res = SOCIOS.filter(s=>s.n.toLowerCase().includes(q)).slice(0,8);
+  return res.length ? res.map(s=>`<div class="ej-picker-item" onclick="selectPagoSocio('${esc(s.id)}','${s.n.replace(/'/g,"\\'")}')">${esc(s.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
 }
 function filterPagoSocioSelect(q){
-  const sel = document.getElementById('pg_s');
-  if(sel) sel.innerHTML = pagoSocioOptionsHTML(q, null);
+  const list = document.getElementById('pg_s_list');
+  if(!list) return;
+  list.innerHTML = pagoSocioResultsHTML(q);
+  list.classList.remove('hidden');
+}
+function selectPagoSocio(id, n){
+  const hidden = document.getElementById('pg_s');
+  const input = document.getElementById('pg_s_input');
+  const list = document.getElementById('pg_s_list');
+  if(hidden) hidden.value = id;
+  if(input) input.value = n;
+  if(list) list.classList.add('hidden');
+}
+function hidePagoSocioResults(){
+  const list = document.getElementById('pg_s_list');
+  if(list) list.classList.add('hidden');
 }
 function mesPagoOptionsHTML(selected){
   const now = new Date();
@@ -2182,11 +2197,15 @@ function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
   const selId = p ? (p.sid || (SOCIOS.find(s=>s.n===p.n)||{}).id) : (SOCIOS[idx]||{}).id;
+  const selSocio = SOCIOS.find(s=>s.id===selId);
   openModal(`
     <div class="modal-head"><h3>${p?'Editar pago':'Registrar pago'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Socio</label>
-      <input placeholder="Buscar socio..." oninput="filterPagoSocioSelect(this.value)" style="margin-bottom:6px;">
-      <select id="pg_s">${pagoSocioOptionsHTML('', selId)}</select>
+      <div class="ej-picker">
+        <input id="pg_s_input" placeholder="Buscar socio..." autocomplete="off" value="${selSocio?esc(selSocio.n):''}" oninput="filterPagoSocioSelect(this.value)" onfocus="filterPagoSocioSelect(this.value)" onblur="setTimeout(hidePagoSocioResults,150)">
+        <div id="pg_s_list" class="ej-picker-list hidden"></div>
+      </div>
+      <input type="hidden" id="pg_s" value="${selId?esc(selId):''}">
     </div>
     <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
     <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
