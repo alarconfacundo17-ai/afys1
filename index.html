@@ -1792,7 +1792,7 @@ function openSocioOpcionesModal(idx){
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
-      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
+      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
       ${(canEdit && currentRole!=='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
@@ -1970,62 +1970,75 @@ function saveEditSocio(idx){
   showToast('Guardado');
   closeModal(); renderStaff();
 }
-function socioRutinasBodyHTML(si, search){
+function slugRutina(rname){ return esc(rname).replace(/[^a-zA-Z0-9]/g,'_'); }
+function socioRutinasHeaderHTML(si, search){
+  const s = SOCIOS[si];
+  search = search||'';
+  if(!s.rs.length) return '';
+  return `<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
+      <p style="color:var(--text2);font-size:13px;margin:0 0 8px;">Cambiar rutina asignada</p>
+      ${s.rs.map(rn=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12.5px;flex:1;">${esc((s.rsNombre&&s.rsNombre[rn])||rn)}</span>
+        <select id="swap_${si}_${slugRutina(rn)}" style="flex:1.2;font-size:13px;">
+          ${RUTINAS.filter(r=>r.n!==rn).map(r=>`<option value="${esc(r.n)}">${esc(r.n)}</option>`).join('')}
+        </select>
+        <button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="cambiarRutinaSocio(${si},'${rn.replace(/'/g,"\\'")}',$('#swap_${si}_${slugRutina(rn)}').value,'${search.replace(/'/g,"\\'")}')">Cambiar</button>
+      </div>`).join('')}
+    </div>`;
+}
+function socioRutinaRowHTML(si, r, search){
+  const s = SOCIOS[si];
+  search = search||'';
+  const has = s.rs.includes(r.n);
+  const maxed = s.rs.length>=4;
+  const dias = s.rsDias[r.n]||[];
+  const nota = s.rsNotas[r.n]||'';
+  const nombre = s.rsNombre[r.n]||'';
+  return `<div id="rutinaRow_${si}_${slugRutina(r.n)}" style="padding:10px 0;border-bottom:1px solid var(--border2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <b style="font-size:13.5px;">${esc(nombre||r.n)}</b>
+      ${has?`<span style="display:flex;align-items:center;gap:8px;">
+          <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
+          <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Ejercicios'}</button>
+          <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
+        </span>`
+            :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
+    </div>
+    ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
+      <p style="color:var(--text2);font-size:13px;margin:0 0 4px;">Nombre que ve ${esc(s.n)} (opcional, no afecta a otros socios)</p>
+      <input value="${esc(nombre)}" placeholder="${esc(r.n)}" oninput="setRutinaNombreSocio(${si},'${r.n.replace(/'/g,"\\'")}',this.value,'${search.replace(/'/g,"\\'")}')" style="margin-bottom:10px;font-size:12.5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <p style="color:var(--text2);font-size:13px;margin:0;">¿Qué días la hace? (opcional)</p>
+        <span>
+          <button class="day-pill-quick" onclick="setRutinaDias(${si},'${r.n.replace(/'/g,"\\'")}',['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],'${search.replace(/'/g,"\\'")}')">Todos</button>
+          · <button class="day-pill-quick" onclick="setRutinaDias(${si},'${r.n.replace(/'/g,"\\'")}',[],'${search.replace(/'/g,"\\'")}')">Ninguno</button>
+        </span>
+      </div>
+      <div class="day-pills" id="diaPills_${si}_${slugRutina(r.n)}">
+        ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDiaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${d}','${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
+      </div>
+      <p style="color:var(--text2);font-size:11.5px;margin-top:10px;margin-bottom:4px;">Nota para el socio (opcional)</p>
+      <textarea oninput="setRutinaNota(${si},'${r.n.replace(/'/g,"\\'")}',this.value)" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:50px;font-size:12.5px;">${esc(nota)}</textarea>
+    </div>`:''}
+  </div>`;
+}
+function socioRutinasListHTML(si, search){
   const s = SOCIOS[si];
   search = search||'';
   const list = RUTINAS.filter(r=>r.n.toLowerCase().includes(search.toLowerCase()));
+  return list.length?list.map(r=>socioRutinaRowHTML(si,r,search)).join(''):emptyState('ti-barbell-off','No hay rutinas creadas todavía');
+}
+function socioRutinasBodyHTML(si, search){
+  const s = SOCIOS[si];
+  search = search||'';
   if(!s.rsDias) s.rsDias = {};
   if(!s.rsNotas) s.rsNotas = {};
   if(!s.rsOverride) s.rsOverride = {};
   if(!s.rsNombre) s.rsNombre = {};
   return `
-    ${s.rs.length?`<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
-      <p style="color:var(--text2);font-size:13px;margin:0 0 8px;">Cambiar rutina asignada</p>
-      ${s.rs.map(rn=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-        <span style="font-size:12.5px;flex:1;">${esc((s.rsNombre&&s.rsNombre[rn])||rn)}</span>
-        <select id="swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}" style="flex:1.2;font-size:13px;">
-          ${RUTINAS.filter(r=>r.n!==rn).map(r=>`<option value="${esc(r.n)}">${esc(r.n)}</option>`).join('')}
-        </select>
-        <button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="cambiarRutinaSocio(${si},'${rn.replace(/'/g,"\\'")}',$('#swap_${si}_${esc(rn).replace(/[^a-zA-Z0-9]/g,'_')}').value,'${search.replace(/'/g,"\\'")}')">Cambiar</button>
-      </div>`).join('')}
-    </div>`:''}
-    <input id="srm_search" placeholder="Buscar rutina..." value="${esc(search)}" oninput="refreshSocioRutinasModal(${si}, this.value)" style="margin-bottom:12px;">
-    <div id="modalScrollList" style="max-height:340px;overflow:auto;">
-    ${list.length?list.map(r=>{
-      const has = s.rs.includes(r.n);
-      const maxed = s.rs.length>=4;
-      const dias = s.rsDias[r.n]||[];
-      const nota = s.rsNotas[r.n]||'';
-      const nombre = s.rsNombre[r.n]||'';
-      return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <b style="font-size:13.5px;">${esc(nombre||r.n)}</b>
-          ${has?`<span style="display:flex;align-items:center;gap:8px;">
-              <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
-              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="openSocioRutinaEjsModal(${si},'${r.n.replace(/'/g,"\\'")}')">${(s.rsOverride&&s.rsOverride[r.n])?'✏️ Personalizada':'✏️ Ejercicios'}</button>
-              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Quitar</button>
-            </span>`
-                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutinaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
-        </div>
-        ${has?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;">
-          <p style="color:var(--text2);font-size:13px;margin:0 0 4px;">Nombre que ve ${esc(s.n)} (opcional, no afecta a otros socios)</p>
-          <input value="${esc(nombre)}" placeholder="${esc(r.n)}" oninput="setRutinaNombreSocio(${si},'${r.n.replace(/'/g,"\\'")}',this.value,'${search.replace(/'/g,"\\'")}')" style="margin-bottom:10px;font-size:12.5px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <p style="color:var(--text2);font-size:13px;margin:0;">¿Qué días la hace? (opcional)</p>
-            <span>
-              <button class="day-pill-quick" onclick="setRutinaDias(${si},'${r.n.replace(/'/g,"\\'")}',['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],'${search.replace(/'/g,"\\'")}')">Todos</button>
-              · <button class="day-pill-quick" onclick="setRutinaDias(${si},'${r.n.replace(/'/g,"\\'")}',[],'${search.replace(/'/g,"\\'")}')">Ninguno</button>
-            </span>
-          </div>
-          <div class="day-pills">
-            ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDiaSocio(${si},'${r.n.replace(/'/g,"\\'")}','${d}','${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
-          </div>
-          <p style="color:var(--text2);font-size:11.5px;margin-top:10px;margin-bottom:4px;">Nota para el socio (opcional)</p>
-          <textarea oninput="setRutinaNota(${si},'${r.n.replace(/'/g,"\\'")}',this.value)" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:50px;font-size:12.5px;">${esc(nota)}</textarea>
-        </div>`:''}
-      </div>`;
-    }).join(''):emptyState('ti-barbell-off','No hay rutinas creadas todavía')}
-    </div>
+    <div id="srm_header">${socioRutinasHeaderHTML(si, search)}</div>
+    <input id="srm_search" placeholder="Buscar rutina..." value="${esc(search)}" oninput="refreshSocioRutinasList(${si}, this.value)" style="margin-bottom:12px;">
+    <div id="modalScrollList" style="max-height:340px;overflow:auto;">${socioRutinasListHTML(si, search)}</div>
     <div class="modal-actions"><button class="btn btn-primary" onclick="openEditSocioModal(${si})">Volver</button></div>
   `;
 }
@@ -2041,6 +2054,17 @@ function refreshSocioRutinasModal(si, search){
   if(box) box.innerHTML = socioRutinasBodyHTML(si, search||'');
   else openSocioRutinasModal(si, search);
 }
+function refreshSocioRutinasList(si, search){
+  const box = document.getElementById('modalScrollList');
+  if(box) box.innerHTML = socioRutinasListHTML(si, search||'');
+  else refreshSocioRutinasModal(si, search);
+}
+function refreshSocioRutinasAll(si, search){
+  const header = document.getElementById('srm_header');
+  const list = document.getElementById('modalScrollList');
+  if(header && list){ header.innerHTML = socioRutinasHeaderHTML(si, search||''); list.innerHTML = socioRutinasListHTML(si, search||''); }
+  else refreshSocioRutinasModal(si, search);
+}
 function setRutinaNombreSocio(si, rname, val, search){
   const s = SOCIOS[si];
   if(!s.rsNombre) s.rsNombre = {};
@@ -2052,7 +2076,7 @@ function asignarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
   if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
   persist();
-  refreshSocioRutinasModal(si, search);
+  refreshSocioRutinasAll(si, search);
 }
 function quitarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
@@ -2061,7 +2085,7 @@ function quitarRutinaSocio(si, rname, search){
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
   persist();
-  refreshSocioRutinasModal(si, search);
+  refreshSocioRutinasAll(si, search);
 }
 function cambiarRutinaSocio(si, oldName, newName, search){
   const s = SOCIOS[si];
@@ -2075,7 +2099,7 @@ function cambiarRutinaSocio(si, oldName, newName, search){
   if(s.rsMiPeso && s.rsMiPeso[oldName]) delete s.rsMiPeso[oldName];
   if(s.rsHechos && s.rsHechos[oldName]) delete s.rsHechos[oldName];
   persist();
-  refreshSocioRutinasModal(si, search);
+  refreshSocioRutinasAll(si, search);
 }
 function toggleRutinaDiaSocio(si, rname, dia, search){
   const s = SOCIOS[si];
@@ -2084,14 +2108,21 @@ function toggleRutinaDiaSocio(si, rname, dia, search){
   const i = dias.indexOf(dia);
   if(i>=0) dias.splice(i,1); else dias.push(dia);
   persist();
-  refreshSocioRutinasModal(si, search);
+  updateDiaPillsUI(si, rname);
 }
 function setRutinaDias(si, rname, dias, search){
   const s = SOCIOS[si];
   if(!s.rsDias) s.rsDias = {};
   s.rsDias[rname] = [...dias];
   persist();
-  refreshSocioRutinasModal(si, search);
+  updateDiaPillsUI(si, rname);
+}
+function updateDiaPillsUI(si, rname){
+  const box = document.getElementById('diaPills_'+si+'_'+slugRutina(rname));
+  if(!box) return;
+  const s = SOCIOS[si];
+  const dias = (s.rsDias && s.rsDias[rname]) || [];
+  $all('.day-pill', box).forEach((btn,idx)=>btn.classList.toggle('active', dias.includes(DIAS_SEMANA[idx])));
 }
 let socioEjEditArr = null, socioEjEditSi = null, socioEjEditRname = null;
 function openSocioRutinaEjsModal(si, rname){
