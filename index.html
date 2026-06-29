@@ -2722,18 +2722,18 @@ function pageHorarios(){
         ${DIAS_SEMANA.map((d,di)=>{
           const turnos = TURNOS.filter(t=>t.dia===d && (currentRole!=='profesor' || t.staffId===currentStaffId));
           return `<div class="cal-daycol" style="grid-row:2;grid-column:${di+2};height:${totalH*CAL_PXH}px;" ${canEdit?`onclick="if(event.target===this) openTurnoModal(null,'${d}')"`:''}>
-            ${Array.from({length:totalH},(_,i)=>{
-              const hStart = (CAL_START+i)*60, hEnd = hStart+60;
+            ${Array.from({length:totalH*2},(_,i)=>{
+              const hStart = CAL_START*60+i*30, hEnd = hStart+30;
               const abierto = (GYM_HOURS[d]||[]).some(tr=>hToMin(tr.desde)<hEnd && hToMin(tr.hasta)>hStart);
               const conProfe = turnos.some(t=>!t.clase && hToMin(t.desde)<hEnd && hToMin(t.hasta)>hStart);
               const conClase = turnos.some(t=>t.clase && hToMin(t.desde)<hEnd && hToMin(t.hasta)>hStart);
               const bg = conClase?'rgba(59,130,201,0.30)':conProfe?'rgba(59,130,201,0.15)':abierto?'rgba(59,130,201,0.06)':'transparent';
-              return `<div class="cal-hourline" style="height:${CAL_PXH}px;background:${bg};"></div>`;
+              return `<div class="cal-hourline" style="height:${CAL_PXH/2}px;background:${bg};${i%2?'':'border-top:1px solid rgba(0,0,0,.04);'}"></div>`;
             }).join('')}
             ${turnos.map(t=>{
               const st = STAFF.find(s=>s.id===t.staffId);
               const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
-              const h = Math.max(18,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
+              const h = Math.max(16,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
               const col = staffColor(t.staffId);
               const bg = t.clase ? `${col}cc` : `${col}22`;
               const fg = t.clase ? '#fff' : col;
