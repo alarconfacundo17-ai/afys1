@@ -1788,6 +1788,7 @@ function openSocioOpcionesModal(idx){
     <div class="modal-head"><h3 style="font-size:18px;">${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
+      ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoAnteriorModal(${idx})"><i class="ti ti-clock-dollar" style="font-size:20px;color:var(--text2);"></i>Registrar pago anterior</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
       ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
@@ -2272,6 +2273,35 @@ function openPagoModal(idx, payIdx){
       <button class="btn btn-primary" onclick="savePago()">Guardar</button>
     </div>
   `);
+}
+function openPagoAnteriorModal(idx){
+  const s = SOCIOS[idx];
+  openModal(`
+    <div class="modal-head"><h3>Pago anterior — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:14px;">Usá esto para registrar el último pago que hizo este socio antes de empezar a usar la app. Poné la fecha real en que pagó.</p>
+    <div class="field"><label>Fecha del pago</label><input id="pga_f" type="date" value=""></div>
+    <div class="field"><label>Monto</label><input id="pga_m" placeholder="Ej: $10.000"></div>
+    <div class="field"><label>Mes que pagó</label><select id="pga_mp">${mesPagoOptionsHTML('')}</select></div>
+    <div class="field"><label>Nota (opcional)</label><input id="pga_n" placeholder="Ej: pago previo al sistema"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePagoAnterior(${idx})">Guardar</button>
+    </div>
+  `);
+}
+function savePagoAnterior(idx){
+  const s = SOCIOS[idx];
+  const f = $('#pga_f').value;
+  if(!f){ showToast('Elegí una fecha.', 'error'); return; }
+  const data = {sid:s.id, n:s.n, m:$('#pga_m').value||'$0', f, mp:$('#pga_mp').value, nt:($('#pga_n').value||'Pago anterior al sistema').trim()};
+  s.vence = addDaysISO(f, PLAN_DAYS[s.pl]||30);
+  s.es = 'ok';
+  PAGOS.push(data);
+  PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
+  logMovimiento('pago', `Pago anterior registrado: ${data.m} de ${s.n} (${mesPagoLabel(data.mp)})`);
+  persist();
+  showToast('Pago anterior guardado');
+  closeModal(); renderStaff();
 }
 function savePago(){
   const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
