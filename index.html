@@ -858,9 +858,12 @@ async function submitSignupSocio(){
   const ob = $('#su_ob').value.trim()||null;
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
-  let {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
+    error = {message:'already registered'};
+  }
   if(error){
-    if(/already registered|already exists/i.test(error.message)){
+    if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
       const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
       if(loginErr){ loginError='Ese email ya tuvo una cuenta con otra contraseña. Si la olvidaste, usá "¿Olvidaste tu contraseña?" para recuperarla.'; renderLogin(); return; }
     } else { loginError=error.message; renderLogin(); return; }
@@ -1002,9 +1005,12 @@ async function qrGateCreateSocio(){
   const obs = $('#qrg_obs').value.trim()||null;
   if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
-  let {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
+    error = {message:'already registered'};
+  }
   if(error){
-    if(/already registered|already exists/i.test(error.message)){
+    if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
       const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
       if(loginErr){ renderQRGateSignup('Ese email ya tuvo una cuenta con otra contraseña. Volvé a la pantalla principal e iniciá sesión para recuperarla con "¿Olvidaste tu contraseña?".'); return; }
     } else { renderQRGateSignup(error.message); return; }
