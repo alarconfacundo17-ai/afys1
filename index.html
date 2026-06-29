@@ -1790,7 +1790,7 @@ function openSocioOpcionesModal(idx){
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
-      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas</button>`:''}
+      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
       ${(canEdit && currentRole!=='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
@@ -2002,7 +2002,6 @@ function openSocioRutinaOpciones(si, rname, search){
   const r = RUTINAS.find(r=>r.n===rname);
   if(!s||!r) return;
   const has = s.rs.includes(rname);
-  const maxed = s.rs.length>=4;
   const nombre = (s.rsNombre&&s.rsNombre[rname])||'';
   const nota = (s.rsNotas&&s.rsNotas[rname])||'';
   const hasOverride = s.rsOverride&&s.rsOverride[rname];
@@ -2017,7 +2016,7 @@ function openSocioRutinaOpciones(si, rname, search){
       <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNombreModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-tag" style="font-size:18px;"></i>Nombre personalizado</button>
       <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNotaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-notes" style="font-size:18px;"></i>Nota para el socio</button>
       <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="quitarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-x" style="font-size:18px;"></i>Quitar rutina</button>
-      `:`<button class="btn btn-green" style="${optSt}" ${maxed?'disabled':''} onclick="asignarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus" style="font-size:18px;"></i>${maxed?'Máximo 4 rutinas alcanzado':'Asignar esta rutina'}</button>`}
+      `:`<button class="btn btn-green" style="${optSt}" onclick="asignarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus" style="font-size:18px;"></i>Asignar esta rutina</button>`}
     </div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">Volver</button></div>
   `);
@@ -2118,7 +2117,7 @@ function setRutinaNombreSocio(si, rname, val, search){
 }
 function asignarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
-  if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
+  if(!s.rs.includes(rname)) s.rs.push(rname);
   persist();
   refreshSocioRutinasList(si, search);
 }
@@ -2554,7 +2553,6 @@ function asignarModalListHTML(idx, search){
   return list.map(s=>{
       const si = SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
-      const maxed = s.rs.length>=4;
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
@@ -2562,7 +2560,7 @@ function asignarModalListHTML(idx, search){
               <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
               <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>
             </span>`
-                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" ${maxed?'disabled':''} title="${maxed?'Máximo 4 rutinas':'Asignar'}" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i>${maxed?' máx 4':''}</button>`}
+                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i></button>`}
         </div>
         ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>refreshAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
           ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
@@ -2588,7 +2586,7 @@ function refreshAsignarModal(idx, search){
 }
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
-  if(s.rs.length<4 && !s.rs.includes(rname)) s.rs.push(rname);
+  if(!s.rs.includes(rname)) s.rs.push(rname);
   persist();
   refreshAsignarModal(idx, search);
 }
