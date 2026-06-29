@@ -2721,8 +2721,32 @@ function proximoTurnoProfesor(st){
   return null;
 }
 function staffColor(id){
+  const s = STAFF.find(s=>s.id===id);
+  if(s && s.color) return s.color;
   const idx = STAFF.findIndex(s=>s.id===id);
   return TURNO_COLORS[idx>=0?idx%TURNO_COLORS.length:0];
+}
+function openStaffColorPicker(id){
+  const s = STAFF.find(s=>s.id===id);
+  if(!s) return;
+  const cur = staffColor(id);
+  openModal(`
+    <div class="modal-head"><h3>Color de ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Elegí el color con el que se va a ver a ${esc(s.n)} en el calendario de horarios.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      ${TURNO_COLORS.map(c=>`<button onclick="setStaffColor('${id}','${c}')" title="${c}" style="width:36px;height:36px;border-radius:50%;background:${c};border:3px solid ${cur===c?'#111':'transparent'};cursor:pointer;padding:0;"></button>`).join('')}
+    </div>
+    <div class="field"><label>Color personalizado</label><input type="color" value="${cur}" onchange="setStaffColor('${id}',this.value)" style="width:60px;height:36px;padding:2px;cursor:pointer;"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+  `);
+}
+function setStaffColor(id, color){
+  const s = STAFF.find(s=>s.id===id);
+  if(!s) return;
+  s.color = color;
+  persist();
+  closeModal();
+  renderStaff();
 }
 function pageHorarios(){
   const canEdit = canEditHorarios();
@@ -2753,7 +2777,7 @@ function pageHorarios(){
       ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
     </div>
     ${currentRole!=='profesor'?`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-      ${profes.map(p=>`<span class="badge" style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
+      ${profes.map(p=>`<span class="badge" ${isDueno()?`onclick="openStaffColorPicker('${p.id}')" title="Cambiar color" style="cursor:pointer;background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`:`style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`}><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
     </div>`:''}
     <div class="cal-wrap">
       <div class="cal-grid" style="grid-template-columns:30px repeat(7,1fr);">
