@@ -339,6 +339,12 @@ const PAGOS = [];
 const REGS = [];
 
 const SOCIOS_LOGIN = {};
+function cleanOrphanSocioLogin(email){
+  const info = SOCIOS_LOGIN[email];
+  if(!info) return;
+  const linked = SOCIOS[info.idx];
+  if(!linked || linked.email!==email) delete SOCIOS_LOGIN[email];
+}
 
 const EJD = {
   'Pecho':     ['Press banca plano','Press inclinado mancuernas','Press declinado','Aperturas en polea','Fondos en paralelas','Pullover con mancuerna','Pectoral en máquina'],
@@ -857,6 +863,7 @@ async function submitSignupSocio(){
   const pe = parseInt($('#su_pe').value)||null;
   const ob = $('#su_ob').value.trim()||null;
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
+  cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
   let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
   if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
@@ -1004,6 +1011,7 @@ async function qrGateCreateSocio(){
   const ob = $('#qrg_ob').value.trim()||null;
   const obs = $('#qrg_obs').value.trim()||null;
   if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
+  cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
   let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
   if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
@@ -1832,6 +1840,7 @@ function openEliminarSocioModal(idx){
 function eliminarSocioCompleto(idx){
   const sEliminado = SOCIOS[idx];
   logMovimiento('eliminacion_socio', `Eliminación definitiva de socio: ${sEliminado.n}`);
+  if(sEliminado.email) delete SOCIOS_LOGIN[sEliminado.email];
   SOCIOS.splice(idx,1);
   Object.keys(SOCIOS_LOGIN).forEach(email=>{
     const info = SOCIOS_LOGIN[email];
