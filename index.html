@@ -3517,11 +3517,7 @@ function socioInicio(){
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
   ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
-  <button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
-  <div class="card" style="margin-bottom:14px;padding:16px 18px;">
-    <h3 style="font-size:14px;">Próximas clases reservadas</h3>
-    ${CLASES_HOY.map(c=>socioReservas()[claseKey(c)]?`<p style="color:var(--text2);font-size:14px;">${esc(c.n)} — Hoy ${c.h}</p>`:'').join('')||emptyState('ti-calendar-off','Sin clases reservadas')}
-  </div>
+  <button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:#eaf1ff;color:var(--primary);" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
   `;
 }
 
@@ -3536,7 +3532,7 @@ function openHorariosGimModal(){
         const esHoy = d===hoy;
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-radius:12px;background:${esHoy?'var(--primary)':'var(--bg2)'};color:${esHoy?'#fff':'var(--text)'};">
           <span style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px;">${esc(d)}${esHoy?'<span style="font-size:11px;font-weight:600;background:rgba(255,255,255,.25);border-radius:20px;padding:2px 9px;">HOY</span>':''}</span>
-          <span style="font-size:13.5px;text-align:right;${esHoy?'':'color:var(--text2);'}">${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join(' · '):(esHoy?'<span style="opacity:.9;">Cerrado</span>':'Cerrado')}</span>
+          <span style="font-size:13.5px;text-align:right;${esHoy?'':'color:var(--text2);'}display:flex;align-items:center;gap:10px;">${h.length?h.map(tr=>`${tr.desde} - ${tr.hasta}`).join(`<span style="display:inline-block;width:2px;height:16px;background:${esHoy?'rgba(255,255,255,.4)':'var(--border2)'};border-radius:2px;"></span>`):(esHoy?'<span style="opacity:.9;">Cerrado</span>':'Cerrado')}</span>
         </div>`;
       }).join('')}
     </div>
