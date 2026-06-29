@@ -858,8 +858,13 @@ async function submitSignupSocio(){
   const ob = $('#su_ob').value.trim()||null;
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
-  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
-  if(error){ loginError=error.message; renderLogin(); return; }
+  let {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  if(error){
+    if(/already registered|already exists/i.test(error.message)){
+      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
+      if(loginErr){ loginError='Ese email ya tuvo una cuenta con otra contraseña. Si la olvidaste, usá "¿Olvidaste tu contraseña?" para recuperarla.'; renderLogin(); return; }
+    } else { loginError=error.message; renderLogin(); return; }
+  }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
@@ -997,8 +1002,13 @@ async function qrGateCreateSocio(){
   const obs = $('#qrg_obs').value.trim()||null;
   if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
-  const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
-  if(error){ renderQRGateSignup(error.message); return; }
+  let {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  if(error){
+    if(/already registered|already exists/i.test(error.message)){
+      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
+      if(loginErr){ renderQRGateSignup('Ese email ya tuvo una cuenta con otra contraseña. Volvé a la pantalla principal e iniciá sesión para recuperarla con "¿Olvidaste tu contraseña?".'); return; }
+    } else { renderQRGateSignup(error.message); return; }
+  }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
