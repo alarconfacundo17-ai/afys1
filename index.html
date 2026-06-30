@@ -273,6 +273,7 @@ h3{font-size:15px;margin-bottom:10px;}
         </div>
       </div>
       <div style="display:flex;gap:16px;align-items:center;">
+        <button class="bell" onclick="openBuscarSocioModal()" title="Buscar socio"><i class="ti ti-search"></i></button>
         <div class="notif-wrap">
           <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
           <div class="notif-panel hidden" id="staffNotifPanel"></div>
@@ -1797,6 +1798,24 @@ function pageSocios(){
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
   </div>`;
+}
+function openBuscarSocioModal(){
+  openModal(`
+    <div class="modal-head"><h3>Buscar socio</h3><button onclick="closeModal()">✕</button></div>
+    <input id="bsm_input" placeholder="Nombre del socio..." autocomplete="off" oninput="filterBuscarSocio(this.value)" style="margin-bottom:12px;">
+    <div id="bsm_list" style="max-height:380px;overflow:auto;">${buscarSocioRowsHTML('')}</div>
+  `);
+  setTimeout(()=>$('#bsm_input')?.focus(), 50);
+}
+function buscarSocioRowsHTML(q){
+  q = (q||'').toLowerCase().trim();
+  if(!q) return emptyState('ti-search','Empezá a escribir para buscar');
+  const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.n.toLowerCase().includes(q)).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).slice(0,20);
+  return list.length ? list.map(({s,idx})=>`<div class="ej-picker-item" style="display:flex;justify-content:space-between;align-items:center;" onclick="closeModal();openSocioOpcionesModal(${idx})"><span>${esc(s.n)}</span>${payBadge(s.es)}</div>`).join('') : emptyState('ti-mood-empty',`Sin resultados para "${esc(q)}"`);
+}
+function filterBuscarSocio(q){
+  const box = document.getElementById('bsm_list');
+  if(box) box.innerHTML = buscarSocioRowsHTML(q);
 }
 function openSocioOpcionesModal(idx){
   const s = SOCIOS[idx];
@@ -3483,10 +3502,39 @@ function pagePagos(){
   <tbody id="histSociosTableBody">${historialSociosRowsHTML('')}</tbody></table>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
+  <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <input id="pagosFiltroSocio" placeholder="Buscar por socio..." oninput="filterUltimosPagos()" style="flex:1;min-width:160px;">
+    <select id="pagosFiltroMes" onchange="filterUltimosPagos()" style="min-width:140px;">${ultimosPagosMesesOptionsHTML()}</select>
+  </div>
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Mes pagado</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
-  <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
+  <tbody id="ultimosPagosTbody">${ultimosPagosRowsHTML('','',canEditPagos)}</tbody></table>
   </div>`;
+}
+function ultimosPagosMesesOptionsHTML(){
+  const meses = [...new Set(PAGOS.map(p=>p.f).filter(f=>f && f!=='-').map(f=>f.slice(0,7)))].sort().reverse();
+  return `<option value="">Todos los meses</option>${meses.map(m=>`<option value="${m}">${fmtMesAnio(m)}</option>`).join('')}`;
+}
+function fmtMesAnio(m){
+  const [y,mo] = m.split('-');
+  const NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return `${NOMBRES[parseInt(mo,10)-1]} ${y}`;
+}
+function ultimosPagosRowsHTML(q, mes, canEditPagos){
+  q = (q||'').toLowerCase().trim();
+  const rows = PAGOS.map((p,i)=>({p,i})).filter(({p})=>{
+    if(q && !p.n.toLowerCase().includes(q)) return false;
+    if(mes && p.f.slice(0,7)!==mes) return false;
+    return true;
+  });
+  return rows.length ? rows.map(({p,i})=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('') : emptyRow('ti-cash-off',q||mes?'Sin pagos para ese filtro':'Sin pagos registrados todavía',canEditPagos?5:4);
+}
+function filterUltimosPagos(){
+  const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
+  const q = $('#pagosFiltroSocio')?.value || '';
+  const mes = $('#pagosFiltroMes')?.value || '';
+  const box = document.getElementById('ultimosPagosTbody');
+  if(box) box.innerHTML = ultimosPagosRowsHTML(q, mes, canEditPagos);
 }
 const MOVIMIENTO_TIPOS = {
   alta_socio:'Alta de socio', baja_socio:'Baja de socio', reactivacion_socio:'Reactivación de socio', eliminacion_socio:'Eliminación de socio',
