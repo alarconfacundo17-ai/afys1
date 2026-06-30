@@ -676,7 +676,8 @@ function fmtFechaCorta(iso){
   if(isNaN(d)) return '-';
   return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
 }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function localDateISO(iso){ const d=new Date(iso); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function recalcEstados(opts){
   const notify = opts && opts.notify;
   let changed = false;
@@ -1440,7 +1441,7 @@ function ingresosUltimosMeses(n){
 function pagePanel(){
   const activos = SOCIOS.filter(s=>s.activo).length;
   const vencidos = SOCIOS.filter(s=>s.es==='de').length;
-  const asistenciasHoy = REGS.filter(r=>r.f && r.f.slice(0,10)===todayISO()).length;
+  const asistenciasHoy = REGS.filter(r=>r.f && localDateISO(r.f)===todayISO()).length;
   const verAsistencias = isSuperOwner() || hasPerm('verAsistenciasHoy');
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
@@ -1947,7 +1948,7 @@ function openSocioAsistenciaStaffModal(idx){
     </div>
     <div class="card">
       <h3>Historial</h3>
-      ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(r.f.slice(0,10)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
+      ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(localDateISO(r.f)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
     </div>
     <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button></div>
   `);
