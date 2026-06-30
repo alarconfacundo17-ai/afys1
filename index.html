@@ -658,6 +658,51 @@ async function mergeRemoteAntesDeGuardar(){
       REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
       entradasHoy = REGS.filter(r=>r.f && localDateISO(r.f)===todayISO()).length;
     }
+
+    if(Array.isArray(remote.PAGOS)){
+      const localKeys = new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp));
+      remote.PAGOS.forEach(p=>{
+        const key = p.sid+'|'+p.f+'|'+p.m+'|'+p.mp;
+        if(!localKeys.has(key)){ PAGOS.push(p); localKeys.add(key); }
+      });
+      PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
+    }
+
+    if(Array.isArray(remote.PENDING_INVITES)){
+      const localTokens = new Set(PENDING_INVITES.map(i=>i.token));
+      remote.PENDING_INVITES.forEach(i=>{
+        if(!localTokens.has(i.token)){ PENDING_INVITES.push(i); localTokens.add(i.token); }
+      });
+    }
+
+    if(Array.isArray(remote.movimientosLog)){
+      const localFechas = new Set(movimientosLog.map(m=>m.fecha));
+      const nuevos = remote.movimientosLog.filter(m=>!localFechas.has(m.fecha));
+      if(nuevos.length){
+        movimientosLog.push(...nuevos);
+        movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+        if(movimientosLog.length>1000) movimientosLog.length = 1000;
+      }
+    }
+
+    if(Array.isArray(remote.notifStaff)){
+      const localSet = new Set(notifStaff.map(n=>JSON.stringify(n)));
+      remote.notifStaff.forEach(n=>{
+        const key = JSON.stringify(n);
+        if(!localSet.has(key)){ notifStaff.unshift(n); localSet.add(key); }
+      });
+    }
+
+    if(remote.notifSocio){
+      Object.keys(remote.notifSocio).forEach(idx=>{
+        if(!notifSocio[idx]) notifSocio[idx] = [];
+        const localSet = new Set(notifSocio[idx].map(n=>JSON.stringify(n)));
+        (remote.notifSocio[idx]||[]).forEach(n=>{
+          const key = JSON.stringify(n);
+          if(!localSet.has(key)){ notifSocio[idx].unshift(n); localSet.add(key); }
+        });
+      });
+    }
   }catch(e){
     console.error('Error sincronizando antes de guardar:', e);
   }
@@ -2582,7 +2627,7 @@ function pageClases(){
   <div class="card" style="margin-bottom:18px;">
   <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th><th>Inscriptos</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
   <tbody>
-  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${c.cu}</td><td><button class="btn btn-outline btn-sm" onclick="openInscriptosModal(${idx})"><i class="ti ti-users"></i> ${inscriptosClase(c).length}</button></td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td>
+  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${cupoClaseTexto(c)}</td><td><button class="btn btn-outline btn-sm" onclick="openInscriptosModal(${idx})"><i class="ti ti-users"></i> ${inscriptosClase(c).length}</button></td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td>
     <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openClaseOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
   </td>`:''}</tr>`).join('')}
   </tbody></table>
@@ -3952,6 +3997,7 @@ function saveEditPerfilStaff(){
   closeModal(); renderStaff();
 }
 function claseKey(c){ return c.cId || (c.n+'_'+c.h); }
+function cupoClaseTexto(c){ return `${inscriptosClase(c).length}/${Number((c.cu||'0/12').split('/')[1])||12}`; }
 function inscriptosClase(c){
   const k = claseKey(c);
   const list = [];
@@ -4029,14 +4075,15 @@ function socioClases(){
   return `
   <h2>Clases disponibles</h2>
   ${clasesSemana.map(({c,i})=>{
-    const [act,tot] = c.cu.split('/').map(Number);
+    const act = inscriptosClase(c).length;
+    const tot = Number((c.cu||'0/12').split('/')[1])||12;
     const full = act>=tot;
     const booked = !!misReservas[claseKey(c)];
     const esHoy = c.d===diaHoy;
     return `<div class="class-card" style="${booked?'border:2px solid var(--green);background:rgba(34,197,94,.08);':''}">
       <div style="display:flex;align-items:center;gap:10px;">
         ${booked?`<span style="width:30px;height:30px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-check" style="font-size:18px;"></i></span>`:''}
-        <div><b>${esc(c.n)}</b><div style="font-size:13px;color:var(--text2);">${esHoy?'<b style="color:var(--primary);">Hoy</b>':esc(c.d)} · ${c.h} · ${esc(c.ins)} · ${c.cu}</div></div>
+        <div><b>${esc(c.n)}</b><div style="font-size:13px;color:var(--text2);">${esHoy?'<b style="color:var(--primary);">Hoy</b>':esc(c.d)} · ${c.h} · ${esc(c.ins)} · ${cupoClaseTexto(c)}</div></div>
       </div>
       <button class="btn btn-sm ${booked?'btn-outline':full?'btn-outline':'btn-primary'}" style="${booked?'color:var(--green);border-color:var(--green);':''}" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${booked?'✓ Reservada':full?'Sin cupo':'Reservar'}</button>
     </div>`;
