@@ -889,10 +889,43 @@ async function routeLoggedInUser(email){
     socioPage='inicio'; renderSocio();
     return;
   }
+  const idxRecuperado = await intentarRecuperarPerfilSocio(email);
+  if(idxRecuperado!==null){
+    currentRole='socio'; currentSocioIdx=idxRecuperado;
+    showWelcomeBanner = true;
+    $('#socio').classList.remove('hidden');
+    socioPage='inicio'; renderSocio();
+    showToast('Recuperamos tu perfil. ¡Bienvenido/a de nuevo!');
+    return;
+  }
   await sb.auth.signOut();
   loginError='No encontramos tu perfil en este gimnasio. Contactá al dueño.';
   $('#login').classList.remove('hidden');
   renderLogin();
+}
+
+function recrearPerfilSocioPerdido(email, nombre){
+  const initialsV = (nombre||email).trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const idx = SOCIOS.length;
+  SOCIOS.push({i:initialsV, n:nombre||email, email, tel:'', cumple:null, pl:'Sin plan asignado', es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
+  notifSocio[idx]=[];
+  notifStaff.unshift({txt:`Se recuperó automáticamente el perfil de ${nombre||email} (${email}), que se había perdido. Revisá y completá sus datos.`, new:true, altaIdx:idx});
+  logMovimiento('alta_socio', `Perfil de socio recuperado automáticamente: ${nombre||email} (${email})`);
+  persist();
+  return idx;
+}
+
+async function intentarRecuperarPerfilSocio(email){
+  try{
+    const {data} = await sb.auth.getUser();
+    const meta = data && data.user && data.user.user_metadata;
+    if(!meta || meta.role!=='socio') return null;
+    return recrearPerfilSocioPerdido(email, meta.nombre);
+  }catch(e){
+    console.error('Error intentando recuperar perfil de socio:', e);
+    return null;
+  }
 }
 
 function enterStaff(){
@@ -1154,11 +1187,15 @@ async function qrGateLoginByForm(){
   const password = $('#qrg_form_p').value;
   const {error} = await sb.auth.signInWithPassword({email, password});
   if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
-  const info = SOCIOS_LOGIN[email];
+  let info = SOCIOS_LOGIN[email];
   if(!info){
-    await sb.auth.signOut();
-    renderQRGateLoginForm('Esta cuenta no es de socio. Si sos personal del gimnasio, iniciá sesión desde la pantalla principal.');
-    return;
+    const idxRecuperado = await intentarRecuperarPerfilSocio(email);
+    if(idxRecuperado===null){
+      await sb.auth.signOut();
+      renderQRGateLoginForm('Esta cuenta no es de socio. Si sos personal del gimnasio, iniciá sesión desde la pantalla principal.');
+      return;
+    }
+    info = {idx:idxRecuperado};
   }
   currentRole = 'socio';
   currentSocioIdx = info.idx;
