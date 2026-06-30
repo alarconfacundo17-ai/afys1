@@ -3444,6 +3444,7 @@ function pagePagos(){
   const proximos = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.vence && (s.es==='ve'||s.es==='de'))
     .sort((a,b)=>new Date(a.s.vence)-new Date(b.s.vence));
   return `
+  <div class="section-head" style="margin-bottom:14px;"><span></span>${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)"><i class="ti ti-cash"></i>Cargar pago</button>`:''}</div>
   <div class="grid-metrics">
     <div class="metric"><div class="num">${fmtMonto(esteMes)}</div><div class="lbl">Este mes</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Vencidos</div></div>
@@ -3462,9 +3463,7 @@ function pagePagos(){
   <table><thead><tr><th>Nombre</th><th>Plan</th><th></th></tr></thead>
   <tbody id="histSociosTableBody">${historialSociosRowsHTML('')}</tbody></table>
   </div>
-  <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3>
-  ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)">Cargar pago</button>`:''}
-  </div>
+  <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
   <div class="card">
   <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Mes pagado</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
   <tbody>${PAGOS.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('')||emptyRow('ti-cash-off','Sin pagos registrados todavía',canEditPagos?5:4)}</tbody></table>
