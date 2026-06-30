@@ -612,24 +612,61 @@ function showToast(msg, type){
   toastTimer = setTimeout(()=>t.classList.remove('show'), type==='error'?4000:2000);
 }
 function socioMergeKey(s){ return s.id || (s.email||'').trim().toLowerCase() || s.n; }
-async function mergeSociosNuevosAntesDeGuardar(){
+function mergeRsHechos(local, remote){
+  if(!remote) return;
+  Object.keys(remote).forEach(rname=>{
+    if(!local[rname]) local[rname] = {};
+    Object.keys(remote[rname]).forEach(ejName=>{
+      if(local[rname][ejName]===undefined) local[rname][ejName] = remote[rname][ejName];
+    });
+  });
+}
+async function mergeRemoteAntesDeGuardar(){
   try{
     const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
-    if(error || !data || !data.data || !Array.isArray(data.data.SOCIOS)) return;
-    const localKeys = new Set(SOCIOS.map(socioMergeKey));
-    data.data.SOCIOS.forEach(rs=>{
-      const key = socioMergeKey(rs);
-      if(!localKeys.has(key)){ SOCIOS.push(rs); localKeys.add(key); }
-    });
+    if(error || !data || !data.data) return;
+    const remote = data.data;
+
+    if(Array.isArray(remote.SOCIOS)){
+      const localByKey = {};
+      SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)] = s; });
+      remote.SOCIOS.forEach(rs=>{
+        const key = socioMergeKey(rs);
+        const ls = localByKey[key];
+        if(!ls){ SOCIOS.push(rs); localByKey[key] = rs; return; }
+        if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
+        if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
+        if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
+      });
+    }
+
+    if(remote.RESERVAS){
+      Object.keys(remote.RESERVAS).forEach(k=>{
+        if(!RESERVAS[k]) RESERVAS[k] = {};
+        Object.keys(remote.RESERVAS[k]).forEach(claseK=>{
+          if(remote.RESERVAS[k][claseK] && RESERVAS[k][claseK]===undefined) RESERVAS[k][claseK] = true;
+        });
+      });
+    }
+
+    if(Array.isArray(remote.REGS)){
+      const localKeys = new Set(REGS.map(r=>r.sid+'|'+r.f));
+      remote.REGS.forEach(r=>{
+        const key = r.sid+'|'+r.f;
+        if(!localKeys.has(key)){ REGS.push(r); localKeys.add(key); }
+      });
+      REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
+      entradasHoy = REGS.filter(r=>r.f && localDateISO(r.f)===todayISO()).length;
+    }
   }catch(e){
-    console.error('Error sincronizando socios antes de guardar:', e);
+    console.error('Error sincronizando antes de guardar:', e);
   }
 }
 function persist(){
   if(demoMode) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(async ()=>{
-    await mergeSociosNuevosAntesDeGuardar();
+    await mergeRemoteAntesDeGuardar();
     sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
       if(error){
         console.error('Error guardando en Supabase:', error);
