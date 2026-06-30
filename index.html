@@ -569,33 +569,48 @@ function migrateSocioIds(){
   REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
 }
 
+function normName(n){ return (n||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' '); }
+function mergeDupSocio(keepIdx, dupIdx, toRemove){
+  const keep = SOCIOS[keepIdx], dup = SOCIOS[dupIdx];
+  if(!keep||!dup) return;
+  if(!keep.email && dup.email) keep.email = dup.email;
+  if(!keep.tel && dup.tel) keep.tel = dup.tel;
+  if(!keep.cumple && dup.cumple) keep.cumple = dup.cumple;
+  if(!keep.pe && dup.pe) keep.pe = dup.pe;
+  if(!keep.ob && dup.ob) keep.ob = dup.ob;
+  if(!keep.obs && dup.obs) keep.obs = dup.obs;
+  if(dup.rs&&dup.rs.length && (!keep.rs||!keep.rs.length)) keep.rs = dup.rs;
+  if(dup.rsHechos && !keep.rsHechos) keep.rsHechos = dup.rsHechos;
+  PAGOS.forEach(p=>{ if(p.sid===dup.id) p.sid = keep.id; });
+  REGS.forEach(r=>{ if(r.sid===dup.id) r.sid = keep.id; });
+  Object.keys(SOCIOS_LOGIN).forEach(em=>{ if(SOCIOS_LOGIN[em].idx===dupIdx) SOCIOS_LOGIN[em] = {idx:keepIdx, pe:SOCIOS_LOGIN[em].pe, pm:SOCIOS_LOGIN[em].pm}; });
+  toRemove.add(dupIdx);
+}
 function migrateDedupSocios(){
+  const score = s=>((s.pl&&s.pl!=='Sin plan asignado')?4:0)+((s.email)?2:0)+((s.rs&&s.rs.length)?1:0)+((s.tel)?1:0)+((s.cumple)?1:0);
   const emailMap = {};
+  const nameMap = {};
   const toRemove = new Set();
   SOCIOS.forEach((s, idx)=>{
-    const key = (s.email||'').trim().toLowerCase();
-    if(!key) return;
-    if(emailMap[key]===undefined){ emailMap[key] = idx; return; }
-    const keepIdx = emailMap[key];
-    const keep = SOCIOS[keepIdx];
-    const dup = s;
-    const score = s=>((s.pl&&s.pl!=='Sin plan asignado')?2:0)+((s.rs&&s.rs.length)?1:0)+((s.tel)?1:0)+((s.cumple)?1:0);
-    const [winner, loser, winnerIdx] = score(dup)>score(keep) ? [dup, keep, idx] : [keep, dup, keepIdx];
-    const loserIdx = winnerIdx===keepIdx ? idx : keepIdx;
-    emailMap[key] = winnerIdx;
-    if(!winner.tel && loser.tel) winner.tel = loser.tel;
-    if(!winner.cumple && loser.cumple) winner.cumple = loser.cumple;
-    if(!winner.pe && loser.pe) winner.pe = loser.pe;
-    if(!winner.ob && loser.ob) winner.ob = loser.ob;
-    if(!winner.obs && loser.obs) winner.obs = loser.obs;
-    if(loser.rs&&loser.rs.length && (!winner.rs||!winner.rs.length)) winner.rs = loser.rs;
-    if(loser.rsHechos && !winner.rsHechos){ winner.rsHechos = loser.rsHechos; }
-    const loserId = loser.id;
-    const winnerId = winner.id;
-    PAGOS.forEach(p=>{ if(p.sid===loserId) p.sid = winnerId; });
-    REGS.forEach(r=>{ if(r.sid===loserId) r.sid = winnerId; });
-    Object.keys(SOCIOS_LOGIN).forEach(em=>{ if(SOCIOS_LOGIN[em].idx===loserIdx) SOCIOS_LOGIN[em] = {idx:winnerIdx, pe:SOCIOS_LOGIN[em].pe, pm:SOCIOS_LOGIN[em].pm}; });
-    toRemove.add(loserIdx);
+    const emailKey = (s.email||'').trim().toLowerCase();
+    if(emailKey){
+      if(emailMap[emailKey]===undefined){ emailMap[emailKey] = idx; }
+      else{
+        const keepIdx = score(s)>score(SOCIOS[emailMap[emailKey]]) ? idx : emailMap[emailKey];
+        const dupIdx = keepIdx===idx ? emailMap[emailKey] : idx;
+        emailMap[emailKey] = keepIdx;
+        mergeDupSocio(keepIdx, dupIdx, toRemove);
+        return;
+      }
+    }
+    const nameKey = normName(s.n);
+    if(!nameKey) return;
+    if(nameMap[nameKey]===undefined){ nameMap[nameKey] = idx; return; }
+    const existingIdx = nameMap[nameKey];
+    const keepIdx = score(s)>score(SOCIOS[existingIdx]) ? idx : existingIdx;
+    const dupIdx = keepIdx===idx ? existingIdx : idx;
+    nameMap[nameKey] = keepIdx;
+    mergeDupSocio(keepIdx, dupIdx, toRemove);
   });
   if(!toRemove.size) return;
   const kept = SOCIOS.filter((_,i)=>!toRemove.has(i));
