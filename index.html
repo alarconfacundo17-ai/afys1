@@ -686,20 +686,18 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(Array.isArray(remote.notifStaff)){
-      const localSet = new Set(notifStaff.map(n=>JSON.stringify(n)));
+      const localTxts = new Set(notifStaff.map(n=>n.txt));
       remote.notifStaff.forEach(n=>{
-        const key = JSON.stringify(n);
-        if(!localSet.has(key)){ notifStaff.unshift(n); localSet.add(key); }
+        if(!localTxts.has(n.txt)){ notifStaff.unshift(n); localTxts.add(n.txt); }
       });
     }
 
     if(remote.notifSocio){
       Object.keys(remote.notifSocio).forEach(idx=>{
         if(!notifSocio[idx]) notifSocio[idx] = [];
-        const localSet = new Set(notifSocio[idx].map(n=>JSON.stringify(n)));
+        const localTxts = new Set(notifSocio[idx].map(n=>n.txt));
         (remote.notifSocio[idx]||[]).forEach(n=>{
-          const key = JSON.stringify(n);
-          if(!localSet.has(key)){ notifSocio[idx].unshift(n); localSet.add(key); }
+          if(!localTxts.has(n.txt)){ notifSocio[idx].unshift(n); localTxts.add(n.txt); }
         });
       });
     }
@@ -1373,6 +1371,15 @@ function finishScan(){
   } else {
     // staff simulating: pick a random socio that hasn't entered, fallback first
     socio = SOCIOS.find(s=>!s.hoy) || SOCIOS[0];
+  }
+  const yaEntroHoy = REGS.some(r=>r.sid===socio.id && r.f && localDateISO(r.f)===todayISO() && (r.cl||null)===(t.clase||null));
+  if(yaEntroHoy){
+    $('#scanStep1').classList.add('hidden');
+    $('#scanStep2').classList.remove('hidden');
+    $('#scanName').textContent = `✅ ${socio.n}`;
+    $('#scanDetail').textContent = t.clase ? `Clase: ${t.clase}` : 'Entrada general';
+    $('#scanTime').textContent = `Ya registrada hoy`;
+    return;
   }
   socio.hoy = true;
   socio.entradaHora = hora;
