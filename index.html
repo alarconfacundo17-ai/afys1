@@ -488,6 +488,7 @@ function applyState(s){
   migrateClaseIdsUnicos();
   migrateClasesTurnos();
   migrateSocioIds();
+  migrateDedupSocios();
   migrateBrazosGroup();
   migrateCoordinacionGrupo();
   migrateClaseInsId();
@@ -568,6 +569,45 @@ function migrateSocioIds(){
   REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
 }
 
+function migrateDedupSocios(){
+  const emailMap = {};
+  const toRemove = new Set();
+  SOCIOS.forEach((s, idx)=>{
+    const key = (s.email||'').trim().toLowerCase();
+    if(!key) return;
+    if(emailMap[key]===undefined){ emailMap[key] = idx; return; }
+    const keepIdx = emailMap[key];
+    const keep = SOCIOS[keepIdx];
+    const dup = s;
+    const score = s=>((s.pl&&s.pl!=='Sin plan asignado')?2:0)+((s.rs&&s.rs.length)?1:0)+((s.tel)?1:0)+((s.cumple)?1:0);
+    const [winner, loser, winnerIdx] = score(dup)>score(keep) ? [dup, keep, idx] : [keep, dup, keepIdx];
+    const loserIdx = winnerIdx===keepIdx ? idx : keepIdx;
+    emailMap[key] = winnerIdx;
+    if(!winner.tel && loser.tel) winner.tel = loser.tel;
+    if(!winner.cumple && loser.cumple) winner.cumple = loser.cumple;
+    if(!winner.pe && loser.pe) winner.pe = loser.pe;
+    if(!winner.ob && loser.ob) winner.ob = loser.ob;
+    if(!winner.obs && loser.obs) winner.obs = loser.obs;
+    if(loser.rs&&loser.rs.length && (!winner.rs||!winner.rs.length)) winner.rs = loser.rs;
+    if(loser.rsHechos && !winner.rsHechos){ winner.rsHechos = loser.rsHechos; }
+    const loserId = loser.id;
+    const winnerId = winner.id;
+    PAGOS.forEach(p=>{ if(p.sid===loserId) p.sid = winnerId; });
+    REGS.forEach(r=>{ if(r.sid===loserId) r.sid = winnerId; });
+    Object.keys(SOCIOS_LOGIN).forEach(em=>{ if(SOCIOS_LOGIN[em].idx===loserIdx) SOCIOS_LOGIN[em] = {idx:winnerIdx, pe:SOCIOS_LOGIN[em].pe, pm:SOCIOS_LOGIN[em].pm}; });
+    toRemove.add(loserIdx);
+  });
+  if(!toRemove.size) return;
+  const kept = SOCIOS.filter((_,i)=>!toRemove.has(i));
+  const idxMap = {};
+  let ki = 0;
+  SOCIOS.forEach((s,oldIdx)=>{ if(!toRemove.has(oldIdx)){ idxMap[oldIdx]=ki; ki++; } });
+  SOCIOS.length = 0; kept.forEach(s=>SOCIOS.push(s));
+  Object.keys(SOCIOS_LOGIN).forEach(em=>{ const info = SOCIOS_LOGIN[em]; if(idxMap[info.idx]!==undefined) info.idx = idxMap[info.idx]; });
+  Object.keys(notifSocio).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ notifSocio[nk]=notifSocio[k]; delete notifSocio[k]; } else if(nk===undefined) delete notifSocio[k]; });
+  Object.keys(RESERVAS).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ RESERVAS[nk]=RESERVAS[k]; delete RESERVAS[k]; } else if(nk===undefined) delete RESERVAS[k]; });
+  persist();
+}
 function migrateProfesorDefaultPerms(){
   const defaultOnKeys = ['cargarSocios','editarSocios','editarFichas','clases','editarRutinas','asignarRutinas','cargarEjercicios','horarios'];
   let changed = false;
@@ -948,6 +988,14 @@ async function routeLoggedInUser(email){
 }
 
 function recrearPerfilSocioPerdido(email, nombre){
+  const emailLower = (email||'').trim().toLowerCase();
+  const existente = SOCIOS.findIndex(s=>(s.email||'').trim().toLowerCase()===emailLower);
+  if(existente!==-1){
+    SOCIOS_LOGIN[email] = {idx:existente, pe:SOCIOS[existente].es||'ok', pm:'Sin plan asignado todavía'};
+    notifSocio[existente] = notifSocio[existente]||[];
+    persist();
+    return existente;
+  }
   const initialsV = (nombre||email).trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   SOCIOS.push({i:initialsV, n:nombre||email, email, tel:'', cumple:null, pl:'Sin plan asignado', es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
