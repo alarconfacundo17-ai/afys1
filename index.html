@@ -3988,8 +3988,12 @@ function socioRutina(){
   const rutinasHoy = misRutinas.filter(r=>s.rsDias&&s.rsDias[r.n]&&s.rsDias[r.n].includes(diaHoy));
   return `
   <h2>Rutina</h2>
-  <div class="card" style="margin-bottom:14px;text-align:center;">
-    ${rutinasHoy.length?`<p style="font-size:17px;font-weight:800;letter-spacing:.5px;margin:0;color:var(--primary);">${diaHoy.toUpperCase()}, HOY: <span style="color:var(--text);">${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n).toUpperCase()).join(', ')}</span></p>`:`<p style="font-size:14.5px;font-weight:700;margin:0;color:var(--text2);">${diaHoy.toUpperCase()}</p>`}
+  <div class="card" style="margin-bottom:14px;text-align:center;position:relative;">
+    <div style="position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:5px;background:var(--bg2);border-radius:20px;padding:4px 11px;">
+      <i class="ti ti-flame" style="font-size:13px;color:var(--primary);"></i>
+      <span style="font-size:11.5px;font-weight:700;color:var(--text2);">Clase Nº ${totalClasesSocio(s)}</span>
+    </div>
+    ${rutinasHoy.length?`<p style="font-size:17px;font-weight:800;letter-spacing:.5px;margin:0;padding-top:26px;color:var(--primary);">${diaHoy.toUpperCase()}, HOY: <span style="color:var(--text);">${rutinasHoy.map(r=>esc((s.rsNombre&&s.rsNombre[r.n])||r.n).toUpperCase()).join(', ')}</span></p>`:`<p style="font-size:14.5px;font-weight:700;margin:0;padding-top:26px;color:var(--text2);">${diaHoy.toUpperCase()}</p>`}
     <p style="font-size:12.5px;margin:${rutinasHoy.length?'8px':'4px'} 0 0;color:var(--text2);">${ultimoEntrenoTexto(s)}</p>
   </div>
   <p style="color:var(--text2);font-size:13.5px;margin-bottom:14px;">Elegí qué rutina vas a hacer:</p>
