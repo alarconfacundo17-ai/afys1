@@ -2163,10 +2163,42 @@ function socioRutinasBodyHTML(si, search){
     <div class="modal-actions"><button class="btn btn-primary" onclick="openEditSocioModal(${si})">Volver</button></div>
   `;
 }
+function totalClasesSocio(s){
+  const enApp = REGS.filter(r=>regBelongsTo(r,s)).length;
+  return (s.clasesPrevias||0) + enApp;
+}
+function contadorClasesHTML(si){
+  const s = SOCIOS[si];
+  return `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:12px;padding:10px 14px;margin-bottom:12px;">
+    <div><b style="font-size:20px;">${totalClasesSocio(s)}</b><span style="color:var(--text2);font-size:12.5px;margin-left:6px;">clases en total</span></div>
+    <button class="btn btn-outline btn-sm" onclick="openClasesPreviasModal(${si})"><i class="ti ti-edit"></i> Ajustar</button>
+  </div>`;
+}
+function openClasesPreviasModal(si){
+  const s = SOCIOS[si];
+  const enApp = REGS.filter(r=>regBelongsTo(r,s)).length;
+  openModal(`
+    <div class="modal-head"><h3>Clases previas — ${esc(s.n)}</h3><button onclick="openSocioRutinasModal(${si})">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Si ${esc(s.n)} venía al gimnasio antes de usar la app, poné acá cuántas clases ya tenía hechas. Se suman a las ${enApp} registradas automáticamente desde que usa la app.</p>
+    <div class="field"><label>Clases previas a la app</label><input id="cp_input" type="number" min="0" value="${s.clasesPrevias||0}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="openSocioRutinasModal(${si})">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveClasesPrevias(${si})">Guardar</button>
+    </div>
+  `);
+}
+function saveClasesPrevias(si){
+  const s = SOCIOS[si];
+  const v = parseInt($('#cp_input').value, 10);
+  s.clasesPrevias = isNaN(v) || v<0 ? 0 : v;
+  persist();
+  openSocioRutinasModal(si);
+}
 function openSocioRutinasModal(si, search){
   const s = SOCIOS[si];
   openModal(`
     <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    ${contadorClasesHTML(si)}
     <div id="srm_body">${socioRutinasBodyHTML(si, search||'')}</div>
   `,'wide');
 }
