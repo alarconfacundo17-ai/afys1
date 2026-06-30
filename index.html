@@ -622,7 +622,7 @@ function migrateDedupSocios(){
   Object.keys(SOCIOS_LOGIN).forEach(em=>{ const info = SOCIOS_LOGIN[em]; if(idxMap[info.idx]!==undefined) info.idx = idxMap[info.idx]; });
   Object.keys(notifSocio).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ notifSocio[nk]=notifSocio[k]; delete notifSocio[k]; } else if(nk===undefined) delete notifSocio[k]; });
   Object.keys(RESERVAS).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ RESERVAS[nk]=RESERVAS[k]; delete RESERVAS[k]; } else if(nk===undefined) delete RESERVAS[k]; });
-  persist();
+  persistDirect();
 }
 function migrateDedupRegs(){
   const seen = new Set();
@@ -636,7 +636,7 @@ function migrateDedupRegs(){
   if(deduped.length === before) return;
   REGS.length = 0;
   deduped.forEach(r=>REGS.push(r));
-  persist();
+  persistDirect();
 }
 function migrateProfesorDefaultPerms(){
   const defaultOnKeys = ['cargarSocios','editarSocios','editarFichas','clases','editarRutinas','asignarRutinas','cargarEjercicios','horarios'];
@@ -699,11 +699,24 @@ async function mergeRemoteAntesDeGuardar(){
 
     if(Array.isArray(remote.SOCIOS)){
       const localByKey = {};
-      SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)] = s; });
+      const localByNormName = {};
+      SOCIOS.forEach(s=>{
+        localByKey[socioMergeKey(s)] = s;
+        const nn = normName(s.n); if(nn) localByNormName[nn] = s;
+      });
       remote.SOCIOS.forEach(rs=>{
         const key = socioMergeKey(rs);
-        const ls = localByKey[key];
-        if(!ls){ SOCIOS.push(rs); localByKey[key] = rs; return; }
+        let ls = localByKey[key];
+        if(!ls){
+          const nn = normName(rs.n);
+          ls = nn ? localByNormName[nn] : null;
+          if(!ls){
+            SOCIOS.push(rs);
+            localByKey[key] = rs;
+            if(nn) localByNormName[nn] = rs;
+            return;
+          }
+        }
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
@@ -774,6 +787,13 @@ async function mergeRemoteAntesDeGuardar(){
   }catch(e){
     console.error('Error sincronizando antes de guardar:', e);
   }
+}
+function persistDirect(){
+  if(demoMode) return;
+  clearTimeout(persistTimer);
+  sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
+    if(error) console.error('Error guardando en Supabase:', error);
+  });
 }
 function persist(){
   if(demoMode) return;
