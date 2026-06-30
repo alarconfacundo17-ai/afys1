@@ -2057,8 +2057,12 @@ function filterSociosTable(q){
 function pageSocios(){
   const showPay = isSuperOwner() || hasPerm('verPagos');
   const ordered = sociosOrdenados();
+  const totalS = SOCIOS.length;
+  const activosS = SOCIOS.filter(s=>s.es==='ok').length;
+  const label = currentRole==='profesor'?'Alumnos':'Socios';
   return `
-  <div class="section-head"><h2 style="margin:0;">${currentRole==='profesor'?'Alumnos':'Socios'}</h2>
+  <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:10px;">${label}<span style="display:flex;align-items:center;gap:6px;"><span style="font-size:15px;font-weight:700;color:var(--primary);background:var(--bg2);border-radius:20px;padding:2px 12px;">${totalS}</span>${isSuperOwner()?`<span style="font-size:11px;font-weight:600;color:var(--text2);background:var(--bg2);border-radius:20px;padding:2px 10px;white-space:nowrap;">activos ${activosS}</span>`:''}
+  </span></h2>
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
   </div>
   <div class="field" style="max-width:320px;margin-bottom:14px;position:relative;">
@@ -2636,6 +2640,7 @@ function savePagoAnterior(idx){
   const f = $('#pga_f').value;
   if(!f){ showToast('Elegí una fecha.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pga_m').value||'$0', f, mp:$('#pga_mp').value, nt:($('#pga_n').value||'Pago anterior al sistema').trim()};
+  if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
   s.vence = addDaysISO(f, PLAN_DAYS[s.pl]||30);
   s.es = 'ok';
   PAGOS.push(data);
@@ -2652,6 +2657,7 @@ function savePago(){
   if(editPagoIdx!==null){
     PAGOS[editPagoIdx] = data;
   } else {
+    if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
     s.vence = addDaysISO(data.f!=='-'?data.f:null, PLAN_DAYS[s.pl]||30);
     s.es='ok';
     PAGOS.unshift(data);
@@ -3118,6 +3124,7 @@ function saveRutina(){
     });
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
   } else {
+    if(RUTINAS.some(r=>r.n===n)){ showToast('Ya existe una rutina con ese nombre.','error'); return; }
     RUTINAS.push({n, t, ob, cr:'Tú', ejs});
   }
   persist();
@@ -3647,7 +3654,7 @@ function saveEjercicio(){
     if(!EJD[newG]){ EJD[newG]=[]; EJC[newG]=nextEjColor(); collapsedGroups[newG]=false; }
     g = newG;
   }
-  if(n) EJD[g].push(n);
+  if(n && !EJD[g].includes(n)) EJD[g].push(n);
   EJD[g].sort((a,b)=>a.localeCompare(b,'es'));
   persist();
   closeModal(); renderStaff();
@@ -3680,6 +3687,7 @@ function renderBateriaModalBody(){
 function saveBateriaRutina(){
   const n = $('#bat_n').value.trim()||'Rutina personalizada';
   const bejs = bateriaSel.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}));
+  if(RUTINAS.some(r=>r.n===n)){ showToast('Ya existe una rutina con ese nombre.','error'); return; }
   RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bejs});
   bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
