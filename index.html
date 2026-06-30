@@ -489,6 +489,7 @@ function applyState(s){
   migrateClasesTurnos();
   migrateSocioIds();
   migrateDedupSocios();
+  migrateDedupRegs();
   migrateBrazosGroup();
   migrateCoordinacionGrupo();
   migrateClaseInsId();
@@ -621,6 +622,20 @@ function migrateDedupSocios(){
   Object.keys(SOCIOS_LOGIN).forEach(em=>{ const info = SOCIOS_LOGIN[em]; if(idxMap[info.idx]!==undefined) info.idx = idxMap[info.idx]; });
   Object.keys(notifSocio).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ notifSocio[nk]=notifSocio[k]; delete notifSocio[k]; } else if(nk===undefined) delete notifSocio[k]; });
   Object.keys(RESERVAS).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ RESERVAS[nk]=RESERVAS[k]; delete RESERVAS[k]; } else if(nk===undefined) delete RESERVAS[k]; });
+  persist();
+}
+function migrateDedupRegs(){
+  const seen = new Set();
+  const before = REGS.length;
+  const deduped = REGS.filter(r=>{
+    const key = (r.sid||r.i||r.n) + '|' + (r.f ? localDateISO(r.f) : r.h||'') + '|' + (r.cl||'');
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if(deduped.length === before) return;
+  REGS.length = 0;
+  deduped.forEach(r=>REGS.push(r));
   persist();
 }
 function migrateProfesorDefaultPerms(){
