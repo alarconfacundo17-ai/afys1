@@ -611,10 +611,25 @@ function showToast(msg, type){
   t.classList.add('show');
   toastTimer = setTimeout(()=>t.classList.remove('show'), type==='error'?4000:2000);
 }
+function socioMergeKey(s){ return s.id || (s.email||'').trim().toLowerCase() || s.n; }
+async function mergeSociosNuevosAntesDeGuardar(){
+  try{
+    const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
+    if(error || !data || !data.data || !Array.isArray(data.data.SOCIOS)) return;
+    const localKeys = new Set(SOCIOS.map(socioMergeKey));
+    data.data.SOCIOS.forEach(rs=>{
+      const key = socioMergeKey(rs);
+      if(!localKeys.has(key)){ SOCIOS.push(rs); localKeys.add(key); }
+    });
+  }catch(e){
+    console.error('Error sincronizando socios antes de guardar:', e);
+  }
+}
 function persist(){
   if(demoMode) return;
   clearTimeout(persistTimer);
-  persistTimer = setTimeout(()=>{
+  persistTimer = setTimeout(async ()=>{
+    await mergeSociosNuevosAntesDeGuardar();
     sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
       if(error){
         console.error('Error guardando en Supabase:', error);
