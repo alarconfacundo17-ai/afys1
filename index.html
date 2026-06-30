@@ -125,6 +125,7 @@ h3{font-size:15px;margin-bottom:10px;}
 
 /* toggle */
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
+.toggle-row:last-child{border-bottom:none;}
 .toggle{width:42px;height:24px;border-radius:14px;background:#DC2626;position:relative;flex-shrink:0;}
 .toggle.on{background:var(--green);}
 .toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.15s;}
@@ -392,6 +393,13 @@ const PERM_LABELS = {
   horarios:'Editar horarios del gimnasio', cuentas:'Gestionar cuentas y permisos',
   verAsistenciasHoy:'Ver cuántos socios asistieron hoy',
 };
+const PERM_GROUPS = [
+  {label:'Pagos', icon:'ti-cash', keys:['verPagos','cargarPagos']},
+  {label:'Socios', icon:'ti-users', keys:['cargarSocios','removerSocios','editarSocios','editarFichas']},
+  {label:'Rutinas y clases', icon:'ti-barbell', keys:['clases','editarRutinas','asignarRutinas']},
+  {label:'Ejercicios', icon:'ti-list', keys:['cargarEjercicios','subirVideos']},
+  {label:'Gimnasio y sistema', icon:'ti-shield-lock', keys:['horarios','cuentas','verAsistenciasHoy']},
+];
 const PROFESOR_DEFAULT_PERMS = {
   verPagos:false, cargarPagos:false, cargarSocios:false, removerSocios:false,
   editarSocios:false, editarFichas:true, clases:false, editarRutinas:false,
@@ -1717,13 +1725,23 @@ function openPermModal(staffId){
   if(!st) return;
   openModal(`
     <div class="modal-head"><h3>Permisos de ${esc(st.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <p style="color:var(--text2);font-size:12.5px;margin-bottom:10px;">${st.role==='admin'?'Admin':'Profesor'} · El dueño puede habilitar o deshabilitar cualquier permiso individualmente.</p>
-    <div id="permRows">
-      ${Object.keys(PERM_LABELS).filter(k=>!(k==='horarios' && st.role==='profesor')).map(k=>`
-        <div class="toggle-row"><span>${PERM_LABELS[k]}</span><div class="toggle ${st.perms[k]?'on':''}" data-key="${k}" onclick="togglePerm('${st.id}','${k}',this)"></div></div>
-      `).join('')}
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">${st.role==='admin'?'Admin':'Profesor'} · El dueño puede habilitar o deshabilitar cualquier permiso individualmente.</p>
+    <div id="permRows" style="max-height:430px;overflow:auto;">
+      ${PERM_GROUPS.map(g=>{
+        const keys = g.keys.filter(k=>!(k==='horarios' && st.role==='profesor'));
+        if(!keys.length) return '';
+        return `<div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+            <i class="ti ${g.icon}" style="font-size:16px;color:var(--primary);"></i>
+            <b style="font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);">${g.label}</b>
+          </div>
+          <div style="background:var(--bg2);border-radius:12px;padding:2px 14px;">
+            ${keys.map(k=>`<div class="toggle-row"><span>${PERM_LABELS[k]}</span><div class="toggle ${st.perms[k]?'on':''}" data-key="${k}" onclick="togglePerm('${st.id}','${k}',this)"></div></div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
     </div>
-    ${st.role==='profesor'?`<p style="color:var(--text2);font-size:13px;margin-top:10px;">Los profesores siempre pueden ver los horarios y sus clases asignadas, pero no pueden editarlos.</p>`:''}
+    ${st.role==='profesor'?`<p style="color:var(--text2);font-size:13px;margin-top:4px;">Los profesores siempre pueden ver los horarios y sus clases asignadas, pero no pueden editarlos.</p>`:''}
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Guardar</button></div>
   `);
 }
