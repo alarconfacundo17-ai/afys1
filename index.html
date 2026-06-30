@@ -1527,6 +1527,15 @@ function pageCuentas(){
   const admins = STAFF.filter(s=>s.role==='admin');
   const profs = STAFF.filter(s=>s.role==='profesor');
   return `
+  ${isSuperOwner()?`
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-head"><h3 style="margin:0;">Respaldo de datos</h3></div>
+    <p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;">Descargá una copia de tus socios y pagos en formato CSV (se abre en Excel/Google Sheets). Te recomendamos hacerlo cada tanto por las dudas.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="descargarBackupSocios()"><i class="ti ti-download"></i> Descargar socios (CSV)</button>
+      <button class="btn btn-outline" onclick="descargarBackupPagos()"><i class="ti ti-download"></i> Descargar pagos (CSV)</button>
+    </div>
+  </div>`:''}
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Dueño principal</h3></div>
     <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
@@ -1562,6 +1571,30 @@ function pageCuentas(){
       </td></tr>`).join('')}
     </tbody></table>
   </div>`;
+}
+function csvCell(v){
+  v = (v===null||v===undefined) ? '' : String(v);
+  return /[",\n;]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v;
+}
+function descargarCSV(filename, headers, rows){
+  const lines = [headers.map(csvCell).join(';'), ...rows.map(r=>r.map(csvCell).join(';'))];
+  const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+const ESTADO_PAGO_LABELS = {ok:'Al día', ve:'Por vencer', de:'Vencido'};
+function descargarBackupSocios(){
+  const headers = ['Nombre','Email','Teléfono','Plan','Vence','Estado','Activo'];
+  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', s.pl||'', s.vence||'', ESTADO_PAGO_LABELS[s.es]||s.es||'', s.activo===false?'No':'Sí']);
+  descargarCSV(`socios_${todayISO()}.csv`, headers, rows);
+}
+function descargarBackupPagos(){
+  const headers = ['Nombre','Fecha','Monto','Mes pagado','Nota'];
+  const rows = PAGOS.map(p=>[p.n, p.f, p.m, mesPagoLabel(p.mp), p.nt||'']);
+  descargarCSV(`pagos_${todayISO()}.csv`, headers, rows);
 }
 function staffBajaButtons(s){
   return `${s.activo===false
