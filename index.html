@@ -2061,7 +2061,7 @@ function pageSocios(){
   const activosS = SOCIOS.filter(s=>s.es==='ok').length;
   const label = currentRole==='profesor'?'Alumnos':'Socios';
   return `
-  <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:8px;">${label}${isSuperOwner()?`<span style="font-size:12px;font-weight:500;color:var(--text2);background:var(--bg2);border-radius:20px;padding:3px 11px;letter-spacing:.2px;">${totalS} &middot; ${activosS} activos</span>`:''}
+  <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:8px;">${label}${isSuperOwner()?`<span style="font-size:14px;font-weight:600;color:var(--primary);opacity:.85;">${activosS}<span style="color:var(--text2);font-weight:400;opacity:.7;">/${totalS}</span></span>`:''}
   </h2>
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
   </div>
