@@ -1136,18 +1136,16 @@ function logout(){
 function openDemoChooserModal(){
   const profes = STAFF.filter(s=>s.role==='profesor');
   const admins = STAFF.filter(s=>s.role==='admin');
+  const sociosOrd = SOCIOS.map((s,i)=>({s,i})).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
   openModal(`
     <div class="modal-head"><h3>Modo demo</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Vas a ver la app exactamente como la ve esa cuenta. Nada de lo que hagas en modo demo se guarda.</p>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div>
         <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Socio</p>
-        ${SOCIOS.length?(()=>{
-          const sorted = SOCIOS.map((s,i)=>({s,i})).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
-          return `<input id="demo_socio_q" type="text" placeholder="🔍 Buscar socio..." autocomplete="off" style="margin-bottom:6px;font-size:13px;padding:7px 10px;width:100%;box-sizing:border-box;" oninput="filterDemoSocios(this.value)">
-        <select id="demo_socio" size="5" style="margin-bottom:6px;width:100%;font-size:13px;">${sorted.map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('')}</select>
-        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', Number($('#demo_socio').value))">Entrar</button>`;
-        })()
+        ${sociosOrd.length?`<input id="demo_socio_q" type="text" placeholder="🔍 Buscar socio..." autocomplete="off" style="margin-bottom:6px;font-size:13px;padding:7px 10px;width:100%;box-sizing:border-box;" oninput="filterDemoSocios(this.value)">
+        <select id="demo_socio" size="5" style="margin-bottom:6px;width:100%;font-size:13px;">${sociosOrd.map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', Number($('#demo_socio').value))">Entrar</button>`
         :`<p style="color:var(--text2);font-size:13px;">No hay socios cargados todavía.</p>`}
       </div>
       <div>
