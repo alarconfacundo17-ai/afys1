@@ -445,7 +445,7 @@ let collapsedGroups = {}; // group name -> bool collapsed
 /* ============ PERSISTENCIA EN SUPABASE ============ */
 const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RTCEUdI9e0Sl_WMzf5lE3w_xcezp9fx';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{flowType:'implicit'}});
 const APP_URL = window.location.origin + window.location.pathname;
 
 function fillArray(arr, data){ if(!Array.isArray(data)) return; arr.length=0; arr.push(...data); }
@@ -4411,9 +4411,14 @@ function socioCuenta(){
     invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
 
-  const isRecovery = window.location.hash.includes('type=recovery');
+  const isRecovery = window.location.hash.includes('type=recovery') || urlParams.get('type')==='recovery';
+  const hasCode = !!urlParams.get('code');
+  if(hasCode){
+    await sb.auth.exchangeCodeForSession(urlParams.get('code')).catch(()=>{});
+    window.history.replaceState({}, '', window.location.pathname);
+  }
   const {data:{session}} = await sb.auth.getSession();
-  if(isRecovery && session){
+  if((isRecovery || hasCode) && session){
     window.history.replaceState({}, '', window.location.pathname);
     loginView='resetPassword'; loginError=''; loginInfo='';
     $('#login').classList.remove('hidden');
