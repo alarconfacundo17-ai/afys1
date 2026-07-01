@@ -1143,9 +1143,9 @@ function openDemoChooserModal(){
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div>
         <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Socio</p>
-        ${sociosOrd.length?`<input id="demo_socio_q" type="text" placeholder="🔍 Buscar socio..." autocomplete="off" style="margin-bottom:6px;font-size:13px;padding:7px 10px;width:100%;box-sizing:border-box;" oninput="filterDemoSocios(this.value)">
-        <select id="demo_socio" size="5" style="margin-bottom:6px;width:100%;font-size:13px;">${sociosOrd.map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('')}</select>
-        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', Number($('#demo_socio').value))">Entrar</button>`
+        ${sociosOrd.length?`<input id="demo_socio_q" type="text" placeholder="Buscar socio..." autocomplete="off" style="margin-bottom:8px;font-size:13px;padding:8px 12px;width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text1);" oninput="filterDemoSocios(this.value)">
+        <div id="demo_socio_list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">${sociosOrd.map(({s,i})=>`<div class="demo-socio-item" data-idx="${i}" onclick="selectDemoSocio(this)" style="padding:9px 13px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;">${esc(s.n)}</div>`).join('')}</div>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', window._demoSocioIdx??0)">Entrar</button>`
         :`<p style="color:var(--text2);font-size:13px;">No hay socios cargados todavía.</p>`}
       </div>
       <div>
@@ -1164,11 +1164,18 @@ function openDemoChooserModal(){
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button></div>
   `);
 }
+function selectDemoSocio(el){
+  document.querySelectorAll('.demo-socio-item').forEach(e=>e.style.background='');
+  el.style.background='var(--primary-light, rgba(99,102,241,.13))';
+  window._demoSocioIdx = Number(el.dataset.idx);
+}
 function filterDemoSocios(q){
-  const sel = $('#demo_socio'); if(!sel) return;
+  const list = $('#demo_socio_list'); if(!list) return;
   const norm = q.trim().toLowerCase();
   const sorted = SOCIOS.map((s,i)=>({s,i})).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
-  sel.innerHTML = sorted.filter(({s})=>!norm||s.n.toLowerCase().includes(norm)).map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('');
+  const filtered = norm ? sorted.filter(({s})=>s.n.toLowerCase().includes(norm)) : sorted;
+  list.innerHTML = filtered.map(({s,i})=>`<div class="demo-socio-item" data-idx="${i}" onclick="selectDemoSocio(this)" style="padding:9px 13px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;">${esc(s.n)}</div>`).join('');
+  window._demoSocioIdx = filtered[0]?.i ?? 0;
 }
 function enterDemo(role, idOrIdx){
   demoPrev = {role: currentRole, staffId: currentStaffId, socioIdx: currentSocioIdx};
