@@ -479,7 +479,10 @@ function applyState(s){
   if(Array.isArray(s.DUENOS)) DUENOS = s.DUENOS;
   if(Array.isArray(s.CO_DUENOS)) CO_DUENOS = s.CO_DUENOS;
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
-  if(!CO_DUENOS.includes('afystotoras2@gmail.com')){ CO_DUENOS.push('afystotoras2@gmail.com'); persistDirect(); }
+  let _migChanged = false;
+  if(!CO_DUENOS.includes('afystotoras2@gmail.com')){ CO_DUENOS.push('afystotoras2@gmail.com'); _migChanged = true; }
+  if(!DUENOS.find(d=>d.email==='afystotoras2@gmail.com')){ DUENOS.push({id:'dueno_afystotoras2_gmail_com', n:'Victor Alarcon', email:'afystotoras2@gmail.com', color:''}); _migChanged = true; }
+  if(_migChanged) persistDirect();
   if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
   if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
@@ -780,6 +783,11 @@ async function mergeRemoteAntesDeGuardar(){
       remote.notifStaff.forEach(n=>{
         if(!localTxts.has(n.txt)){ notifStaff.unshift(n); localTxts.add(n.txt); }
       });
+    }
+
+    if(Array.isArray(remote.DUENOS)){
+      const localEmails = new Set(DUENOS.map(d=>d.email));
+      remote.DUENOS.forEach(d=>{ if(d.email && !localEmails.has(d.email)){ DUENOS.push(d); localEmails.add(d.email); } });
     }
 
     if(Array.isArray(remote.TURNOS)){
