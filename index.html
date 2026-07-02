@@ -3251,7 +3251,10 @@ function pageHorarios(){
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">${currentRole==='profesor'?'Semana — mis turnos y clases':'Semana — turnos y clases'}</h3>
-      ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
+      <div style="display:flex;gap:8px;">
+        ${isDueno()?`<button class="btn btn-outline btn-sm" onclick="openGestionDuenosModal()"><i class="ti ti-users"></i>Dueños</button>`:''}
+        ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
+      </div>
     </div>
     ${currentRole!=='profesor'?`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
       ${profes.map(p=>`<span class="badge" ${isDueno()?`onclick="openStaffColorPicker('${p.id}')" title="Cambiar color" style="cursor:pointer;background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`:`style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`}><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
@@ -3368,6 +3371,37 @@ function openTurnoModal(turnoId,presetDia){
       <button class="btn btn-primary" onclick="saveTurno(${t?t.id:'null'})">Guardar</button>
     </div>
   `);
+}
+function openGestionDuenosModal(){
+  const renderBody = ()=>`
+    <div class="modal-head"><h3>Dueños en el calendario</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Estas personas aparecen como opción al crear turnos. Se agregan automáticamente al iniciar sesión, o podés agregarlas manualmente.</p>
+    ${DUENOS.map(d=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="flex:1;font-size:13.5px;">${esc(d.n)}<span style="color:var(--text2);font-size:11px;margin-left:6px;">${esc(d.email||'')}</span></span>
+      <button class="btn btn-outline btn-sm" style="color:var(--red);padding:4px 10px;" onclick="eliminarDueno('${d.id}')">Eliminar</button>
+    </div>`).join('')}
+    ${DUENOS.length===0?`<p style="color:var(--text2);font-size:13px;">No hay dueños agregados todavía.</p>`:''}
+    <hr style="margin:14px 0;">
+    <div class="field"><label>Nombre del nuevo dueño</label><input id="nd_n" type="text" placeholder="Ej: Facundo"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
+      <button class="btn btn-primary" onclick="agregarDueno()">Agregar</button>
+    </div>`;
+  openModal(renderBody());
+}
+function agregarDueno(){
+  const n = ($('#nd_n').value||'').trim();
+  if(!n){ showToast('Ingresá un nombre.','error'); return; }
+  const id = 'dueno_manual_'+Date.now();
+  DUENOS.push({id, n, email:'', color:''});
+  persist(); showToast('Dueño agregado');
+  openGestionDuenosModal(); renderStaff();
+}
+function eliminarDueno(id){
+  if(!confirm('¿Eliminar este dueño del calendario? Sus turnos asignados quedarán sin nombre.')) return;
+  DUENOS = DUENOS.filter(d=>d.id!==id);
+  persist(); showToast('Eliminado');
+  openGestionDuenosModal(); renderStaff();
 }
 function saveTurno(turnoId){
   const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
