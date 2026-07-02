@@ -408,6 +408,7 @@ const PROFESOR_DEFAULT_PERMS = {
   horarios:true, cuentas:false, verAsistenciasHoy:false,
 };
 let STAFF = [];
+let DUENOS = [];
 let currentStaffId = null;
 let DUENO_EMAIL = null;
 let PENDING_INVITES = [];
@@ -455,7 +456,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
+    STAFF, DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
   };
 }
 
@@ -474,6 +475,7 @@ function applyState(s){
   fillObject(EJ_IMAGES, s.EJ_IMAGES);
   fillObject(RESERVAS, s.RESERVAS);
   if(Array.isArray(s.STAFF)) STAFF = s.STAFF;
+  if(Array.isArray(s.DUENOS)) DUENOS = s.DUENOS;
   if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
   if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
@@ -1006,6 +1008,13 @@ async function routeLoggedInUser(email){
   $('#login').classList.add('hidden');
   if(DUENO_EMAIL && email===DUENO_EMAIL){
     currentRole='dueno'; currentStaffId=null;
+    // ensure dueño entry in DUENOS
+    const uMeta = (await sb.auth.getUser())?.data?.user?.user_metadata || {};
+    const nombreDueno = uMeta.nombre || uMeta.name || email.split('@')[0];
+    if(!DUENOS.find(d=>d.email===email)){
+      DUENOS.push({id:'dueno_'+email.replace(/[^a-z0-9]/gi,'_'), n: nombreDueno, email, color:''});
+      persist();
+    }
     enterStaff();
     return;
   }
@@ -3169,19 +3178,27 @@ function proximoTurnoProfesor(st){
   }
   return null;
 }
+function duenoColor(id){
+  const d = DUENOS.find(d=>d.id===id);
+  return (d && d.color) ? d.color : '#8b5cf6';
+}
 function staffColor(id){
   const s = STAFF.find(s=>s.id===id);
   if(s && s.color) return s.color;
+  const d = DUENOS.find(d=>d.id===id);
+  if(d) return d.color || '#8b5cf6';
   const idx = STAFF.findIndex(s=>s.id===id);
   return TURNO_COLORS[idx>=0?idx%TURNO_COLORS.length:0];
 }
 function openStaffColorPicker(id){
   const s = STAFF.find(s=>s.id===id);
-  if(!s) return;
+  const d = !s ? DUENOS.find(d=>d.id===id) : null;
+  if(!s && !d) return;
+  const target = s || d;
   const cur = staffColor(id);
   openModal(`
-    <div class="modal-head"><h3>Color de ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Elegí el color con el que se va a ver a ${esc(s.n)} en el calendario de horarios.</p>
+    <div class="modal-head"><h3>Color de ${esc(target.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Elegí el color con el que se va a ver a ${esc(target.n)} en el calendario de horarios.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
       ${TURNO_COLORS.map(c=>`<button onclick="setStaffColor('${id}','${c}')" title="${c}" style="width:36px;height:36px;border-radius:50%;background:${c};border:3px solid ${cur===c?'#111':'transparent'};cursor:pointer;padding:0;"></button>`).join('')}
     </div>
@@ -3190,7 +3207,8 @@ function openStaffColorPicker(id){
   `);
 }
 function setStaffColor(id, color){
-  const s = STAFF.find(s=>s.id===id);
+  let s = STAFF.find(s=>s.id===id);
+  if(!s){ s = DUENOS.find(d=>d.id===id); }
   if(!s) return;
   s.color = color;
   persist();
@@ -3227,6 +3245,7 @@ function pageHorarios(){
     </div>
     ${currentRole!=='profesor'?`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
       ${profes.map(p=>`<span class="badge" ${isDueno()?`onclick="openStaffColorPicker('${p.id}')" title="Cambiar color" style="cursor:pointer;background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`:`style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`}><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
+      ${isDueno()?DUENOS.map(d=>`<span class="badge" onclick="openStaffColorPicker('${d.id}')" title="Cambiar color" style="cursor:pointer;background:${staffColor(d.id)}22;color:${staffColor(d.id)};"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(d.id)};margin-right:5px;"></span>${esc(d.n)}</span>`).join(''):''}
     </div>`:''}
     <div class="cal-wrap">
       <div class="cal-grid" style="grid-template-columns:30px repeat(7,1fr);">
@@ -3288,15 +3307,16 @@ let horasMesSel = null;
 function pageHorasProfes(profes){
   const now = new Date();
   if(!horasMesSel) horasMesSel = {year:now.getFullYear(), month:now.getMonth()};
-  const semanal = weeklyHorasPorProfe(profes);
-  const mensual = monthlyHorasPorProfe(profes, horasMesSel.year, horasMesSel.month);
+  const todosPersonal = [...profes, ...DUENOS];
+  const semanal = weeklyHorasPorProfe(todosPersonal);
+  const mensual = monthlyHorasPorProfe(todosPersonal, horasMesSel.year, horasMesSel.month);
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   return `
   <div class="card" style="margin-top:18px;">
-    <h3>Horas semanales por profesor/a</h3>
+    <h3>Horas semanales por persona</h3>
     <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Según los turnos cargados en el calendario semanal (visible solo para dueños).</p>
-    <table><thead><tr><th>Profesor/a</th><th>Horas/semana</th></tr></thead>
-    <tbody>${semanal.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin profesores cargados',2)}</tbody></table>
+    <table><thead><tr><th>Persona</th><th>Horas/semana</th></tr></thead>
+    <tbody>${semanal.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin personal cargado',2)}</tbody></table>
   </div>
   <div class="card" style="margin-top:18px;">
     <div class="section-head"><h3 style="margin:0;">Recuento mensual de horas</h3>
@@ -3306,8 +3326,8 @@ function pageHorasProfes(profes){
       </div>
     </div>
     <p style="color:var(--text2);font-size:13px;margin-bottom:10px;">Estimado a partir de cuántas veces cae cada día de la semana en el mes elegido, según los turnos fijos del calendario.</p>
-    <table><thead><tr><th>Profesor/a</th><th>Horas en ${meses[horasMesSel.month]} ${horasMesSel.year}</th></tr></thead>
-    <tbody>${mensual.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin profesores cargados',2)}</tbody></table>
+    <table><thead><tr><th>Persona</th><th>Horas en ${meses[horasMesSel.month]} ${horasMesSel.year}</th></tr></thead>
+    <tbody>${mensual.map(({p,horas})=>`<tr><td>${esc(p.n)}</td><td>${horas.toFixed(1)} hs</td></tr>`).join('')||emptyRow('ti-users','Sin personal cargado',2)}</tbody></table>
   </div>`;
 }
 function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
@@ -3324,10 +3344,11 @@ function openCalendarEvent(turnoId){
 function openTurnoModal(turnoId,presetDia){
   const t = turnoId?TURNOS.find(x=>x.id===turnoId):null;
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
+  const allPersonal = [...profes, ...DUENOS];
   openModal(`
     <div class="modal-head"><h3>${t?'Editar':'Nuevo turno / clase'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre de la clase (opcional, ej: Spinning, Yoga)</label><input id="tn_cl" type="text" placeholder="Dejar vacío si es un turno de trabajo" value="${t&&t.clase?esc(t.clase):''}"></div>
-    <div class="field"><label>Profesor/a a cargo</label><select id="tn_s">${profes.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Persona a cargo</label><select id="tn_s">${allPersonal.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
     <div class="field"><label>Día</label><select id="tn_d">${DIAS_SEMANA.map(d=>`<option ${ (t?t.dia:presetDia)===d?'selected':''}>${d}</option>`).join('')}</select></div>
     <div class="field"><label>Desde</label>${timeSelectHTML('tn_de', t?t.desde:'08:00')}</div>
     <div class="field"><label>Hasta</label>${timeSelectHTML('tn_ha', t?t.hasta:'12:00')}</div>
