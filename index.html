@@ -3398,7 +3398,7 @@ function saveTurno(turnoId){
 }
 function deleteTurno(turnoId){
   TURNOS = TURNOS.filter(t=>t.id!==turnoId);
-  closeModal(); renderStaff();
+  persist(); closeModal(); renderStaff();
 }
 
 /* ---- EJERCICIOS ---- */
@@ -3751,7 +3751,7 @@ function saveBateriaRutina(){
   const bejs = bateriaSel.filter(e=>e.n).map(e=>({n:e.n,s:parseInt(e.s)||3,r:e.r}));
   if(RUTINAS.some(r=>r.n===n)){ showToast('Ya existe una rutina con ese nombre.','error'); return; }
   RUTINAS.push({n,t:'Personal',ob:'',cr:'Tú',ejs:bejs});
-  bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
+  persist(); bateriaSel=[]; bateriaName=''; closeModal(); renderStaff();
 }
 
 /* ---- QR Y ASISTENCIA ---- */
