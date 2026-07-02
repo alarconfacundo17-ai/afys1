@@ -4411,14 +4411,19 @@ function socioCuenta(){
     invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
 
+  sb.auth.onAuthStateChange((event) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      window.history.replaceState({}, '', window.location.pathname);
+      loginView='resetPassword'; loginError=''; loginInfo='';
+      $('#login').classList.remove('hidden');
+      $('#app').classList.add('hidden');
+      renderLogin();
+    }
+  });
+
   const isRecovery = window.location.hash.includes('type=recovery') || urlParams.get('type')==='recovery';
-  const hasCode = !!urlParams.get('code');
-  if(hasCode){
-    await sb.auth.exchangeCodeForSession(urlParams.get('code')).catch(()=>{});
-    window.history.replaceState({}, '', window.location.pathname);
-  }
   const {data:{session}} = await sb.auth.getSession();
-  if((isRecovery || hasCode) && session){
+  if(isRecovery && session){
     window.history.replaceState({}, '', window.location.pathname);
     loginView='resetPassword'; loginError=''; loginInfo='';
     $('#login').classList.remove('hidden');
