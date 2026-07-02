@@ -778,6 +778,16 @@ async function mergeRemoteAntesDeGuardar(){
       });
     }
 
+    if(Array.isArray(remote.TURNOS)){
+      const localIds = new Set(TURNOS.map(t=>t.id));
+      remote.TURNOS.forEach(t=>{ if(!localIds.has(t.id)){ TURNOS.push(t); localIds.add(t.id); } });
+    }
+
+    if(Array.isArray(remote.CLASES_HOY)){
+      const localCIds = new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean));
+      remote.CLASES_HOY.forEach(c=>{ if(c.cId && !localCIds.has(c.cId)){ CLASES_HOY.push(c); localCIds.add(c.cId); } });
+    }
+
     if(remote.notifSocio){
       Object.keys(remote.notifSocio).forEach(idx=>{
         if(!notifSocio[idx]) notifSocio[idx] = [];
