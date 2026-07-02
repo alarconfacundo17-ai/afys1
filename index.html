@@ -409,6 +409,7 @@ const PROFESOR_DEFAULT_PERMS = {
 };
 let STAFF = [];
 let DUENOS = [];
+let CO_DUENOS = [];
 let currentStaffId = null;
 let DUENO_EMAIL = null;
 let PENDING_INVITES = [];
@@ -456,7 +457,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
+    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
   };
 }
 
@@ -476,6 +477,9 @@ function applyState(s){
   fillObject(RESERVAS, s.RESERVAS);
   if(Array.isArray(s.STAFF)) STAFF = s.STAFF;
   if(Array.isArray(s.DUENOS)) DUENOS = s.DUENOS;
+  if(Array.isArray(s.CO_DUENOS)) CO_DUENOS = s.CO_DUENOS;
+  // migración: agregar afystotoras2@gmail.com como co-dueño si no está
+  if(!CO_DUENOS.includes('afystotoras2@gmail.com')){ CO_DUENOS.push('afystotoras2@gmail.com'); persistDirect(); }
   if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
   if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
@@ -1016,7 +1020,7 @@ async function doLogin(){
 
 async function routeLoggedInUser(email){
   $('#login').classList.add('hidden');
-  if(DUENO_EMAIL && email===DUENO_EMAIL){
+  if((DUENO_EMAIL && email===DUENO_EMAIL) || CO_DUENOS.includes(email)){
     currentRole='dueno'; currentStaffId=null;
     // ensure dueño entry in DUENOS
     const uMeta = (await sb.auth.getUser())?.data?.user?.user_metadata || {};
