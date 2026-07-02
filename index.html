@@ -3251,10 +3251,7 @@ function pageHorarios(){
   </div>
   <div class="card">
     <div class="section-head"><h3 style="margin:0;">${currentRole==='profesor'?'Semana — mis turnos y clases':'Semana — turnos y clases'}</h3>
-      <div style="display:flex;gap:8px;">
-        ${isDueno()?`<button class="btn btn-outline btn-sm" onclick="openGestionDuenosModal()"><i class="ti ti-users"></i>Dueños</button>`:''}
-        ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
-      </div>
+      ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTurnoModal()"><i class="ti ti-plus"></i>Nuevo turno / clase</button>`:''}
     </div>
     ${currentRole!=='profesor'?`<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
       ${profes.map(p=>`<span class="badge" ${isDueno()?`onclick="openStaffColorPicker('${p.id}')" title="Cambiar color" style="cursor:pointer;background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`:`style="background:${staffColor(p.id)}22;color:${staffColor(p.id)};"`}><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${staffColor(p.id)};margin-right:5px;"></span>${esc(p.n)}</span>`).join('')}
