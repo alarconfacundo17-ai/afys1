@@ -3355,8 +3355,8 @@ function pageHorasProfes(profes){
   </div>`;
 }
 function saveGymHour(dia,idx,campo,val){ GYM_HOURS[dia][idx][campo]=val; persist(); }
-function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); renderStaff(); }
-function removeGymTramo(dia,idx){ GYM_HOURS[dia].splice(idx,1); renderStaff(); }
+function addGymTramo(dia){ GYM_HOURS[dia].push({desde:'09:00',hasta:'18:00'}); persist(); renderStaff(); }
+function removeGymTramo(dia,idx){ GYM_HOURS[dia].splice(idx,1); persist(); renderStaff(); }
 function openCalendarEvent(turnoId){
   const t = TURNOS.find(x=>x.id===turnoId);
   if(t && t.claseId){
@@ -3796,7 +3796,7 @@ function pageQR(){
   </div>` : ''}
   ${currentRole!=='profesor'?`
   <div class="card">
-    <div class="section-head"><h3>Registro de entradas del día (${REGS.length})</h3></div>
+    <div class="section-head"><h3>Registro de entradas del día (${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length})</h3></div>
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
     <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
   </div>`:''}`;
@@ -4007,7 +4007,7 @@ function openModal(html, size){
     }
   }
 }
-function closeModal(){ $('#modalHost').innerHTML=''; }
+function closeModal(){ $('#modalHost').innerHTML=''; editNotaIdx=null; }
 
 /* ============ SOCIO APP ============ */
 $all('.bn-item').forEach(el=>el.addEventListener('click',()=>{
@@ -4494,6 +4494,7 @@ function socioCuenta(){
     if(Array.isArray(remote.CLASES_HOY)){ const lk=new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean)); remote.CLASES_HOY.forEach(c=>{ if(c.cId&&!lk.has(c.cId)){ CLASES_HOY.push(c); lk.add(c.cId); } }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
+    recalcEstados({notify:false});
   }
 
   sb.auth.onAuthStateChange((event) => {
