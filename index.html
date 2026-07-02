@@ -445,6 +445,7 @@ let collapsedGroups = {}; // group name -> bool collapsed
 /* ============ PERSISTENCIA EN SUPABASE ============ */
 const SUPABASE_URL = 'https://tpoibledsekmkbmmxsjm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RTCEUdI9e0Sl_WMzf5lE3w_xcezp9fx';
+const _initialHash = window.location.hash;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{flowType:'implicit'}});
 const APP_URL = window.location.origin + window.location.pathname;
 
@@ -4411,6 +4412,8 @@ function socioCuenta(){
     invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
 
+  const isRecovery = _initialHash.includes('type=recovery') || urlParams.get('type')==='recovery';
+
   sb.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY'){
       window.history.replaceState({}, '', window.location.pathname);
@@ -4421,14 +4424,13 @@ function socioCuenta(){
     }
   });
 
-  const isRecovery = window.location.hash.includes('type=recovery') || urlParams.get('type')==='recovery';
   const {data:{session}} = await sb.auth.getSession();
   if(isRecovery && session){
     window.history.replaceState({}, '', window.location.pathname);
     loginView='resetPassword'; loginError=''; loginInfo='';
     $('#login').classList.remove('hidden');
     renderLogin();
-  } else if(session && session.user && session.user.email){
+  } else if(!isRecovery && session && session.user && session.user.email){
     const sEmail = session.user.email.toLowerCase();
     if(isStaffQR && sEmail!==DUENO_EMAIL && !STAFF.find(s=>s.email===sEmail) && !SOCIOS_LOGIN[sEmail]){
       ensureStaffProfile(sEmail, session.user);
