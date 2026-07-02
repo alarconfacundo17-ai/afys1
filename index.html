@@ -410,6 +410,7 @@ const PROFESOR_DEFAULT_PERMS = {
 let STAFF = [];
 let DUENOS = [];
 let CO_DUENOS = [];
+let _lastOwnWrite = 0;
 let currentStaffId = null;
 let DUENO_EMAIL = null;
 let PENDING_INVITES = [];
@@ -3382,37 +3383,7 @@ function openTurnoModal(turnoId,presetDia){
     </div>
   `);
 }
-function openGestionDuenosModal(){
-  const renderBody = ()=>`
-    <div class="modal-head"><h3>Dueños en el calendario</h3><button onclick="closeModal()">✕</button></div>
-    <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Estas personas aparecen como opción al crear turnos. Se agregan automáticamente al iniciar sesión, o podés agregarlas manualmente.</p>
-    ${DUENOS.map(d=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <span style="flex:1;font-size:13.5px;">${esc(d.n)}<span style="color:var(--text2);font-size:11px;margin-left:6px;">${esc(d.email||'')}</span></span>
-      <button class="btn btn-outline btn-sm" style="color:var(--red);padding:4px 10px;" onclick="eliminarDueno('${d.id}')">Eliminar</button>
-    </div>`).join('')}
-    ${DUENOS.length===0?`<p style="color:var(--text2);font-size:13px;">No hay dueños agregados todavía.</p>`:''}
-    <hr style="margin:14px 0;">
-    <div class="field"><label>Nombre del nuevo dueño</label><input id="nd_n" type="text" placeholder="Ej: Facundo"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cerrar</button>
-      <button class="btn btn-primary" onclick="agregarDueno()">Agregar</button>
-    </div>`;
-  openModal(renderBody());
-}
-function agregarDueno(){
-  const n = ($('#nd_n').value||'').trim();
-  if(!n){ showToast('Ingresá un nombre.','error'); return; }
-  const id = 'dueno_manual_'+Date.now();
-  DUENOS.push({id, n, email:'', color:''});
-  persist(); showToast('Dueño agregado');
-  openGestionDuenosModal(); renderStaff();
-}
-function eliminarDueno(id){
-  if(!confirm('¿Eliminar este dueño del calendario? Sus turnos asignados quedarán sin nombre.')) return;
-  DUENOS = DUENOS.filter(d=>d.id!==id);
-  persist(); showToast('Eliminado');
-  openGestionDuenosModal(); renderStaff();
-}
+
 function saveTurno(turnoId){
   const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
   if(turnoId){
@@ -4490,7 +4461,6 @@ function socioCuenta(){
   const isRecovery = _initialHash.includes('type=recovery') || urlParams.get('type')==='recovery';
 
   // Realtime: sincronizar estado cuando otro usuario guarda
-  let _lastOwnWrite = 0;
   sb.channel('app_state_sync')
     .on('postgres_changes', {event:'UPDATE', schema:'public', table:'app_state', filter:'id=eq.1'}, async (payload)=>{
       if(Date.now() - _lastOwnWrite < 2000) return; // ignorar nuestro propio write
@@ -4521,6 +4491,9 @@ function socioCuenta(){
     if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
     if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
     if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
+    if(Array.isArray(remote.CLASES_HOY)){ const lk=new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean)); remote.CLASES_HOY.forEach(c=>{ if(c.cId&&!lk.has(c.cId)){ CLASES_HOY.push(c); lk.add(c.cId); } }); }
+    if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
+    if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
   }
 
   sb.auth.onAuthStateChange((event) => {
