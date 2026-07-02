@@ -825,6 +825,7 @@ function persist(){
   clearTimeout(persistTimer);
   persistTimer = setTimeout(async ()=>{
     await mergeRemoteAntesDeGuardar();
+    _lastOwnWrite = Date.now();
     sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
       if(error){
         console.error('Error guardando en Supabase:', error);
@@ -4487,6 +4488,40 @@ function socioCuenta(){
   }
 
   const isRecovery = _initialHash.includes('type=recovery') || urlParams.get('type')==='recovery';
+
+  // Realtime: sincronizar estado cuando otro usuario guarda
+  let _lastOwnWrite = 0;
+  sb.channel('app_state_sync')
+    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'app_state', filter:'id=eq.1'}, async (payload)=>{
+      if(Date.now() - _lastOwnWrite < 2000) return; // ignorar nuestro propio write
+      if(!payload.new || !payload.new.data) return;
+      const remote = payload.new.data;
+      // merge remoto en local usando la misma lógica de mergeRemoteAntesDeGuardar
+      await mergeRemoteIntoLocal(remote);
+      if(currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') renderStaff();
+    })
+    .subscribe();
+
+  async function mergeRemoteIntoLocal(remote){
+    if(Array.isArray(remote.SOCIOS)){
+      const localByKey={}, localByNormName={};
+      SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)]=s; const nn=normName(s.n); if(nn) localByNormName[nn]=s; });
+      remote.SOCIOS.forEach(rs=>{
+        const key=socioMergeKey(rs); let ls=localByKey[key];
+        if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ SOCIOS.push(rs); localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
+        if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
+        if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
+        if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
+      });
+    }
+    if(remote.RESERVAS) Object.keys(remote.RESERVAS).forEach(k=>{ if(!RESERVAS[k]) RESERVAS[k]={}; Object.keys(remote.RESERVAS[k]).forEach(ck=>{ if(remote.RESERVAS[k][ck] && RESERVAS[k][ck]===undefined) RESERVAS[k][ck]=true; }); });
+    if(Array.isArray(remote.REGS)){ const lk=new Set(REGS.map(r=>r.sid+'|'+r.f)); remote.REGS.forEach(r=>{ const k=r.sid+'|'+r.f; if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
+    if(Array.isArray(remote.PAGOS)){ const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
+    if(Array.isArray(remote.TURNOS)){ const lk=new Set(TURNOS.map(t=>t.id)); remote.TURNOS.forEach(t=>{ if(!lk.has(t.id)){ TURNOS.push(t); lk.add(t.id); } }); }
+    if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
+    if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
+    if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
+  }
 
   sb.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY'){
