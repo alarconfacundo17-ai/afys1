@@ -3289,17 +3289,44 @@ function pageHorarios(){
               const bg = conClase?'rgba(59,130,201,0.30)':conProfe?'rgba(59,130,201,0.15)':abierto?'rgba(59,130,201,0.06)':'transparent';
               return `<div class="cal-hourline" style="height:${CAL_PXH/2}px;background:${bg};${i%2?'':'border-top:1px solid rgba(0,0,0,.04);'}"></div>`;
             }).join('')}
-            ${turnos.map(t=>{
-              const st = STAFF.find(s=>s.id===t.staffId);
-              const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
-              const h = Math.max(16,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
-              const col = staffColor(t.staffId);
-              const bg = t.clase ? `${col}cc` : `${col}22`;
-              const fg = t.clase ? '#fff' : col;
-              return `<div class="cal-event" style="top:${top}px;height:${h}px;background:${bg};border-left:3px solid ${col};color:${fg};" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
-                ${t.clase?`<b>${esc(t.clase)}</b><br>${esc(st?st.n:'-')}`:`<b>${esc(st?st.n:'-')}</b>`}<br>${t.desde}-${t.hasta}
-              </div>`;
-            }).join('')}
+            ${(()=>{
+              // Assign sub-columns to overlapping events
+              const sorted = [...turnos].sort((a,b)=>hToMin(a.desde)-hToMin(b.desde));
+              const cols = []; // each entry: array of events in that sub-column
+              const evCol = new Map();
+              sorted.forEach(t=>{
+                const tStart=hToMin(t.desde), tEnd=hToMin(t.hasta);
+                let placed=false;
+                for(let c=0;c<cols.length;c++){
+                  const last=cols[c][cols[c].length-1];
+                  if(hToMin(last.hasta)<=tStart){ cols[c].push(t); evCol.set(t.id,c); placed=true; break; }
+                }
+                if(!placed){ cols.push([t]); evCol.set(t.id,cols.length-1); }
+              });
+              // For each event determine how many concurrent columns it spans
+              return sorted.map(t=>{
+                const tStart=hToMin(t.desde), tEnd=hToMin(t.hasta);
+                const myCol=evCol.get(t.id);
+                // count max concurrent cols that overlap this event
+                let maxC=1;
+                sorted.forEach(o=>{
+                  if(o.id===t.id) return;
+                  if(hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart) maxC=Math.max(maxC,cols.length);
+                });
+                const totalCols = maxC;
+                const w = 100/totalCols;
+                const l = myCol*(100/cols.length);
+                const st = STAFF.find(s=>s.id===t.staffId) || DUENOS.find(d=>d.id===t.staffId);
+                const top = (tStart-CAL_START*60)/60*CAL_PXH;
+                const h = Math.max(16,(tEnd-tStart)/60*CAL_PXH);
+                const col = staffColor(t.staffId);
+                const bg = t.clase ? `${col}cc` : `${col}22`;
+                const fg = t.clase ? '#fff' : col;
+                return `<div class="cal-event" style="top:${top}px;height:${h}px;left:${l}%;width:calc(${100/cols.length}% - 2px);background:${bg};border-left:3px solid ${col};color:${fg};" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
+                  ${t.clase?`<b>${esc(t.clase)}</b><br><small>${esc(st?st.n:'-')}</small>`:`<b>${esc(st?st.n:'-')}</b>`}<br><small>${t.desde}-${t.hasta}</small>
+                </div>`;
+              }).join('');
+            })()}
           </div>`;
         }).join('')}
       </div>
