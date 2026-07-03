@@ -2569,11 +2569,13 @@ function renderSocioEjModalBody(){
   const s = SOCIOS[socioEjEditSi];
   const rname = socioEjEditRname;
   const hasOverride = !!(s.rsOverride && s.rsOverride[rname]);
+  const miPesoAlumno = (s.rsMiPeso && s.rsMiPeso[rname]) || {};
   openModal(`
     <div class="modal-head"><h3>Ejercicios — ${esc(rname)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:10px;">Estos cambios sólo afectan a <b>${esc(s.n)}</b>. La rutina original no se modifica para los demás socios.</p>
+    <div style="display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--text2);margin-bottom:10px;background:var(--bg2);padding:7px 10px;border-radius:8px;"><i class="ti ti-info-circle" style="font-size:14px;"></i> <span>El campo <b>Kg objetivo</b> es tu prescripción. El alumno registra su propio peso y se muestra abajo en azul.</span></div>
     <div id="rtEjs">
-    ${socioEjEditArr.map((e,i)=>ejRowHTML(i,e,true,true)).join('')}
+    ${socioEjEditArr.map((e,i)=>ejRowHTML(i,e,true,true,miPesoAlumno[e.n]||'')).join('')}
     </div>
     <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <div class="modal-actions" style="justify-content:space-between;">
@@ -3097,7 +3099,7 @@ function toggleEjModoTiempo(e, renderFn){
 function srDisplay(e){
   return e.modo==='tiempo' ? esc(e.tiempo||'') : `${e.s} series x ${esc(e.r)} reps`;
 }
-function ejRowHTML(i, e, showKg, draggable){
+function ejRowHTML(i, e, showKg, draggable, miPesoAlumno){
   const g = ejGrupo(e.n);
   return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ${draggable?`ondragover="event.preventDefault()" ondrop="dragReorder(currentEjsArr,dragSrcIdx,${i},currentEjsRenderFn)"`:''}>
     ${draggable?`<span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>`:''}
@@ -3109,7 +3111,10 @@ function ejRowHTML(i, e, showKg, draggable){
     </div>
     <input placeholder="${e.modo==='tiempo'?`Tiempo (ej: 15')`:'Series x reps (ej: 3x10)'}" value="${esc(srValue(e))}" oninput="parseSeriesReps(currentEjsArr[${i}],this.value)" style="flex:1.4;">
     <button class="btn btn-outline btn-sm" title="${e.modo==='tiempo'?'Usar series x reps':'Usar tiempo (ej. cardio)'}" onclick="toggleEjModoTiempo(currentEjsArr[${i}],renderEjsRows)"><i class="ti ti-${e.modo==='tiempo'?'repeat':'clock'}"></i></button>
-    ${showKg?`<input placeholder="Kg" value="${esc(e.kg||'')}" oninput="currentEjsArr[${i}].kg=this.value" style="flex:1;">`:''}
+    ${showKg?`<div style="display:flex;flex-direction:column;gap:2px;flex:1;">
+      <input placeholder="Kg objetivo" value="${esc(e.kg||'')}" oninput="currentEjsArr[${i}].kg=this.value" title="Peso objetivo/prescrito para el alumno">
+      ${miPesoAlumno!==undefined?`<span style="font-size:10px;color:${miPesoAlumno?'var(--primary)':'var(--text2)'};text-align:center;" title="Peso registrado por el alumno">${miPesoAlumno?`✓ Alumno: ${esc(miPesoAlumno)} kg`:'Sin registro'}</span>`:''}
+    </div>`:''}
     <button class="btn btn-outline btn-sm" onclick="removeEjRow(${i})">×</button>
   </div>`;
 }
@@ -4380,9 +4385,13 @@ function openSocioRutinaDetalleModal(rname){
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
-          <p style="color:var(--text);font-size:13.5px;font-weight:600;margin:4px 0 8px;">${srDisplay(e)}${e.kg?` x ${esc(e.kg)}kg`:''}</p>
+          <p style="color:var(--text);font-size:13.5px;font-weight:600;margin:4px 0 8px;">${srDisplay(e)}</p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            ${e.kg?'':`<input type="text" placeholder="Mi peso" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:78px;font-size:14px;padding:7px 9px;">`}
+            ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;" title="Peso objetivo indicado por tu entrenador">Objetivo: ${esc(e.kg)} kg</span>`:''}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <input type="text" placeholder="Mi peso (kg)" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:100px;font-size:14px;padding:7px 9px;">
+              <span style="font-size:10px;color:var(--text2);text-align:center;">Mi peso</span>
+            </div>
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
             <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;width:128px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
           </div>
