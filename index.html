@@ -1123,8 +1123,23 @@ async function submitSignupDueno(){
   if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
   if(DUENO_EMAIL){ loginError='Ya existe una cuenta de dueño.'; renderLogin(); return; }
   const {error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'dueno'}, emailRedirectTo:APP_URL}});
-  if(error){ loginError=error.message; renderLogin(); return; }
+  if(error){
+    // Si la cuenta ya existe, intentar iniciar sesión directamente y reclamar el rol
+    const alreadyExists = error.message && (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('registered') || error.status===422 || error.status===400);
+    if(alreadyExists){
+      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
+      if(loginErr){ loginError='Cuenta existente pero contraseña incorrecta.'; renderLogin(); return; }
+      DUENO_EMAIL = e;
+      if(!DUENOS.find(d=>d.email===e)) DUENOS.push({id:'dueno_'+e.replace(/[^a-z0-9]/gi,'_'), n, email:e, color:''});
+      persist();
+      loginView='login'; loginError='';
+      await routeLoggedInUser(e);
+      return;
+    }
+    loginError=error.message; renderLogin(); return;
+  }
   DUENO_EMAIL = e;
+  if(!DUENOS.find(d=>d.email===e)) DUENOS.push({id:'dueno_'+e.replace(/[^a-z0-9]/gi,'_'), n, email:e, color:''});
   persist();
   loginView='login'; loginError='';
   await routeLoggedInUser(e);
