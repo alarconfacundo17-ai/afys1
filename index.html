@@ -479,11 +479,6 @@ function applyState(s){
   if(Array.isArray(s.STAFF)) STAFF = s.STAFF;
   if(Array.isArray(s.DUENOS)) DUENOS = s.DUENOS;
   if(Array.isArray(s.CO_DUENOS)) CO_DUENOS = s.CO_DUENOS;
-  // migración: agregar afystotoras2@gmail.com como co-dueño si no está
-  let _migChanged = false;
-  if(!CO_DUENOS.includes('afystotoras2@gmail.com')){ CO_DUENOS.push('afystotoras2@gmail.com'); _migChanged = true; }
-  if(!DUENOS.find(d=>d.email==='afystotoras2@gmail.com')){ DUENOS.push({id:'dueno_afystotoras2_gmail_com', n:'Victor Alarcon', email:'afystotoras2@gmail.com', color:''}); _migChanged = true; }
-  if(_migChanged) persistDirect();
   if(s.GYM_HOURS) GYM_HOURS = s.GYM_HOURS;
   if(Array.isArray(s.TURNOS)) TURNOS = s.TURNOS;
   if(typeof s.turnoSeq==='number') turnoSeq = s.turnoSeq;
@@ -494,6 +489,17 @@ function applyState(s){
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
+  // migración: agregar afystotoras2@gmail.com como co-dueño si no está
+  // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
+  let _migChanged = false;
+  if(!CO_DUENOS.includes('afystotoras2@gmail.com')){ CO_DUENOS.push('afystotoras2@gmail.com'); _migChanged = true; }
+  if(!DUENOS.find(d=>d.email==='afystotoras2@gmail.com')){ DUENOS.push({id:'dueno_afystotoras2_gmail_com', n:'Victor Alarcon', email:'afystotoras2@gmail.com', color:''}); _migChanged = true; }
+  if(_migChanged) persistDirect();
+  // recuperar DUENO_EMAIL si fue borrado accidentalmente
+  if(!DUENO_EMAIL){
+    const mainD = DUENOS.find(d=>d.email && !CO_DUENOS.includes(d.email));
+    if(mainD){ DUENO_EMAIL = mainD.email; persistDirect(); }
+  }
   migrateProfesorDefaultPerms();
   migrateProfesorDefaultPermsV2();
   migrateClaseIdsUnicos();
