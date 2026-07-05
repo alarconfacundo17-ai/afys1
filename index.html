@@ -614,6 +614,9 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   if(!keep.pe && dup.pe) keep.pe = dup.pe;
   if(!keep.ob && dup.ob) keep.ob = dup.ob;
   if(!keep.obs && dup.obs) keep.obs = dup.obs;
+  if(!keep.nt && dup.nt) keep.nt = dup.nt;
+  if(!keep.pl && dup.pl) keep.pl = dup.pl;
+  if(!keep.vence && dup.vence) keep.vence = dup.vence;
   if(dup.rs&&dup.rs.length && (!keep.rs||!keep.rs.length)) keep.rs = dup.rs;
   if(dup.rsHechos && !keep.rsHechos) keep.rsHechos = dup.rsHechos;
   PAGOS.forEach(p=>{ if(p.sid===dup.id) p.sid = keep.id; });
@@ -819,6 +822,26 @@ async function mergeRemoteAntesDeGuardar(){
       remote.TURNOS.forEach(t=>{ if(!localIds.has(t.id)){ TURNOS.push(t); localIds.add(t.id); } });
     }
 
+    if(Array.isArray(remote.STAFF)){
+      const localIds = new Set(STAFF.map(s=>s.id));
+      remote.STAFF.forEach(s=>{ if(s.id && !localIds.has(s.id)){ STAFF.push(s); localIds.add(s.id); } });
+    }
+
+    if(remote.EJD && typeof remote.EJD==='object'){
+      Object.keys(remote.EJD).forEach(g=>{
+        if(!EJD[g]) EJD[g] = [];
+        const local = new Set(EJD[g]);
+        (remote.EJD[g]||[]).forEach(e=>{ if(!local.has(e)){ EJD[g].push(e); local.add(e); } });
+      });
+    }
+
+    if(remote.EJC && typeof remote.EJC==='object'){
+      Object.keys(remote.EJC).forEach(g=>{ if(!EJC[g]) EJC[g] = remote.EJC[g]; });
+    }
+
+    if(typeof remote.turnoSeq==='number' && remote.turnoSeq > turnoSeq) turnoSeq = remote.turnoSeq;
+    if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
+
     if(Array.isArray(remote.CLASES_HOY)){
       const localCIds = new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean));
       remote.CLASES_HOY.forEach(c=>{ if(c.cId && !localCIds.has(c.cId)){ CLASES_HOY.push(c); localCIds.add(c.cId); } });
@@ -840,6 +863,7 @@ async function mergeRemoteAntesDeGuardar(){
 function persistDirect(){
   if(demoMode) return;
   clearTimeout(persistTimer);
+  _lastOwnWrite = Date.now();
   sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
     if(error) console.error('Error guardando en Supabase:', error);
   });
