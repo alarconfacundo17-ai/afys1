@@ -1974,7 +1974,7 @@ function pageCuentas(){
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
     <table><thead><tr><th>Nombre</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
         <button class="btn btn-outline btn-sm" onclick="openStaffOpcionesModal('${s.id}')"><i class="ti ti-dots-vertical"></i></button>
         <button class="btn btn-outline btn-sm" title="Ver ficha" onclick="openStaffFichaModal('${s.id}')"><i class="ti ti-id-badge-2"></i></button>
       </td></tr>`).join('')}
