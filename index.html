@@ -413,6 +413,7 @@ let CO_DUENOS = [];
 let _lastOwnWrite = 0;
 let currentStaffId = null;
 let DUENO_EMAIL = null;
+let gymHoursOk = false;
 let PENDING_INVITES = [];
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -458,7 +459,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq,
+    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk,
   };
 }
 
@@ -489,6 +490,7 @@ function applyState(s){
   if(s.collapsedGroups) collapsedGroups = s.collapsedGroups;
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
+  if(s.gymHoursOk === true) gymHoursOk = true;
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
   // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
   let _migChanged = false;
@@ -514,8 +516,8 @@ function applyState(s){
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
 }
 function migrateGymHours(){
-  // Restaurar horarios reales si Supabase tiene los defaults incorrectos
-  const correctHours = {
+  if(gymHoursOk) return; // ya migrado, el dueño puede cambiarlos libremente
+  GYM_HOURS = {
     Lunes:     [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
     Martes:    [{desde:'08:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
     Miércoles: [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
@@ -524,10 +526,8 @@ function migrateGymHours(){
     Sábado:    [{desde:'09:30',hasta:'11:30'}],
     Domingo:   [],
   };
-  const wrongDefaults = ['07:00-12:00','07:00-22:00','08:00-14:00'];
-  const lunesSlots = (GYM_HOURS.Lunes||[]).map(t=>t.desde+'-'+t.hasta).join(',');
-  const isDefault = lunesSlots==='07:00-12:00,16:00-22:00' || lunesSlots==='07:00-22:00' || (GYM_HOURS.Lunes||[]).length===2 && (GYM_HOURS.Lunes||[])[0].hasta==='12:00';
-  if(isDefault){ GYM_HOURS = correctHours; persistDirect(); }
+  gymHoursOk = true;
+  persistDirect();
 }
 
 function migrateClasesTurnos(){
