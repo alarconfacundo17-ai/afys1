@@ -11,6 +11,15 @@
   --bg:#fff; --bg2:#f9fafb; --border:#e5e7eb; --border2:#f0f0f0;
   --text:#111; --text2:#6b7280;
 }
+[data-theme="dark"]{ --bg:#1a1b1e; --bg2:#141517; --border:#2e3138; --border2:#25262b; --text:#c1c2c5; --text2:#909296; }
+[data-theme="dark"] .card,[data-theme="dark"] .modal-box,[data-theme="dark"] .sidebar,[data-theme="dark"] .topbar,[data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea,[data-theme="dark"] .btn-outline{background:var(--bg);color:var(--text);border-color:var(--border);}
+[data-theme="dark"] body{background:var(--bg2);}
+[data-theme="dark"] th{color:var(--text2);}
+[data-theme="dark"] .b-ok{background:#064E3B44;color:#6EE7B7;}
+[data-theme="dark"] .b-warn{background:#92400E44;color:#FCD34D;}
+[data-theme="dark"] .b-err{background:#991B1B44;color:#FCA5A5;}
+[data-theme="dark"] .b-info{background:#1E40AF44;color:#93C5FD;}
+[data-theme="dark"] .nav-item.active{background:#1e3a5f;color:var(--primary);}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg2);color:var(--text);}
 .hidden{display:none !important;}
@@ -278,6 +287,7 @@ h3{font-size:15px;margin-bottom:10px;}
           <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
           <div class="notif-panel hidden" id="staffNotifPanel"></div>
         </div>
+        <button class="btn btn-outline btn-sm" onclick="toggleDarkMode()" title="Modo oscuro" style="padding:7px 10px;" id="darkModeBtn"><i class="ti ti-moon" style="font-size:18px;"></i></button>
         <button class="btn btn-outline btn-sm" onclick="logout()">Salir</button>
       </div>
     </div>
@@ -436,6 +446,7 @@ let turnoSeq = 1;
 let notifStaff = [];
 let notifSocio = {}; // by socio idx -> array
 let movimientosLog = []; // historial de acciones: {tipo, txt, fecha}
+let darkMode = false;
 
 function logMovimiento(tipo, txt){
   movimientosLog.unshift({tipo, txt, fecha:new Date().toISOString()});
@@ -898,6 +909,50 @@ async function loadState(){
 function $(sel,root){return (root||document).querySelector(sel);}
 function $all(sel,root){return [...(root||document).querySelectorAll(sel)];}
 function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function toggleDarkMode(){
+  darkMode = !darkMode;
+  document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '');
+  localStorage.setItem('afys_dark', darkMode ? '1' : '');
+  const btn = document.getElementById('darkModeBtn');
+  if(btn) btn.innerHTML = `<i class="ti ti-${darkMode?'sun':'moon'}" style="font-size:18px;"></i>`;
+}
+
+function downloadCSV(filename, headers, csvRows){
+  const csvEsc = v => '"'+(v==null?'':String(v).replace(/"/g,'""'))+'"';
+  const csv = [headers.map(csvEsc).join(','), ...csvRows.map(r=>r.map(csvEsc).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function exportarSociosCSV(){
+  const headers = ['Nombre','Email','Teléfono','Plan','Estado','Vencimiento','Nacimiento','Peso','Objetivo'];
+  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', s.pl||'', {ok:'Al día',ve:'Por vencer',de:'Vencido'}[s.es]||s.es||'', s.vence||'', s.cumple||'', s.pe||'', s.ob||'']);
+  downloadCSV('socios_afys.csv', headers, rows);
+}
+function exportarPagosCSV(){
+  const headers = ['Fecha','Socio','Monto','Mes de pago'];
+  const rows = PAGOS.map(p=>{
+    const s = SOCIOS.find(x=>x.id===p.sid);
+    return [p.f ? new Date(p.f).toLocaleDateString('es-AR') : '', s?s.n:(p.n||''), p.m||'', p.mp||''];
+  });
+  downloadCSV('pagos_afys.csv', headers, rows);
+}
+function exportarAsistenciasCSV(){
+  const headers = ['Fecha','Hora','Socio','Clase/Actividad'];
+  const rows = REGS.map(r=>{
+    const s = SOCIOS.find(x=>x.id===r.sid);
+    return [r.f ? new Date(r.f).toLocaleDateString('es-AR') : '', r.h||'', s?s.n:(r.n||''), r.cl||'Entrada general'];
+  });
+  downloadCSV('asistencias_afys.csv', headers, rows);
+}
+function exportarMovimientosCSV(){
+  const headers = ['Fecha','Acción','Detalle'];
+  const rows = movimientosLog.map(m=>[fmtFechaHora(m.fecha), MOVIMIENTO_TIPOS[m.tipo]||m.tipo, m.txt]);
+  downloadCSV('movimientos_afys.csv', headers, rows);
+}
 // Para usar un valor como argumento string dentro de un onclick="...('VALOR')" — escapa backslash/comilla simple (para que no rompa el JS) y luego & < > " (para que no rompa el atributo HTML).
 function jsAttr(s){
   return (s||'').toString()
@@ -2174,7 +2229,10 @@ function pageSocios(){
   return `
   <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:8px;">${label}${isSuperOwner()?`<span style="font-size:14px;font-weight:600;color:var(--primary);opacity:.85;">${activosS}<span style="color:var(--text2);font-weight:400;opacity:.7;">/${totalS}</span></span>`:''}
   </h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+  <button class="btn btn-outline btn-sm" onclick="exportarSociosCSV()" title="Exportar socios a CSV"><i class="ti ti-download"></i> Exportar CSV</button>
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
+  </div>
   </div>
   <div class="field" style="max-width:320px;margin-bottom:14px;position:relative;">
     <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
@@ -3876,7 +3934,7 @@ function pageQR(){
   </div>` : ''}
   ${currentRole!=='profesor'?`
   <div class="card">
-    <div class="section-head"><h3>Registro de entradas del día (${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length})</h3></div>
+    <div class="section-head"><h3>Registro de entradas del día (${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length})</h3><button class="btn btn-outline btn-sm" onclick="exportarAsistenciasCSV()" title="Exportar asistencias a CSV"><i class="ti ti-download"></i> Exportar CSV</button></div>
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
     <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
   </div>`:''}`;
@@ -3936,7 +3994,7 @@ function pagePagos(){
   const proximos = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.vence && (s.es==='ve'||s.es==='de'))
     .sort((a,b)=>new Date(a.s.vence)-new Date(b.s.vence));
   return `
-  <div class="section-head" style="margin-bottom:14px;"><span></span>${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)"><i class="ti ti-cash"></i>Cargar pago</button>`:''}</div>
+  <div class="section-head" style="margin-bottom:14px;"><span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn btn-outline btn-sm" onclick="exportarPagosCSV()" title="Exportar pagos a CSV"><i class="ti ti-download"></i> Exportar CSV</button>${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-primary" onclick="openPagoModal(0)"><i class="ti ti-cash"></i>Cargar pago</button>`:''}</div></div>
   <div class="grid-metrics">
     <div class="metric"><div class="num">${fmtMonto(esteMes)}</div><div class="lbl">Este mes</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Vencidos</div></div>
@@ -4028,12 +4086,13 @@ function pageMovimientos(){
   return `
   <h2 style="margin-bottom:14px;">Movimientos</h2>
   <p style="color:var(--text2);font-size:14px;margin-bottom:16px;">Historial de todas las acciones importantes del gimnasio: entradas de socios, altas y bajas de socios y de staff, pagos, etc.</p>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
     <select id="movFiltroTipoSel" style="max-width:240px;" onchange="filterMovimientosTipo(this.value)">
       <option value="">Todas las acciones</option>
       ${opciones}
     </select>
     <input id="movFiltroQInput" placeholder="Buscar por nombre, email, etc..." style="flex:1;min-width:220px;" value="${esc(movFiltroQ)}" oninput="filterMovimientosQ(this.value)">
+    <button class="btn btn-outline btn-sm" onclick="exportarMovimientosCSV()"><i class="ti ti-download"></i> Exportar</button>
   </div>
   <div class="card">
   <table><thead><tr><th>Fecha</th><th>Acción</th><th>Detalle</th></tr></thead>
@@ -4528,6 +4587,7 @@ function socioCuenta(){
   }
   recalcEstados({notify:true});
   $('#loadingOverlay').remove();
+  if(localStorage.getItem('afys_dark')==='1'){ darkMode=true; document.documentElement.setAttribute('data-theme','dark'); const btn=document.getElementById('darkModeBtn'); if(btn) btn.innerHTML='<i class="ti ti-sun" style="font-size:18px;"></i>'; }
 
   const urlParams = new URLSearchParams(window.location.search);
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
