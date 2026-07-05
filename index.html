@@ -380,6 +380,7 @@ const EJ_IMAGES = {};
 // reservas de clases: { [idxSocio]: { [claseKey]: true } }
 const RESERVAS = {};
 let socioSeq = 1; // contador de IDs únicos de socio
+let deletedSocioIds = []; // IDs de socios eliminados definitivamente, para que el merge remoto no los reintroduzca
 
 
 /* ============ STATE ============ */
@@ -470,7 +471,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk,
+    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds,
   };
 }
 
@@ -502,6 +503,7 @@ function applyState(s){
   if(typeof s.DUENO_EMAIL==='string') DUENO_EMAIL = s.DUENO_EMAIL;
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
   if(s.gymHoursOk === true) gymHoursOk = true;
+  if(Array.isArray(s.deletedSocioIds)) deletedSocioIds = s.deletedSocioIds;
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
   // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
   let _migChanged = false;
@@ -752,7 +754,9 @@ async function mergeRemoteAntesDeGuardar(){
         localByKey[socioMergeKey(s)] = s;
         const nn = normName(s.n); if(nn) localByNormName[nn] = s;
       });
+      const deletedSet = new Set(deletedSocioIds);
       remote.SOCIOS.forEach(rs=>{
+        if(rs.id && deletedSet.has(rs.id)) return;
         const key = socioMergeKey(rs);
         let ls = localByKey[key];
         if(!ls){
@@ -2355,6 +2359,7 @@ function openEliminarSocioModal(idx){
 function eliminarSocioCompleto(idx){
   const sEliminado = SOCIOS[idx];
   logMovimiento('eliminacion_socio', `Eliminación definitiva de socio: ${sEliminado.n}`);
+  if(sEliminado.id && !deletedSocioIds.includes(sEliminado.id)) deletedSocioIds.push(sEliminado.id);
   if(sEliminado.email) delete SOCIOS_LOGIN[sEliminado.email];
   SOCIOS.splice(idx,1);
   Object.keys(SOCIOS_LOGIN).forEach(email=>{
@@ -4646,7 +4651,9 @@ function socioCuenta(){
     if(Array.isArray(remote.SOCIOS)){
       const localByKey={}, localByNormName={};
       SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)]=s; const nn=normName(s.n); if(nn) localByNormName[nn]=s; });
+      const _delSet=new Set(deletedSocioIds);
       remote.SOCIOS.forEach(rs=>{
+        if(rs.id && _delSet.has(rs.id)) return;
         const key=socioMergeKey(rs); let ls=localByKey[key];
         if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ SOCIOS.push(rs); localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
