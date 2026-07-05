@@ -419,12 +419,12 @@ const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado',
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 // cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
 let GYM_HOURS = {
-  Lunes:     [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
-  Martes:    [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
-  Miércoles: [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
-  Jueves:    [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
-  Viernes:   [{desde:'07:00',hasta:'12:00'},{desde:'16:00',hasta:'22:00'}],
-  Sábado:    [{desde:'08:00',hasta:'14:00'}],
+  Lunes:     [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+  Martes:    [{desde:'08:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+  Miércoles: [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+  Jueves:    [{desde:'08:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+  Viernes:   [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+  Sábado:    [{desde:'09:30',hasta:'11:30'}],
   Domingo:   [],
 };
 const TURNO_COLORS = ['#534AB7','#059669','#D85A30','#378ADD','#BA7517','#8B45C6','#D4537E','#2B9E9E'];
@@ -510,7 +510,24 @@ function applyState(s){
   migrateBrazosGroup();
   migrateCoordinacionGrupo();
   migrateClaseInsId();
+  migrateGymHours();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
+}
+function migrateGymHours(){
+  // Restaurar horarios reales si Supabase tiene los defaults incorrectos
+  const correctHours = {
+    Lunes:     [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+    Martes:    [{desde:'08:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+    Miércoles: [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+    Jueves:    [{desde:'08:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+    Viernes:   [{desde:'07:00',hasta:'11:00'},{desde:'14:00',hasta:'16:00'},{desde:'17:30',hasta:'21:30'}],
+    Sábado:    [{desde:'09:30',hasta:'11:30'}],
+    Domingo:   [],
+  };
+  const wrongDefaults = ['07:00-12:00','07:00-22:00','08:00-14:00'];
+  const lunesSlots = (GYM_HOURS.Lunes||[]).map(t=>t.desde+'-'+t.hasta).join(',');
+  const isDefault = lunesSlots==='07:00-12:00,16:00-22:00' || lunesSlots==='07:00-22:00' || (GYM_HOURS.Lunes||[]).length===2 && (GYM_HOURS.Lunes||[])[0].hasta==='12:00';
+  if(isDefault){ GYM_HOURS = correctHours; persistDirect(); }
 }
 
 function migrateClasesTurnos(){
