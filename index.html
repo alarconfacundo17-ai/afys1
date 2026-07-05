@@ -2282,42 +2282,10 @@ function openSocioOpcionesModal(idx){
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
         :`<button class="btn btn-outline" style="${optSt}" onclick="openBajaModal(${idx})"><i class="ti ti-user-off" style="font-size:20px;color:var(--orange,#d97706);"></i>Dar de baja</button>`):''}
-      ${isSuperOwner()?`<button class="btn btn-outline" style="${optSt}color:var(--primary);" onclick="openConvertirAProfesorModal(${idx})"><i class="ti ti-user-star" style="font-size:20px;"></i>Convertir en profesor/a</button>`:''}
       ${canRemove?`<button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="openEliminarSocioModal(${idx})"><i class="ti ti-trash" style="font-size:20px;"></i>Eliminar completamente</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal()">Cancelar</button>
     </div>
   `);
-}
-function openConvertirAProfesorModal(idx){
-  const s = SOCIOS[idx];
-  openModal(`
-    <div class="modal-head"><h3>Convertir en profesor/a</h3><button onclick="closeModal()">✕</button></div>
-    <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">Se va a crear una cuenta de <b>profesor/a</b> para <b>${esc(s.n)}</b> usando sus datos. Después podés eliminar su ficha de socio si querés.</p>
-    <div class="field"><label>Nombre</label><input id="cp_n" value="${esc(s.n)}"></div>
-    <div class="field"><label>Email</label><input id="cp_email" type="email" value="${esc(s.email||'')}"></div>
-    <div class="field"><label>Teléfono</label><input id="cp_tel" value="${esc(s.tel||'')}"></div>
-    <div class="field"><label>Especialidad (opcional)</label><input id="cp_esp" placeholder="Spinning, Funcional, etc."></div>
-    <p style="font-size:12px;color:var(--text2);margin-top:6px;">El/la profesor/a va a poder iniciar sesión con la contraseña que ya tiene registrada en Supabase (la misma con la que se anotó como socio).</p>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarConvertirAProfesor(${idx})">Crear cuenta de profesor/a</button>
-    </div>
-  `);
-}
-function confirmarConvertirAProfesor(idx){
-  const s = SOCIOS[idx];
-  const n = $('#cp_n').value.trim() || s.n;
-  const email = $('#cp_email').value.trim().toLowerCase();
-  const tel = $('#cp_tel').value.trim();
-  const esp = $('#cp_esp').value.trim();
-  if(!email){ showToast('Necesitás un email.','error'); return; }
-  if(STAFF.find(st=>st.email===email)){ showToast('Ya existe un profesor con ese email.','error'); return; }
-  const id = 'st_'+Date.now();
-  STAFF.push({id, n, email, role:'profesor', esp:esp||null, tel, dom:'', edad:s.ed||null, perms:{...PROFESOR_DEFAULT_PERMS}, permsMigratedV1:true, permsMigratedV2:true});
-  logMovimiento('alta_staff', `Socio convertido a profesor/a: ${n} (${email})`);
-  persist();
-  showToast(`${n} ahora es profesor/a. Podés eliminar su ficha de socio si querés.`);
-  closeModal(); renderStaff();
 }
 function openBajaModal(idx){
   const s = SOCIOS[idx];
