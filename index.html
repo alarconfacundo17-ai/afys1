@@ -626,7 +626,7 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   if(!keep.ob && dup.ob) keep.ob = dup.ob;
   if(!keep.obs && dup.obs) keep.obs = dup.obs;
   if(!keep.nt && dup.nt) keep.nt = dup.nt;
-  if(!keep.pl && dup.pl) keep.pl = dup.pl;
+
   if(!keep.vence && dup.vence) keep.vence = dup.vence;
   if(dup.rs&&dup.rs.length && (!keep.rs||!keep.rs.length)) keep.rs = dup.rs;
   if(dup.rsHechos && !keep.rsHechos) keep.rsHechos = dup.rsHechos;
@@ -636,7 +636,7 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   toRemove.add(dupIdx);
 }
 function migrateDedupSocios(){
-  const score = s=>((s.pl&&s.pl!=='Sin plan asignado')?4:0)+((s.email)?2:0)+((s.rs&&s.rs.length)?1:0)+((s.tel)?1:0)+((s.cumple)?1:0);
+  const score = s=>((s.email)?2:0)+((s.rs&&s.rs.length)?1:0)+((s.tel)?1:0)+((s.cumple)?1:0);
   const emailMap = {};
   const nameMap = {};
   const toRemove = new Set();
@@ -928,8 +928,8 @@ function downloadCSV(filename, headers, csvRows){
 }
 
 function exportarSociosCSV(){
-  const headers = ['Nombre','Email','Teléfono','Plan','Estado','Vencimiento','Nacimiento','Peso','Objetivo'];
-  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', s.pl||'', {ok:'Al día',ve:'Por vencer',de:'Vencido'}[s.es]||s.es||'', s.vence||'', s.cumple||'', s.pe||'', s.ob||'']);
+  const headers = ['Nombre','Email','Teléfono','Estado','Vencimiento','Nacimiento','Peso','Objetivo'];
+  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', {ok:'Al día',ve:'Por vencer',de:'Vencido'}[s.es]||s.es||'', s.vence||'', s.cumple||'', s.pe||'', s.ob||'']);
   downloadCSV('socios_afys.csv', headers, rows);
 }
 function exportarPagosCSV(){
@@ -986,7 +986,7 @@ function payBadge(es){
   if(es==='ve') return '<span class="badge b-warn">Por vencer</span>';
   return '<span class="badge b-err">Vencido</span>';
 }
-const PLAN_DAYS = {'Mensual':30,'Trimestral':90,'Semestral':180};
+const PLAN_DAYS = {};
 function addDaysISO(dateStr, days){
   const d = dateStr ? new Date(dateStr) : new Date();
   if(isNaN(d)) return null;
@@ -1184,7 +1184,7 @@ function recrearPerfilSocioPerdido(email, nombre){
   }
   const initialsV = (nombre||email).trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
-  SOCIOS.push({i:initialsV, n:nombre||email, email, tel:'', cumple:null, pl:'Sin plan asignado', es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({i:initialsV, n:nombre||email, email, tel:'', cumple:null, es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`Se recuperó automáticamente el perfil de ${nombre||email} (${email}), que se había perdido. Revisá y completá sus datos.`, new:true, altaIdx:idx});
@@ -1265,7 +1265,7 @@ async function submitSignupSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   persist();
@@ -1428,7 +1428,7 @@ async function qrGateCreateSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, pl:'Sin plan asignado', es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[e] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
@@ -1992,8 +1992,8 @@ function descargarCSV(filename, headers, rows){
 }
 const ESTADO_PAGO_LABELS = {ok:'Al día', ve:'Por vencer', de:'Vencido'};
 function descargarBackupSocios(){
-  const headers = ['Nombre','Email','Teléfono','Plan','Vence','Estado','Activo'];
-  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', s.pl||'', s.vence||'', ESTADO_PAGO_LABELS[s.es]||s.es||'', s.activo===false?'No':'Sí']);
+  const headers = ['Nombre','Email','Teléfono','Vence','Estado','Activo'];
+  const rows = SOCIOS.map(s=>[s.n, s.email||'', s.tel||'', s.vence||'', ESTADO_PAGO_LABELS[s.es]||s.es||'', s.activo===false?'No':'Sí']);
   descargarCSV(`socios_${todayISO()}.csv`, headers, rows);
 }
 function descargarBackupPagos(){
@@ -2197,7 +2197,6 @@ function socioRowHTML(s, idx){
   return `
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
-      <td>${esc(s.pl)}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
       <td>
@@ -2238,7 +2237,7 @@ function pageSocios(){
     <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Plan</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Estado</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Estado</th><th></th></tr></thead>
   <tbody id="sociosTableBody">
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
@@ -2366,7 +2365,6 @@ function openSocioModal(){
     <div class="field"><label>Peso (kg, opcional)</label><input id="ns_pe" type="number"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="ns_ob" placeholder="Bajar peso, ganar músculo, etc."></div>
     <div class="field"><label>Observaciones (opcional)</label><textarea id="ns_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea></div>
-    <div class="field"><label>Plan</label><select id="ns_pl"><option>Mensual</option><option>Trimestral</option><option>Semestral</option></select></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
   `);
 }
@@ -2385,8 +2383,7 @@ function saveSocio(){
   const pe = parseInt($('#ns_pe').value)||null;
   const ob = $('#ns_ob').value.trim()||null;
   const obs = $('#ns_obs').value.trim()||null;
-  const pl = $('#ns_pl').value;
-  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, pl, es:'ok', vence:addDaysISO(null,PLAN_DAYS[pl]||30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
   const idx = SOCIOS.length-1;
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
@@ -2405,7 +2402,6 @@ function openEditSocioModal(idx){
     <div class="field"><label>Peso (kg, opcional)</label><input id="es_pe" type="number" value="${s.pe||''}"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="es_ob" value="${esc(s.ob||'')}"></div>
     <div class="field"><label>Observaciones (opcional)</label><textarea id="es_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio...">${esc(s.obs||'')}</textarea></div>
-    <div class="field"><label>Plan</label><select id="es_pl">${['Mensual','Trimestral','Semestral'].map(p=>`<option ${s.pl===p?'selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button>
@@ -2444,7 +2440,6 @@ function saveEditSocio(idx){
   s.pe = parseInt($('#es_pe').value)||null;
   s.ob = $('#es_ob').value.trim()||null;
   s.obs = $('#es_obs').value.trim()||null;
-  s.pl = $('#es_pl').value;
   s.vence = $('#es_vence').value || null;
   recalcEstados({notify:false});
   if(oldEmail && oldEmail!==newEmail) delete SOCIOS_LOGIN[oldEmail];
@@ -2812,7 +2807,7 @@ function savePagoAnterior(idx){
   if(!f){ showToast('Elegí una fecha.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pga_m').value||'$0', f, mp:$('#pga_mp').value, nt:($('#pga_n').value||'Pago anterior al sistema').trim()};
   if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-  s.vence = addDaysISO(f, PLAN_DAYS[s.pl]||30);
+  s.vence = addDaysISO(f, 30);
   s.es = 'ok';
   PAGOS.push(data);
   PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
@@ -2829,7 +2824,7 @@ function savePago(){
     PAGOS[editPagoIdx] = data;
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-    s.vence = addDaysISO(data.f!=='-'?data.f:null, PLAN_DAYS[s.pl]||30);
+    s.vence = addDaysISO(data.f!=='-'?data.f:null, 30);
     s.es='ok';
     PAGOS.unshift(data);
     if(currentRole==='profesor'){
@@ -3970,7 +3965,7 @@ function historialSociosRowsHTML(q){
   q = (q||'').toLowerCase().trim();
   if(!q) return `<tr><td colspan="3" style="text-align:center;color:var(--text2);padding:20px;">Buscá un socio para ver su historial</td></tr>`;
   const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.n.toLowerCase().includes(q)).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
-  return list.length ? list.map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
+  return list.length ? list.map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('') : `<tr><td colspan="2" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
 }
 function filterHistorialSociosTable(q){
   const tbody = document.getElementById('histSociosTableBody');
@@ -4004,13 +3999,13 @@ function pagePagos(){
   ${proximos.length?`
   <div class="section-head"><h3 style="margin:0;">Próximos vencimientos</h3></div>
   <div class="card" style="margin-bottom:16px;">
-  <table><thead><tr><th>Nombre</th><th>Plan</th><th>Vence</th><th>Estado</th></tr></thead>
-  <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${esc(s.pl)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
+  <table><thead><tr><th>Nombre</th><th>Vence</th><th>Estado</th></tr></thead>
+  <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
   </div>`:''}
   <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
   <input id="histSocioSearch" placeholder="Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
   <div class="card" style="margin-bottom:16px;">
-  <table><thead><tr><th>Nombre</th><th>Plan</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th><th></th></tr></thead>
   <tbody id="histSociosTableBody">${historialSociosRowsHTML('')}</tbody></table>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
@@ -4208,7 +4203,6 @@ function socioInicio(){
     <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:18px;background:rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" onclick="openEditPerfil()" title="Editar"><i class="ti ti-pencil" style="font-size:16px;"></i></button>
     <div class="avatar">${s.i}</div>
     <div class="pname">${esc(s.n)}</div>
-    <div style="font-size:13px;opacity:.9;margin-bottom:2px;">${esc(s.pl)}</div>
     <div>
       ${edad?`<span class="chip">${edad} años</span>`:''}
       ${s.pe?`<span class="chip">${s.pe} kg</span>`:''}
