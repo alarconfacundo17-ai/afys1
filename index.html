@@ -1478,7 +1478,14 @@ async function openQRGate(){
         return;
       }
     }catch(e){}
-    renderQRGateLogin(savedEmail);
+    // Si el socio no tiene DNI en su perfil, usar formulario de email+contraseña
+    const socioInfo = SOCIOS_LOGIN[savedEmail];
+    const socioTieneDni = socioInfo && SOCIOS[socioInfo.idx] && SOCIOS[socioInfo.idx].dni;
+    if(socioTieneDni){
+      renderQRGateLogin(savedEmail);
+    } else {
+      renderQRGateLoginForm();
+    }
   } else {
     renderQRGateSignup();
   }
@@ -1553,7 +1560,8 @@ async function qrGateCreateSocio(){
 
 function renderQRGateLogin(email){
   const info = SOCIOS_LOGIN[email];
-  const socio = SOCIOS[info.idx];
+  const socio = info && SOCIOS[info.idx];
+  if(!socio){ localStorage.removeItem(QR_DEVICE_KEY); renderQRGateSignup(); return; }
   $('#qrGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 Hola, ${esc(socio.n)}</h1>
     <p class="sub" style="margin-bottom:0;">Ingresá tu DNI para registrar tu entrada de hoy.</p>
