@@ -1162,7 +1162,7 @@ function renderLogin(){
       ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLoginDni()">Ingresar</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='signupSocio';loginError='';renderLogin();">Registrar cuenta nueva</button>
-      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:12px;opacity:0.65;" onclick="loginView='loginEmail';loginError='';renderLogin();">Ingresar con email (staff / dueño)</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:12px;opacity:0.65;" onclick="loginView='loginEmail';loginError='';renderLogin();">Ingresar con email y contraseña</button>
     `;
   }
 }
@@ -1562,6 +1562,7 @@ function renderQRGateLogin(email){
     <div id="qrLoginError" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginAndCheckIn('${email}')">Ingresar y marcar entrada</button>
     <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:6px;opacity:0.6;" onclick="renderQRGateLoginForm()">¿Problemas? Ingresá con email y contraseña</button>
   `;
 }
 
@@ -1587,11 +1588,11 @@ async function qrGateLoginAndCheckIn(email){
 function renderQRGateLoginForm(qrError){
   $('#qrGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 Iniciar sesión</h1>
-    <p class="sub" style="margin-bottom:0;">Ingresá con tu cuenta de socio para registrar tu entrada de hoy.</p>
+    <p class="sub" style="margin-bottom:0;">Ingresá con tu email y contraseña. Si tu cuenta es nueva, tu contraseña es tu número de DNI.</p>
     <label>Email</label>
     <input id="qrg_form_e" type="email" placeholder="tu@gmail.com">
-    <label>DNI</label>
-    <input id="qrg_form_dni" type="number" placeholder="Tu DNI sin puntos">
+    <label>Contraseña</label>
+    <input id="qrg_form_p" type="password" placeholder="Contraseña o DNI">
     ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginByForm()">Ingresar y marcar entrada</button>
     <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateSignup()">No tengo cuenta, crear una</button>
@@ -1601,10 +1602,11 @@ function renderQRGateLoginForm(qrError){
 
 async function qrGateLoginByForm(){
   const email = $('#qrg_form_e').value.trim().toLowerCase();
-  const dni = String($('#qrg_form_dni').value).trim();
-  const {error} = await sb.auth.signInWithPassword({email, password: dni});
-  if(error){ renderQRGateLoginForm('Email o DNI incorrecto.'); return; }
-  cacheDni(dni, email);
+  const password = $('#qrg_form_p').value.trim();
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
+  // Si la contraseña era el DNI, cachearla para login rápido futuro
+  if(/^\d{7,8}$/.test(password)) cacheDni(password, email);
   let info = SOCIOS_LOGIN[email];
   if(!info){
     const idxRecuperado = await intentarRecuperarPerfilSocio(email);
