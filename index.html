@@ -1120,17 +1120,14 @@ function renderLogin(){
     box.innerHTML = `
       <img src="logo.jpg" alt="AFYS" class="login-logo">
       <label>Email</label>
-      <input id="loginEmail" type="email" placeholder="tu@email.com">
+      <input id="loginEmail" type="email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
       <label>Contraseña</label>
-      <input id="loginPass" type="password" placeholder="••••••••">
+      <input id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
       ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
       ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
-      <div class="hint">
-        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='forgot';loginError='';loginInfo='';renderLogin();">¿Olvidaste tu contraseña?</button>
-        ${DUENO_EMAIL?'':`<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="loginView='signupDueno';loginError='';renderLogin();">Soy el dueño del gimnasio, crear cuenta</button>`}
-        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="loginView='signupSocio';loginError='';renderLogin();">Soy socio nuevo, crear mi cuenta</button>
-      </div>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='forgot';loginError='';loginInfo='';renderLogin();">¿Olvidaste tu contraseña?</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='signupSocio';loginError='';renderLogin();">Registrar cuenta nueva</button>
     `;
   }
 }
