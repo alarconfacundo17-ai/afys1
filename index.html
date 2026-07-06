@@ -383,6 +383,11 @@ let socioSeq = 1; // contador de IDs únicos de socio
 let deletedSocioIds = []; // IDs de socios eliminados definitivamente, para que el merge remoto no los reintroduzca
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 
+// Caché local de DNI→email para login rápido (solo en este dispositivo)
+let dniCache = {};
+try { dniCache = JSON.parse(localStorage.getItem('afys_dni_cache')||'{}'); } catch(e){ dniCache={}; }
+function cacheDni(dni, email){ dniCache[String(dni)]=email; try{ localStorage.setItem('afys_dni_cache', JSON.stringify(dniCache)); }catch(e){} }
+
 
 /* ============ STATE ============ */
 let currentRole = 'dueno'; // dueno | admin | profesor | socio
@@ -1082,8 +1087,8 @@ function renderLogin(){
       <h1 style="font-size:20px;">Crear cuenta de socio</h1>
       <p class="sub" style="margin-bottom:0;">Completá tus datos para empezar.</p>
       <label>Nombre y apellido</label><input id="su_n" type="text" placeholder="Tu nombre completo">
-      <label>Email (Gmail)</label><input id="su_e" type="email" placeholder="tu@gmail.com">
-      <label>Contraseña</label><input id="su_p" type="password" placeholder="Mínimo 6 caracteres">
+      <label>Email</label><input id="su_e" type="email" placeholder="tu@gmail.com">
+      <label>DNI</label><input id="su_dni" type="number" placeholder="Tu número de DNI">
       <label>Teléfono</label><input id="su_t" type="tel" placeholder="11 1234-5678">
       <label>Fecha de nacimiento</label><input id="su_cumple" type="date">
       <label>Peso (kg, opcional)</label><input id="su_pe" type="number" placeholder="70">
@@ -1122,7 +1127,7 @@ function renderLogin(){
       ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="submitResetPassword()">Guardar contraseña</button>
     `;
-  } else {
+  } else if(loginView==='loginEmail'){
     box.innerHTML = `
       <img src="logo.jpg" alt="AFYS" class="login-logo">
       <label>Email</label>
@@ -1133,7 +1138,30 @@ function renderLogin(){
       ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLogin()">Ingresar</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='forgot';loginError='';loginInfo='';renderLogin();">¿Olvidaste tu contraseña?</button>
-      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='signupSocio';loginError='';renderLogin();">Registrar cuenta nueva</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">← Volver</button>
+    `;
+  } else if(loginView==='loginDniFirstTime'){
+    box.innerHTML = `
+      <img src="logo.jpg" alt="AFYS" class="login-logo">
+      <p class="sub" style="margin-bottom:8px;">Primera vez en este dispositivo. Ingresá tu email y tu DNI para vincular tu cuenta.</p>
+      <label>Email</label>
+      <input id="loginEmail2" type="email" placeholder="tu@gmail.com" onkeydown="if(event.key==='Enter')document.getElementById('loginDni2').focus()">
+      <label>DNI</label>
+      <input id="loginDni2" type="number" placeholder="Tu número de DNI" onkeydown="if(event.key==='Enter')doLoginDniFirstTime()">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLoginDniFirstTime()">Ingresar</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">← Volver</button>
+    `;
+  } else {
+    box.innerHTML = `
+      <img src="logo.jpg" alt="AFYS" class="login-logo">
+      <label>Número de DNI</label>
+      <input id="loginDni" type="number" placeholder="Tu DNI sin puntos" onkeydown="if(event.key==='Enter')doLoginDni()">
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
+      ${loginInfo?`<p style="color:var(--green);font-size:12.5px;margin-top:8px;">${esc(loginInfo)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLoginDni()">Ingresar</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='signupSocio';loginError='';renderLogin();">Registrar cuenta nueva</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:12px;opacity:0.65;" onclick="loginView='loginEmail';loginError='';renderLogin();">Ingresar con email (staff / dueño)</button>
     `;
   }
 }
@@ -1165,6 +1193,31 @@ async function doLogin(){
   if(!email || !password){ loginError='Completá email y contraseña.'; renderLogin(); return; }
   const {error} = await sb.auth.signInWithPassword({email, password});
   if(error){ loginError='Email o contraseña incorrectos, o todavía no confirmaste tu email (revisá tu casilla).'; renderLogin(); return; }
+  loginError=''; loginInfo='';
+  await routeLoggedInUser(email);
+}
+
+async function doLoginDni(){
+  const dni = String($('#loginDni').value).trim();
+  if(!dni){ loginError='Ingresá tu DNI.'; renderLogin(); return; }
+  const email = dniCache[dni];
+  if(!email){
+    loginView='loginDniFirstTime'; loginError=''; renderLogin(); return;
+  }
+  const {error} = await sb.auth.signInWithPassword({email, password: dni});
+  if(error){ loginError='DNI incorrecto. Si es tu primera vez en este dispositivo, usá el botón de abajo.'; renderLogin(); return; }
+  loginError=''; loginInfo='';
+  cacheDni(dni, email);
+  await routeLoggedInUser(email);
+}
+
+async function doLoginDniFirstTime(){
+  const email = $('#loginEmail2').value.trim().toLowerCase();
+  const dni = String($('#loginDni2').value).trim();
+  if(!email || !dni){ loginError='Completá email y DNI.'; renderLogin(); return; }
+  const {error} = await sb.auth.signInWithPassword({email, password: dni});
+  if(error){ loginError='Email o DNI incorrecto. Si no recordás tu DNI, contactá al gimnasio.'; renderLogin(); return; }
+  cacheDni(dni, email);
   loginError=''; loginInfo='';
   await routeLoggedInUser(email);
 }
@@ -1283,30 +1336,31 @@ async function submitSignupDueno(){
 async function submitSignupSocio(){
   const n = $('#su_n').value.trim();
   const e = $('#su_e').value.trim().toLowerCase();
-  const p = $('#su_p').value;
+  const dni = String($('#su_dni').value).trim();
   const t = $('#su_t').value.trim();
   const cumple = $('#su_cumple').value || null;
   const pe = parseInt($('#su_pe').value)||null;
   const ob = $('#su_ob').value.trim()||null;
-  if(!n||!e||p.length<6){ loginError='Completá nombre, email y una contraseña de al menos 6 caracteres.'; renderLogin(); return; }
+  if(!n||!e||!dni||isNaN(Number(dni))){ loginError='Completá nombre, email y DNI.'; renderLogin(); return; }
   cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
-  let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
   if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
     error = {message:'already registered'};
   }
   if(error){
     if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
-      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
-      if(loginErr){ loginError='Ese email ya tuvo una cuenta con otra contraseña. Si la olvidaste, usá "¿Olvidaste tu contraseña?" para recuperarla.'; renderLogin(); return; }
+      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:dni});
+      if(loginErr){ loginError='Ese email ya tiene una cuenta. Si no recordás tu DNI, contactá al gimnasio.'; renderLogin(); return; }
     } else { loginError=error.message; renderLogin(); return; }
   }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
+  cacheDni(dni, e);
   persist();
   loginView='login'; loginError='';
   await routeLoggedInUser(e);
@@ -1421,10 +1475,10 @@ function renderQRGateSignup(qrError){
     <p class="sub" style="margin-bottom:0;">Escaneaste el QR del gimnasio. Creá tu cuenta de socio para registrar tu ingreso, o iniciá sesión si ya tenés una.</p>
     <label>Nombre y apellido</label>
     <input id="qrg_n" type="text" placeholder="Tu nombre completo">
-    <label>Email (Gmail)</label>
+    <label>Email</label>
     <input id="qrg_e" type="email" placeholder="tu@gmail.com">
-    <label>Contraseña</label>
-    <input id="qrg_p" type="password" placeholder="Mínimo 6 caracteres">
+    <label>DNI</label>
+    <input id="qrg_dni" type="number" placeholder="Tu número de DNI">
     <label>Teléfono</label>
     <input id="qrg_t" type="tel" placeholder="11 1234-5678">
     <label>Fecha de nacimiento</label>
@@ -1445,33 +1499,34 @@ function renderQRGateSignup(qrError){
 async function qrGateCreateSocio(){
   const n = $('#qrg_n').value.trim();
   const e = $('#qrg_e').value.trim().toLowerCase();
-  const p = $('#qrg_p').value;
+  const dni = String($('#qrg_dni').value).trim();
   const t = $('#qrg_t').value.trim();
   const cumple = $('#qrg_cumple').value || null;
   const pe = parseInt($('#qrg_pe').value)||null;
   const ob = $('#qrg_ob').value.trim()||null;
   const obs = $('#qrg_obs').value.trim()||null;
-  if(!n || !e || p.length<6){ renderQRGateSignup('Completá nombre, email y una contraseña de al menos 6 caracteres.'); return; }
+  if(!n || !e || !dni || isNaN(Number(dni))){ renderQRGateSignup('Completá nombre, email y DNI.'); return; }
   cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
-  let {data, error} = await sb.auth.signUp({email:e, password:p, options:{data:{nombre:n, role:'socio'}, emailRedirectTo:APP_URL}});
+  let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
   if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
     error = {message:'already registered'};
   }
   if(error){
     if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
-      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:p});
-      if(loginErr){ renderQRGateSignup('Ese email ya tuvo una cuenta con otra contraseña. Volvé a la pantalla principal e iniciá sesión para recuperarla con "¿Olvidaste tu contraseña?".'); return; }
+      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:dni});
+      if(loginErr){ renderQRGateSignup('Ese email ya tiene una cuenta. Si no recordás tu DNI, contactá al gimnasio.'); return; }
     } else { renderQRGateSignup(error.message); return; }
   }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, tel:t, cumple, es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({i:initialsV, n, email:e, dni, tel:t, cumple, es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[e] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
   logMovimiento('alta_socio', `Alta de socio: ${n} (${e}) vía QR`);
+  cacheDni(dni, e);
   persist();
   currentRole = 'socio';
   currentSocioIdx = idx;
@@ -1486,9 +1541,9 @@ function renderQRGateLogin(email){
   const socio = SOCIOS[info.idx];
   $('#qrGateContent').innerHTML = `
     <h1 style="font-size:20px;">👋 Hola, ${esc(socio.n)}</h1>
-    <p class="sub" style="margin-bottom:0;">Ingresá a tu cuenta para registrar tu entrada de hoy.</p>
-    <label>Contraseña</label>
-    <input id="qrg_login_p" type="password" placeholder="••••••••">
+    <p class="sub" style="margin-bottom:0;">Ingresá tu DNI para registrar tu entrada de hoy.</p>
+    <label>DNI</label>
+    <input id="qrg_login_dni" type="number" placeholder="Tu DNI sin puntos">
     <div id="qrLoginError" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginAndCheckIn('${email}')">Ingresar y marcar entrada</button>
     <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>
@@ -1502,9 +1557,10 @@ function qrGateUseOtherAccount(){
 
 async function qrGateLoginAndCheckIn(email){
   const info = SOCIOS_LOGIN[email];
-  const password = $('#qrg_login_p').value;
-  const {error} = await sb.auth.signInWithPassword({email, password});
-  if(error){ $('#qrLoginError').textContent = 'Contraseña incorrecta o cuenta sin confirmar.'; return; }
+  const dni = String($('#qrg_login_dni').value).trim();
+  const {error} = await sb.auth.signInWithPassword({email, password: dni});
+  if(error){ $('#qrLoginError').textContent = 'DNI incorrecto.'; return; }
+  cacheDni(dni, email);
   currentRole = 'socio';
   currentSocioIdx = info.idx;
   pendingQR = pendingQR || {tipo:'general'};
@@ -1519,8 +1575,8 @@ function renderQRGateLoginForm(qrError){
     <p class="sub" style="margin-bottom:0;">Ingresá con tu cuenta de socio para registrar tu entrada de hoy.</p>
     <label>Email</label>
     <input id="qrg_form_e" type="email" placeholder="tu@gmail.com">
-    <label>Contraseña</label>
-    <input id="qrg_form_p" type="password" placeholder="••••••••">
+    <label>DNI</label>
+    <input id="qrg_form_dni" type="number" placeholder="Tu DNI sin puntos">
     ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginByForm()">Ingresar y marcar entrada</button>
     <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateSignup()">No tengo cuenta, crear una</button>
@@ -1530,9 +1586,10 @@ function renderQRGateLoginForm(qrError){
 
 async function qrGateLoginByForm(){
   const email = $('#qrg_form_e').value.trim().toLowerCase();
-  const password = $('#qrg_form_p').value;
-  const {error} = await sb.auth.signInWithPassword({email, password});
-  if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
+  const dni = String($('#qrg_form_dni').value).trim();
+  const {error} = await sb.auth.signInWithPassword({email, password: dni});
+  if(error){ renderQRGateLoginForm('Email o DNI incorrecto.'); return; }
+  cacheDni(dni, email);
   let info = SOCIOS_LOGIN[email];
   if(!info){
     const idxRecuperado = await intentarRecuperarPerfilSocio(email);
