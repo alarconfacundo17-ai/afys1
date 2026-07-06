@@ -868,8 +868,14 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(Array.isArray(remote.STAFF)){
-      const localIds = new Set(STAFF.map(s=>s.id));
-      remote.STAFF.forEach(s=>{ if(s.id && !localIds.has(s.id)){ STAFF.push(s); localIds.add(s.id); } });
+      const localById = {};
+      STAFF.forEach(s=>{ if(s.id) localById[s.id]=s; });
+      remote.STAFF.forEach(s=>{
+        if(!s.id) return;
+        if(!localById[s.id]){ STAFF.push(s); localById[s.id]=s; }
+        // no pisar el staff que el usuario está editando ahora mismo (si hay modal abierto)
+        else if(!document.querySelector('.modal-overlay')){ Object.assign(localById[s.id], s); }
+      });
     }
 
     if(remote.EJD && typeof remote.EJD==='object'){
@@ -4643,7 +4649,8 @@ function socioCuenta(){
       const remote = payload.new.data;
       // merge remoto en local usando la misma lógica de mergeRemoteAntesDeGuardar
       await mergeRemoteIntoLocal(remote);
-      if(currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') renderStaff();
+      // no re-renderizar si hay un modal abierto para no pisar lo que el usuario está cargando
+      if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
     })
     .subscribe();
 
@@ -4671,6 +4678,37 @@ function socioCuenta(){
     if(Array.isArray(remote.PAGOS)){ const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
     if(Array.isArray(remote.TURNOS)){ const lk=new Set(TURNOS.map(t=>t.id)); remote.TURNOS.forEach(t=>{ if(!lk.has(t.id)){ TURNOS.push(t); lk.add(t.id); } }); }
     if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
+    // STAFF: agregar nuevos y actualizar permisos/rol de los existentes (fuente de verdad = remoto)
+    if(Array.isArray(remote.STAFF)){
+      const modalOpen = !!document.querySelector('.modal-overlay');
+      const localById = {};
+      STAFF.forEach(s=>{ localById[s.id]=s; });
+      remote.STAFF.forEach(s=>{
+        if(!s.id) return;
+        if(localById[s.id]){
+          // actualizar campos del staff existente (excepto si hay modal abierto, para no pisar edición en curso)
+          if(!modalOpen){ Object.assign(localById[s.id], s); }
+        } else {
+          STAFF.push(s); localById[s.id]=s;
+        }
+      });
+    }
+    // EJD: merge aditivo de ejercicios por grupo
+    if(remote.EJD && typeof remote.EJD==='object'){
+      Object.keys(remote.EJD).forEach(g=>{
+        if(!EJD[g]) EJD[g]=[];
+        const lk=new Set(EJD[g]);
+        (remote.EJD[g]||[]).forEach(e=>{ if(!lk.has(e)){ EJD[g].push(e); lk.add(e); } });
+      });
+    }
+    // EJC: agregar categorías nuevas
+    if(remote.EJC && typeof remote.EJC==='object'){
+      Object.keys(remote.EJC).forEach(g=>{ if(!EJC[g]) EJC[g]=remote.EJC[g]; });
+    }
+    // GYM_HOURS: solo aplicar si el remoto los tiene y el local no fue editado recientemente
+    if(remote.GYM_HOURS && typeof remote.GYM_HOURS==='object' && remote.gymHoursOk){
+      if(!gymHoursOk) GYM_HOURS = remote.GYM_HOURS;
+    }
     if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
     if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
     if(Array.isArray(remote.CLASES_HOY)){ const lk=new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean)); remote.CLASES_HOY.forEach(c=>{ if(c.cId&&!lk.has(c.cId)){ CLASES_HOY.push(c); lk.add(c.cId); } }); }
