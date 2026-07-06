@@ -381,6 +381,7 @@ const EJ_IMAGES = {};
 const RESERVAS = {};
 let socioSeq = 1; // contador de IDs únicos de socio
 let deletedSocioIds = []; // IDs de socios eliminados definitivamente, para que el merge remoto no los reintroduzca
+let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 
 
 /* ============ STATE ============ */
@@ -742,6 +743,7 @@ function mergeRsHechos(local, remote){
   });
 }
 async function mergeRemoteAntesDeGuardar(){
+  _merging = true;
   try{
     const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
     if(error || !data || !data.data) return;
@@ -772,6 +774,34 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
+        // tomar el vencimiento más tardío (el más actualizado gana)
+        if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
+        // si el remoto marca inactivo, respetar la baja
+        if(rs.activo===false) ls.activo = false;
+        // merge de notas (nt) aditivo
+        if(Array.isArray(rs.nt) && rs.nt.length){
+          if(!Array.isArray(ls.nt)) ls.nt = [];
+          const localNtSet = new Set(ls.nt);
+          rs.nt.forEach(n=>{ if(!localNtSet.has(n)){ ls.nt.push(n); localNtSet.add(n); } });
+        }
+        // merge de rutinas asignadas (rs) aditivo por nombre
+        if(Array.isArray(rs.rs) && rs.rs.length){
+          if(!Array.isArray(ls.rs)) ls.rs = [];
+          const localRsNames = new Set(ls.rs.map(r=>r.n));
+          rs.rs.forEach(r=>{ if(!localRsNames.has(r.n)){ ls.rs.push(r); localRsNames.add(r.n); } });
+        }
+      });
+    }
+
+    // sync SOCIOS_LOGIN para socios recién mergeados
+    if(remote.SOCIOS_LOGIN && typeof remote.SOCIOS_LOGIN==='object'){
+      Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{
+        if(!SOCIOS_LOGIN[email]){
+          const remoteEntry = remote.SOCIOS_LOGIN[email];
+          // recalcular idx local por email
+          const localIdx = SOCIOS.findIndex(s=>s.email===email);
+          if(localIdx>=0) SOCIOS_LOGIN[email] = {...remoteEntry, idx:localIdx};
+        }
       });
     }
 
@@ -873,6 +903,8 @@ async function mergeRemoteAntesDeGuardar(){
     }
   }catch(e){
     console.error('Error sincronizando antes de guardar:', e);
+  } finally {
+    _merging = false;
   }
 }
 function persistDirect(){
@@ -1026,7 +1058,7 @@ function recalcEstados(opts){
       }
     }
   });
-  if(changed) persist();
+  if(changed && !_merging) persist();
 }
 function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
 function pagoBelongsTo(p,s){ return p.sid ? p.sid===s.id : p.n===s.n; }
@@ -2388,7 +2420,7 @@ function saveSocio(){
   const pe = parseInt($('#ns_pe').value)||null;
   const ob = $('#ns_ob').value.trim()||null;
   const obs = $('#ns_obs').value.trim()||null;
-  SOCIOS.push({id:'soc'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
   const idx = SOCIOS.length-1;
   notifSocio[idx]=[];
   if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
@@ -2724,6 +2756,7 @@ function resetSocioRutinaEjs(si, rname){
 }
 
 let editPagoIdx = null;
+let editPagoKey = null; // clave estable sid|f|m|mp para no depender de índice
 function pagoSocioResultsHTML(q){
   q = (q||'').toLowerCase().trim();
   const res = SOCIOS.filter(s=>s.n.toLowerCase().includes(q)).slice(0,8);
@@ -2769,6 +2802,7 @@ function mesPagoLabel(mp){
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
+  editPagoKey = p ? (p.sid+'|'+p.f+'|'+p.m+'|'+p.mp) : null;
   const selId = p ? (p.sid || (SOCIOS.find(s=>s.n===p.n)||{}).id) : (SOCIOS[idx]||{}).id;
   const selSocio = SOCIOS.find(s=>s.id===selId);
   openModal(`
@@ -2825,8 +2859,9 @@ function savePago(){
   const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
   if(!s){ showToast('Elegí un socio.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, nt:$('#pg_n').value};
-  if(editPagoIdx!==null){
-    PAGOS[editPagoIdx] = data;
+  if(editPagoKey!==null){
+    const realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
+    if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
     s.vence = addDaysISO(data.f!=='-'?data.f:null, 30);
@@ -2838,7 +2873,7 @@ function savePago(){
     }
     logMovimiento('pago', `Pago registrado: ${data.m} de ${s.n} (${mesPagoLabel(data.mp)})`);
   }
-  editPagoIdx = null;
+  editPagoIdx = null; editPagoKey = null;
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
@@ -2848,7 +2883,7 @@ function deletePago(payIdx){
   const pEliminado = PAGOS[payIdx];
   if(pEliminado) logMovimiento('eliminacion_pago', `Eliminación de pago: ${pEliminado.m} de ${pEliminado.n}`);
   PAGOS.splice(payIdx,1);
-  editPagoIdx = null;
+  editPagoIdx = null; editPagoKey = null;
   persist();
   showToast('Eliminado');
   closeModal(); renderStaff();
@@ -4627,7 +4662,12 @@ function socioCuenta(){
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
+        if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
+        if(rs.activo===false) ls.activo=false;
+        if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
+        if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs.map(r=>r.n)); rs.rs.forEach(r=>{if(!lk.has(r.n)){ls.rs.push(r);lk.add(r.n);}}); }
       });
+      if(remote.SOCIOS_LOGIN&&typeof remote.SOCIOS_LOGIN==='object'){ Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{ if(!SOCIOS_LOGIN[email]){ const li=SOCIOS.findIndex(s=>s.email===email); if(li>=0) SOCIOS_LOGIN[email]={...remote.SOCIOS_LOGIN[email],idx:li}; } }); }
     }
     if(remote.RESERVAS) Object.keys(remote.RESERVAS).forEach(k=>{ if(!RESERVAS[k]) RESERVAS[k]={}; Object.keys(remote.RESERVAS[k]).forEach(ck=>{ if(remote.RESERVAS[k][ck] && RESERVAS[k][ck]===undefined) RESERVAS[k][ck]=true; }); });
     if(Array.isArray(remote.REGS)){ const lk=new Set(REGS.map(r=>r.sid+'|'+r.f)); remote.REGS.forEach(r=>{ const k=r.sid+'|'+r.f; if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
@@ -4639,7 +4679,9 @@ function socioCuenta(){
     if(Array.isArray(remote.CLASES_HOY)){ const lk=new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean)); remote.CLASES_HOY.forEach(c=>{ if(c.cId&&!lk.has(c.cId)){ CLASES_HOY.push(c); lk.add(c.cId); } }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
+    _merging = true;
     recalcEstados({notify:false});
+    _merging = false;
   }
 
   sb.auth.onAuthStateChange((event) => {
