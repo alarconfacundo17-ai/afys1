@@ -397,6 +397,7 @@ let socioPage = 'inicio';
 let socioActiveRutinaIdx = 0;
 let entradasHoy = REGS.length;
 let pendingQR = null; // {tipo:'general'|'clase', clase}
+let _dniPopupShown = false;
 let demoMode = false;
 let demoPrev = null; // {role, staffId, socioIdx}
 
@@ -1371,6 +1372,7 @@ function logout(){
   $('#staff').classList.add('hidden');
   $('#socio').classList.add('hidden');
   $('#scan').classList.add('hidden');
+  _dniPopupShown = false;
   loginView='login'; loginError='';
   $('#login').classList.remove('hidden');
   renderLogin();
@@ -1458,11 +1460,24 @@ async function exitDemo(){
 /* ============ QR DEL GIMNASIO (socio escanea desde su celular) ============ */
 const QR_DEVICE_KEY = 'gymQrSocioEmail';
 
-function openQRGate(){
+async function openQRGate(){
   $('#login').classList.add('hidden');
   $('#qrGate').classList.remove('hidden');
   const savedEmail = localStorage.getItem(QR_DEVICE_KEY);
   if(savedEmail && SOCIOS_LOGIN[savedEmail]){
+    // Si ya hay sesión activa en este dispositivo, entrar directo sin pedir nada
+    try{
+      const {data:{session}} = await sb.auth.getSession();
+      if(session && session.user && session.user.email===savedEmail){
+        const info = SOCIOS_LOGIN[savedEmail];
+        currentRole = 'socio';
+        currentSocioIdx = info.idx;
+        pendingQR = pendingQR || {tipo:'general'};
+        $('#qrGate').classList.add('hidden');
+        startScan();
+        return;
+      }
+    }catch(e){}
     renderQRGateLogin(savedEmail);
   } else {
     renderQRGateSignup();
@@ -4269,6 +4284,40 @@ function renderSocio(){
   void c.offsetWidth;
   c.classList.add('page-fade');
   updateNotifDots();
+  // Mostrar popup de DNI una sola vez por sesión si el socio no tiene DNI cargado
+  if(!_dniPopupShown && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
+    _dniPopupShown = true;
+    setTimeout(showDniSetupPopup, 900);
+  }
+}
+
+function showDniSetupPopup(){
+  if(document.getElementById('dniSetupPopup')) return;
+  const div = document.createElement('div');
+  div.id = 'dniSetupPopup';
+  div.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);width:min(340px,92vw);background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.22);z-index:9999;animation:fadeInUp .3s ease;';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+      <strong style="font-size:15px;">Completá tu DNI</strong>
+      <button onclick="document.getElementById('dniSetupPopup').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1;padding:0 0 0 8px;">✕</button>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">La próxima vez podrás entrar solo con tu DNI, sin escribir email ni contraseña.</p>
+    <input id="dniPopupInput" type="number" placeholder="Tu DNI sin puntos" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveDniFromPopup()">Guardar DNI</button>
+  `;
+  document.body.appendChild(div);
+}
+
+async function saveDniFromPopup(){
+  const socio = SOCIOS[currentSocioIdx];
+  const dni = String(document.getElementById('dniPopupInput').value||'').trim();
+  if(!dni || isNaN(Number(dni))){ showToast('Ingresá un DNI válido.'); return; }
+  socio.dni = dni;
+  cacheDni(dni, socio.email);
+  try{ await sb.auth.updateUser({password: dni}); }catch(e){}
+  persist();
+  document.getElementById('dniSetupPopup').remove();
+  showToast('¡DNI guardado! La próxima vez entrás solo con tu DNI.');
 }
 
 function calcAge(birthStr){
