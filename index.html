@@ -1215,7 +1215,7 @@ async function doLoginDni(){
 async function doLoginDniFirstTime(){
   const email = $('#loginEmail2').value.trim().toLowerCase();
   const dni = String($('#loginDni2').value).trim();
-  if(!email || !dni){ loginError='Completá email y DNI.'; renderLogin(); return; }
+  if(!email || !dni || dni.length<6){ loginError='Completá email y un DNI válido (mínimo 6 dígitos).'; renderLogin(); return; }
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
   if(error){ loginError='Email o DNI incorrecto. Si no recordás tu DNI, contactá al gimnasio.'; renderLogin(); return; }
   cacheDni(dni, email);
@@ -1245,7 +1245,7 @@ async function routeLoggedInUser(email){
   }
   const info = SOCIOS_LOGIN[email];
   if(info && SOCIOS[info.idx]){
-    currentRole='socio'; currentSocioIdx=info.idx;
+    currentRole='socio'; currentSocioIdx=info.idx; _dniPopupShown=false;
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
     socioPage='inicio'; renderSocio();
@@ -1253,7 +1253,7 @@ async function routeLoggedInUser(email){
   }
   const idxRecuperado = await intentarRecuperarPerfilSocio(email);
   if(idxRecuperado!==null){
-    currentRole='socio'; currentSocioIdx=idxRecuperado;
+    currentRole='socio'; currentSocioIdx=idxRecuperado; _dniPopupShown=false;
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
     socioPage='inicio'; renderSocio();
@@ -1342,7 +1342,7 @@ async function submitSignupSocio(){
   const cumple = $('#su_cumple').value || null;
   const pe = parseInt($('#su_pe').value)||null;
   const ob = $('#su_ob').value.trim()||null;
-  if(!n||!e||!dni||isNaN(Number(dni))){ loginError='Completá nombre, email y DNI.'; renderLogin(); return; }
+  if(!n||!e||!dni||isNaN(Number(dni))||dni.length<6){ loginError='Completá nombre, email y un DNI válido (mínimo 6 dígitos).'; renderLogin(); return; }
   cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
   let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
@@ -1470,7 +1470,7 @@ async function openQRGate(){
       const {data:{session}} = await sb.auth.getSession();
       if(session && session.user && session.user.email===savedEmail){
         const info = SOCIOS_LOGIN[savedEmail];
-        currentRole = 'socio';
+        currentRole = 'socio'; _dniPopupShown = false;
         currentSocioIdx = info.idx;
         pendingQR = pendingQR || {tipo:'general'};
         $('#qrGate').classList.add('hidden');
@@ -1520,7 +1520,7 @@ async function qrGateCreateSocio(){
   const pe = parseInt($('#qrg_pe').value)||null;
   const ob = $('#qrg_ob').value.trim()||null;
   const obs = $('#qrg_obs').value.trim()||null;
-  if(!n || !e || !dni || isNaN(Number(dni))){ renderQRGateSignup('Completá nombre, email y DNI.'); return; }
+  if(!n || !e || !dni || isNaN(Number(dni)) || dni.length<6){ renderQRGateSignup('Completá nombre, email y un DNI válido (mínimo 6 dígitos).'); return; }
   cleanOrphanSocioLogin(e);
   if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
   let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
@@ -1543,7 +1543,7 @@ async function qrGateCreateSocio(){
   logMovimiento('alta_socio', `Alta de socio: ${n} (${e}) vía QR`);
   cacheDni(dni, e);
   persist();
-  currentRole = 'socio';
+  currentRole = 'socio'; _dniPopupShown = false;
   currentSocioIdx = idx;
   pendingQR = pendingQR || {tipo:'general'};
   localStorage.setItem(QR_DEVICE_KEY, e);
@@ -1577,7 +1577,7 @@ async function qrGateLoginAndCheckIn(email){
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
   if(error){ $('#qrLoginError').textContent = 'DNI incorrecto.'; return; }
   cacheDni(dni, email);
-  currentRole = 'socio';
+  currentRole = 'socio'; _dniPopupShown = false;
   currentSocioIdx = info.idx;
   pendingQR = pendingQR || {tipo:'general'};
   localStorage.setItem(QR_DEVICE_KEY, email);
@@ -1617,7 +1617,7 @@ async function qrGateLoginByForm(){
     }
     info = {idx:idxRecuperado};
   }
-  currentRole = 'socio';
+  currentRole = 'socio'; _dniPopupShown = false;
   currentSocioIdx = info.idx;
   pendingQR = pendingQR || {tipo:'general'};
   localStorage.setItem(QR_DEVICE_KEY, email);
@@ -4287,7 +4287,7 @@ function renderSocio(){
   c.classList.add('page-fade');
   updateNotifDots();
   // Mostrar popup de DNI una sola vez por sesión si el socio no tiene DNI cargado
-  if(!_dniPopupShown && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
+  if(!_dniPopupShown && !demoMode && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
     _dniPopupShown = true;
     setTimeout(showDniSetupPopup, 900);
   }
@@ -4313,10 +4313,16 @@ function showDniSetupPopup(){
 async function saveDniFromPopup(){
   const socio = SOCIOS[currentSocioIdx];
   const dni = String(document.getElementById('dniPopupInput').value||'').trim();
-  if(!dni || isNaN(Number(dni))){ showToast('Ingresá un DNI válido.'); return; }
+  if(!dni || isNaN(Number(dni)) || dni.length<6){ showToast('El DNI debe tener al menos 6 dígitos.'); return; }
   socio.dni = dni;
   cacheDni(dni, socio.email);
-  try{ await sb.auth.updateUser({password: dni}); }catch(e){}
+  const {error: pwErr} = await sb.auth.updateUser({password: dni});
+  if(pwErr){
+    showToast('DNI guardado en tu perfil, pero no se pudo activar el login rápido. Contactá al gimnasio.');
+    persist();
+    document.getElementById('dniSetupPopup').remove();
+    return;
+  }
   persist();
   document.getElementById('dniSetupPopup').remove();
   showToast('¡DNI guardado! La próxima vez entrás solo con tu DNI.');
