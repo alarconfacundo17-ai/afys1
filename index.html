@@ -1643,9 +1643,9 @@ function renderQRGateLoginDni(savedEmail, dniError){
     </div>
     <p style="color:var(--text2);font-size:13.5px;margin-bottom:14px;">${socio?'Ingresá tu DNI para registrar tu entrada.':'Ingresá tu DNI para entrar.'}</p>
     <label>Número de DNI</label>
-    <input id="qrg_login_dni" type="number" placeholder="Sin puntos" style="font-size:18px;padding:12px;letter-spacing:1px;margin-bottom:8px;" onkeydown="if(event.key==='Enter')qrGateLoginAndCheckIn('${savedEmail||''}')">
+    <input id="qrg_login_dni" type="number" placeholder="Sin puntos" style="font-size:18px;padding:12px;letter-spacing:1px;margin-bottom:8px;" onkeydown="if(event.key==='Enter')qrGateLoginAndCheckIn('${jsAttr(savedEmail||'')}')">
     <div id="qrLoginError" style="color:var(--red);font-size:12.5px;min-height:18px;">${dniError?esc(dniError):''}</div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:13px;margin-top:8px;" onclick="qrGateLoginAndCheckIn('${savedEmail||''}')">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:13px;margin-top:8px;" onclick="qrGateLoginAndCheckIn('${jsAttr(savedEmail||'')}')">
       <i class="ti ti-login"></i> Ingresar
     </button>
     <div style="display:flex;align-items:center;gap:8px;margin:16px 0;">
@@ -1671,8 +1671,8 @@ async function qrGateLoginAndCheckIn(savedEmail){
   if(!dni){ $('#qrLoginError').textContent='Ingresá tu DNI.'; return; }
 
   // Buscar email: si hay uno guardado usarlo, si no buscar en el caché de DNI
-  let email = savedEmail || dniCache[dni];
-  if(!email){
+  let email = (savedEmail && savedEmail.trim()) ? savedEmail.trim() : dniCache[dni];
+  if(!email || !email.includes('@')){
     // No conocemos el email → pedir email+contraseña
     renderQRGateLoginForm('No encontramos tu cuenta con ese DNI. Ingresá con email y contraseña.');
     return;
@@ -2654,15 +2654,21 @@ async function saveSocio(){
     }
   }
 
-  const idx = SOCIOS.length;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
-  notifSocio[idx]=[];
-  SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
-  cacheDni(dni, email);
-  logMovimiento('alta_socio', `Alta de socio: ${n} (${email})`);
-  persist();
-  showToast('Socio creado. Ya puede entrar con su DNI.');
-  closeModal(); renderStaff();
+  try{
+    const idx = SOCIOS.length;
+    SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
+    notifSocio[idx]=[];
+    SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
+    cacheDni(dni, email);
+    logMovimiento('alta_socio', `Alta de socio: ${n} (${email})`);
+    persist();
+    showToast('Socio creado. Ya puede entrar con su DNI.');
+    closeModal(); renderStaff();
+  }catch(err){
+    errEl.textContent='Error al guardar. Intentá de nuevo.';
+    errEl.style.display='block';
+    const btn=$('#ns_btn'); if(btn){btn.disabled=false;btn.textContent='Guardar';}
+  }
 }
 
 function openEditSocioModal(idx){
