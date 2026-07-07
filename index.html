@@ -1148,11 +1148,11 @@ function renderLogin(){
   } else if(loginView==='loginDniFirstTime'){
     box.innerHTML = `
       <img src="logo.jpg" alt="AFYS" class="login-logo">
-      <p class="sub" style="margin-bottom:8px;">Primera vez en este dispositivo. Ingresá tu email y tu DNI para vincular tu cuenta.</p>
+      <p class="sub" style="margin-bottom:8px;">Primera vez en este dispositivo. Ingresá tu email y contraseña para vincular tu cuenta.</p>
       <label>Email</label>
-      <input id="loginEmail2" type="email" placeholder="tu@gmail.com" onkeydown="if(event.key==='Enter')document.getElementById('loginDni2').focus()">
-      <label>DNI</label>
-      <input id="loginDni2" type="number" placeholder="Tu número de DNI" onkeydown="if(event.key==='Enter')doLoginDniFirstTime()">
+      <input id="loginEmail2" type="email" placeholder="tu@gmail.com" onkeydown="if(event.key==='Enter')document.getElementById('loginPass2').focus()">
+      <label>Contraseña</label>
+      <input id="loginPass2" type="password" placeholder="Contraseña o DNI si tu cuenta es nueva" onkeydown="if(event.key==='Enter')doLoginDniFirstTime()">
       ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLoginDniFirstTime()">Ingresar</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">← Volver</button>
@@ -1218,11 +1218,12 @@ async function doLoginDni(){
 
 async function doLoginDniFirstTime(){
   const email = $('#loginEmail2').value.trim().toLowerCase();
-  const dni = String($('#loginDni2').value).trim();
-  if(!email || !dni || dni.length<6){ loginError='Completá email y un DNI válido (mínimo 6 dígitos).'; renderLogin(); return; }
-  const {error} = await sb.auth.signInWithPassword({email, password: dni});
-  if(error){ loginError='Email o DNI incorrecto. Si no recordás tu DNI, contactá al gimnasio.'; renderLogin(); return; }
-  cacheDni(dni, email);
+  const pass = String($('#loginPass2').value).trim();
+  if(!email || !pass){ loginError='Completá tu email y contraseña (o DNI si tu cuenta es nueva).'; renderLogin(); return; }
+  const {error} = await sb.auth.signInWithPassword({email, password: pass});
+  if(error){ loginError='Email o contraseña incorrectos. Si tu cuenta es nueva, usá tu DNI como contraseña.'; renderLogin(); return; }
+  // si la contraseña es un DNI numérico, cachearla para futuros ingresos
+  if(/^\d{6,8}$/.test(pass)) cacheDni(pass, email);
   loginError=''; loginInfo='';
   await routeLoggedInUser(email);
 }
