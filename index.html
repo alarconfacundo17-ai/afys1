@@ -2291,8 +2291,8 @@ function descargarBackupSocios(){
   descargarCSV(`socios_${todayISO()}.csv`, headers, rows);
 }
 function descargarBackupPagos(){
-  const headers = ['Nombre','Fecha','Monto','Mes pagado','Nota'];
-  const rows = PAGOS.map(p=>[p.n, p.f, p.m, mesPagoLabel(p.mp), p.nt||'']);
+  const headers = ['Nombre','Fecha','Monto','Mes pagado','Medio de pago','Nota'];
+  const rows = PAGOS.map(p=>[p.n, p.f, p.m, mesPagoLabel(p.mp), p.med||'Efectivo', p.nt||'']);
   descargarCSV(`pagos_${todayISO()}.csv`, headers, rows);
 }
 function staffBajaButtons(s){
@@ -3126,6 +3126,12 @@ function openPagoModal(idx, payIdx){
     <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
     <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
     <div class="field"><label>Mes que pagó</label><select id="pg_mp">${mesPagoOptionsHTML(p?p.mp:'')}</select></div>
+    <div class="field"><label>Medio de pago</label>
+      <div style="display:flex;gap:10px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="pg_med" id="pg_med_ef" value="Efectivo" ${(!p||p.med==='Efectivo'||!p.med)?'checked':''}> Efectivo</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="pg_med" id="pg_med_tr" value="Transferencia" ${(p&&p.med==='Transferencia')?'checked':''}> Transferencia</label>
+      </div>
+    </div>
     <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional" value="${p?esc(p.nt||''):''}"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
@@ -3167,7 +3173,8 @@ function savePagoAnterior(idx){
 function savePago(){
   const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
   if(!s){ showToast('Elegí un socio.', 'error'); return; }
-  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, nt:$('#pg_n').value};
+  const med = document.querySelector('input[name="pg_med"]:checked');
+  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, med:med?med.value:'Efectivo', nt:$('#pg_n').value};
   if(editPagoKey!==null){
     const realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
@@ -4377,7 +4384,7 @@ function pagePagos(){
     <select id="pagosFiltroMes" onchange="filterUltimosPagos()" style="min-width:140px;">${ultimosPagosMesesOptionsHTML()}</select>
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Mes pagado</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
+  <table><thead><tr><th>Nombre</th><th>Fecha</th><th>Mes pagado</th><th>Medio</th><th>Nota</th>${canEditPagos?'<th></th>':''}</tr></thead>
   <tbody id="ultimosPagosTbody">${ultimosPagosRowsHTML('','',canEditPagos)}</tbody></table>
   </div>`;
 }
@@ -4397,7 +4404,7 @@ function ultimosPagosRowsHTML(q, mes, canEditPagos){
     if(mes && (p.f||'').slice(0,7)!==mes) return false;
     return true;
   });
-  return rows.length ? rows.map(({p,i})=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('') : emptyRow('ti-cash-off',q||mes?'Sin pagos para ese filtro':'Sin pagos registrados todavía',canEditPagos?5:4);
+  return rows.length ? rows.map(({p,i})=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td><span class="badge ${p.med==='Transferencia'?'b-warn':'b-ok'}" style="font-size:11px;">${p.med==='Transferencia'?'Transferencia':'Efectivo'}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('') : emptyRow('ti-cash-off',q||mes?'Sin pagos para ese filtro':'Sin pagos registrados todavía',canEditPagos?6:5);
 }
 function filterUltimosPagos(){
   const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
@@ -5014,7 +5021,7 @@ function socioCuenta(){
   <div class="pay-banner ${payClass}">${payTxt}</div>
   <div class="card">
     <h3>Historial de pagos</h3>
-    ${PAGOS.filter(p=>pagoBelongsTo(p,s)).map(p=>`<div class="day-row"><div><b>${mesPagoLabel(p.mp)}</b><div style="font-size:13px;color:var(--text2);">${p.f}</div></div><div>${esc(p.m)}</div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
+    ${PAGOS.filter(p=>pagoBelongsTo(p,s)).map(p=>`<div class="day-row"><div><b>${mesPagoLabel(p.mp)}</b><div style="font-size:13px;color:var(--text2);">${p.f}</div></div><div style="text-align:right;"><div>${esc(p.m)}</div><div style="font-size:12px;color:var(--text2);">${p.med||'Efectivo'}</div></div></div>`).join('')||emptyState('ti-cash-off','Sin pagos registrados')}
   </div>`;
 }
 
