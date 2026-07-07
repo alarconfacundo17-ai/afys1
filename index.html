@@ -558,7 +558,14 @@ function applyState(s){
   migrateCoordinacionGrupo();
   migrateClaseInsId();
   migrateGymHours();
+  migrateSocioFields();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
+}
+function migrateSocioFields(){
+  SOCIOS.forEach(s=>{
+    if(!Array.isArray(s.rs)) s.rs=[];
+    if(!Array.isArray(s.nt)) s.nt=[];
+  });
 }
 function migrateGymHours(){
   if(gymHoursOk) return; // ya migrado, el dueño puede cambiarlos libremente
@@ -820,8 +827,8 @@ async function mergeRemoteAntesDeGuardar(){
         // merge de rutinas asignadas (rs) aditivo por nombre
         if(Array.isArray(rs.rs) && rs.rs.length){
           if(!Array.isArray(ls.rs)) ls.rs = [];
-          const localRsNames = new Set(ls.rs.map(r=>r.n));
-          rs.rs.forEach(r=>{ if(!localRsNames.has(r.n)){ ls.rs.push(r); localRsNames.add(r.n); } });
+          const localRsNames = new Set(ls.rs);
+          rs.rs.forEach(r=>{ if(!localRsNames.has(r)){ ls.rs.push(r); localRsNames.add(r); } });
         }
       });
     }
@@ -2565,7 +2572,10 @@ function eliminarSocioCompleto(idx){
   const sEliminado = SOCIOS[idx];
   logMovimiento('eliminacion_socio', `Eliminación definitiva de socio: ${sEliminado.n}`);
   if(sEliminado.id && !deletedSocioIds.includes(sEliminado.id)) deletedSocioIds.push(sEliminado.id);
-  if(sEliminado.email) delete SOCIOS_LOGIN[sEliminado.email];
+  if(sEliminado.email){
+    delete SOCIOS_LOGIN[sEliminado.email];
+    delete SOCIOS_LOGIN[(sEliminado.email||'').toLowerCase()];
+  }
   SOCIOS.splice(idx,1);
   Object.keys(SOCIOS_LOGIN).forEach(email=>{
     const info = SOCIOS_LOGIN[email];
@@ -2720,7 +2730,10 @@ function saveEditSocio(idx){
   s.obs = $('#es_obs').value.trim()||null;
   s.vence = $('#es_vence').value || null;
   recalcEstados({notify:false});
-  if(oldEmail && oldEmail!==newEmail) delete SOCIOS_LOGIN[oldEmail];
+  if(oldEmail && oldEmail!==newEmail){
+    delete SOCIOS_LOGIN[oldEmail];
+    delete SOCIOS_LOGIN[(oldEmail||'').toLowerCase()];
+  }
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
   persist();
   showToast('Guardado');
