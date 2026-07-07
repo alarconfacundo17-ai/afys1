@@ -304,6 +304,7 @@ h3{font-size:15px;margin-bottom:10px;}
         <button class="bell" onclick="toggleNotif('socio')"><i class="ti ti-bell"></i><span class="dot hidden" id="socioNotifDot"></span></button>
         <div class="notif-panel hidden" id="socioNotifPanel" style="right:-10px;"></div>
       </div>
+      <button class="btn btn-outline btn-sm" onclick="toggleDarkMode()" title="Modo oscuro" id="darkModeBtnSocio" style="padding:7px 10px;"><i class="ti ti-moon" style="font-size:18px;"></i></button>
       <button class="btn btn-outline btn-sm" onclick="logout()">Salir</button>
     </div>
   </div>
@@ -962,8 +963,11 @@ function toggleDarkMode(){
   darkMode = !darkMode;
   document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '');
   localStorage.setItem('afys_dark', darkMode ? '1' : '');
-  const btn = document.getElementById('darkModeBtn');
-  if(btn) btn.innerHTML = `<i class="ti ti-${darkMode?'sun':'moon'}" style="font-size:18px;"></i>`;
+  const icon = `<i class="ti ti-${darkMode?'sun':'moon'}" style="font-size:18px;"></i>`;
+  const btn1 = document.getElementById('darkModeBtn');
+  const btn2 = document.getElementById('darkModeBtnSocio');
+  if(btn1) btn1.innerHTML = icon;
+  if(btn2) btn2.innerHTML = icon;
 }
 
 function downloadCSV(filename, headers, csvRows){
@@ -4746,7 +4750,7 @@ function socioCuenta(){
   }
   recalcEstados({notify:true});
   $('#loadingOverlay').remove();
-  if(localStorage.getItem('afys_dark')==='1'){ darkMode=true; document.documentElement.setAttribute('data-theme','dark'); const btn=document.getElementById('darkModeBtn'); if(btn) btn.innerHTML='<i class="ti ti-sun" style="font-size:18px;"></i>'; }
+  if(localStorage.getItem('afys_dark')==='1'){ darkMode=true; document.documentElement.setAttribute('data-theme','dark'); const icon='<i class="ti ti-sun" style="font-size:18px;"></i>'; const btn=document.getElementById('darkModeBtn'); if(btn) btn.innerHTML=icon; const btn2=document.getElementById('darkModeBtnSocio'); if(btn2) btn2.innerHTML=icon; }
 
   const urlParams = new URLSearchParams(window.location.search);
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
