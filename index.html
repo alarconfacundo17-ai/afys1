@@ -708,7 +708,7 @@ function migrateDedupSocios(){
   let ki = 0;
   SOCIOS.forEach((s,oldIdx)=>{ if(!toRemove.has(oldIdx)){ idxMap[oldIdx]=ki; ki++; } });
   SOCIOS.length = 0; kept.forEach(s=>SOCIOS.push(s));
-  Object.keys(SOCIOS_LOGIN).forEach(em=>{ const info = SOCIOS_LOGIN[em]; if(idxMap[info.idx]!==undefined) info.idx = idxMap[info.idx]; });
+  Object.keys(SOCIOS_LOGIN).forEach(em=>{ const info = SOCIOS_LOGIN[em]; if(idxMap[info.idx]!==undefined) info.idx = idxMap[info.idx]; else delete SOCIOS_LOGIN[em]; });
   Object.keys(notifSocio).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ notifSocio[nk]=notifSocio[k]; delete notifSocio[k]; } else if(nk===undefined) delete notifSocio[k]; });
   Object.keys(RESERVAS).forEach(k=>{ const nk = idxMap[Number(k)]; if(nk!==undefined && nk!==Number(k)){ RESERVAS[nk]=RESERVAS[k]; delete RESERVAS[k]; } else if(nk===undefined) delete RESERVAS[k]; });
   persistDirect();
@@ -839,8 +839,9 @@ async function mergeRemoteAntesDeGuardar(){
         if(!SOCIOS_LOGIN[email]){
           const remoteEntry = remote.SOCIOS_LOGIN[email];
           // recalcular idx local por email
-          const localIdx = SOCIOS.findIndex(s=>s.email===email);
-          if(localIdx>=0) SOCIOS_LOGIN[email] = {...remoteEntry, idx:localIdx};
+          const eLow = email.toLowerCase();
+          const localIdx = SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===eLow);
+          if(localIdx>=0) SOCIOS_LOGIN[eLow] = {...remoteEntry, idx:localIdx};
         }
       });
     }
@@ -934,8 +935,14 @@ async function mergeRemoteAntesDeGuardar(){
     if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
 
     if(Array.isArray(remote.CLASES_HOY)){
-      const localCIds = new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean));
-      remote.CLASES_HOY.forEach(c=>{ if(c.cId && !localCIds.has(c.cId)){ CLASES_HOY.push(c); localCIds.add(c.cId); } });
+      const modalOpen = !!document.querySelector('.modal-overlay');
+      const localByClaseId = {};
+      CLASES_HOY.forEach(c=>{ if(c.cId) localByClaseId[c.cId]=c; });
+      remote.CLASES_HOY.forEach(c=>{
+        if(!c.cId) return;
+        if(localByClaseId[c.cId]){ if(!modalOpen) Object.assign(localByClaseId[c.cId], c); }
+        else { CLASES_HOY.push(c); localByClaseId[c.cId]=c; }
+      });
     }
 
     if(remote.notifSocio){
@@ -1109,7 +1116,7 @@ function recalcEstados(opts){
   });
   if(changed && !_merging) persist();
 }
-function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+function initials(name){return (name||'').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';}
 function pagoBelongsTo(p,s){ return p.sid ? p.sid===s.id : p.n===s.n; }
 function regBelongsTo(r,s){ return r.sid ? r.sid===s.id : r.i===s.i; }
 
@@ -2255,6 +2262,7 @@ function staffBajaButtons(s){
 }
 function openBajaStaffModal(id){
   const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
   openModal(`
     <div class="modal-head"><h3>Dar de baja a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:14px;margin-bottom:10px;">Va a poder seguir entrando a la app, pero sin acceso a ninguna función — va a ver un aviso de cuenta dada de baja. Sus datos quedan guardados por si lo reactivás más adelante.</p>
@@ -2263,6 +2271,7 @@ function openBajaStaffModal(id){
 }
 function confirmBajaStaff(id){
   const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
   s.activo = false;
   logMovimiento('baja_staff', `Baja de cuenta de staff: ${s.n} (${s.email})`);
   persist();
@@ -2270,6 +2279,7 @@ function confirmBajaStaff(id){
 }
 function reactivarStaff(id){
   const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
   s.activo = true;
   logMovimiento('reactivacion_staff', `Reactivación de cuenta de staff: ${s.n} (${s.email})`);
   persist();
@@ -2277,6 +2287,7 @@ function reactivarStaff(id){
 }
 function openEliminarStaffModal(id){
   const s = STAFF.find(x=>x.id===id);
+  if(!s) return;
   openModal(`
     <div class="modal-head"><h3>Eliminar a ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--red);font-size:14px;margin-bottom:10px;"><b>Esta acción no se puede deshacer.</b> Se va a borrar completamente del sistema y no va a poder volver a entrar a la app con esa cuenta. Sus turnos asignados también se eliminan.</p>
@@ -2297,7 +2308,7 @@ function promoteStaff(id, newRole){
   const s = STAFF.find(x=>x.id===id);
   if(!s) return;
   const labels = {admin:'admin', dueno:'dueño'};
-  if(!confirm(`¿Ascender a ${esc(s.n)} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
+  if(!confirm(`¿Ascender a ${s.n} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
   s.role = newRole;
   persist();
   closeModal();
@@ -2307,7 +2318,7 @@ function demoteStaff(id, newRole){
   const s = STAFF.find(x=>x.id===id);
   if(!s) return;
   const labels = {admin:'admin', profesor:'profesor'};
-  if(!confirm(`¿Descender a ${esc(s.n)} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
+  if(!confirm(`¿Descender a ${s.n} a ${labels[newRole]}? Sus permisos actuales se mantienen, podés ajustarlos después con "Editar permisos".`)) return;
   s.role = newRole;
   persist();
   closeModal();
@@ -2733,6 +2744,8 @@ function saveEditSocio(idx){
   if(oldEmail && oldEmail!==newEmail){
     delete SOCIOS_LOGIN[oldEmail];
     delete SOCIOS_LOGIN[(oldEmail||'').toLowerCase()];
+    // update dniCache so DNI still works with new email
+    if(s.dni) cacheDni(s.dni, newEmail);
   }
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
   persist();
@@ -2929,6 +2942,7 @@ function quitarRutinaSocio(si, rname, search){
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
+  if(s.rsOverride) delete s.rsOverride[rname];
   persist();
   refreshSocioRutinasList(si, search);
 }
@@ -3198,7 +3212,7 @@ function pageClases(){
   <div class="card" style="margin-bottom:18px;">
   <table><thead><tr><th>Nombre</th><th>Día/Hora</th><th>Tipo</th><th>Cupo</th><th>Inscriptos</th>${currentRole==='profesor'?'<th>Asistencia</th>':''}${canCreate?'<th></th>':''}</tr></thead>
   <tbody>
-  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${cupoClaseTexto(c)}</td><td><button class="btn btn-outline btn-sm" onclick="openInscriptosModal(${idx})"><i class="ti ti-users"></i> ${inscriptosClase(c).length}</button></td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${esc(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td>
+  ${CLASES_HOY.map((c,idx)=>`<tr><td>${esc(c.n)}</td><td>${esc(c.d||'')} ${c.h}</td><td><span class="badge b-info">Grupal</span></td><td>${cupoClaseTexto(c)}</td><td><button class="btn btn-outline btn-sm" onclick="openInscriptosModal(${idx})"><i class="ti ti-users"></i> ${inscriptosClase(c).length}</button></td>${currentRole==='profesor'?`<td><button class="btn btn-outline btn-sm" onclick="alert('Asistencia marcada para ${jsAttr(c.n)}')">Marcar asistencia</button></td>`:''}${canCreate?`<td>
     <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openClaseOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
   </td>`:''}</tr>`).join('')}
   </tbody></table>
@@ -3206,7 +3220,7 @@ function pageClases(){
   ${currentRole!=='profesor'?`
   <div class="card">
     <h3>Asistencia por clase (mes)</h3>
-    ${CLASES_HOY.map(c=>{const pct=Math.round(Math.random()*40+50);return `<div class="bar-row"><div class="lbl">${esc(c.n)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div>${pct}%</div></div>`}).join('')}
+    ${CLASES_HOY.map(c=>{const ins=inscriptosClase(c).length; const cupo=parseInt((c.cu||'0/12').split('/')[1])||12; const pct=cupo>0?Math.min(100,Math.round(ins/cupo*100)):0;return `<div class="bar-row"><div class="lbl">${esc(c.n)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div>${ins}/${cupo}</div></div>`}).join('')}
   </div>`:''}`;
 }
 let editClaseIdx = null;
@@ -3378,7 +3392,7 @@ function duplicarRutina(idx){
 function deleteRutina(idx){
   const r = RUTINAS[idx];
   if(!confirm(`¿Eliminar la rutina "${r.n}"? Se quitará también de los socios que la tengan asignada.`)) return;
-  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; if(s.rsNotas) delete s.rsNotas[r.n]; });
+  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; if(s.rsNotas) delete s.rsNotas[r.n]; if(s.rsNombre) delete s.rsNombre[r.n]; if(s.rsOverride) delete s.rsOverride[r.n]; });
   RUTINAS.splice(idx,1);
   persist();
   closeModal();
@@ -3439,6 +3453,8 @@ function quitarRutina(si, rname, idx, search){
   s.rs = s.rs.filter(r=>r!==rname);
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
+  if(s.rsNombre) delete s.rsNombre[rname];
+  if(s.rsOverride) delete s.rsOverride[rname];
   persist();
   refreshAsignarModal(idx, search);
 }
@@ -3584,6 +3600,8 @@ function saveRutina(){
       s.rs = s.rs.map(x=>x===r.n?n:x);
       if(s.rsDias && s.rsDias[r.n]){ s.rsDias[n] = s.rsDias[r.n]; delete s.rsDias[r.n]; }
       if(s.rsNotas && s.rsNotas[r.n]){ s.rsNotas[n] = s.rsNotas[r.n]; delete s.rsNotas[r.n]; }
+      if(s.rsNombre && s.rsNombre[r.n]){ s.rsNombre[n] = s.rsNombre[r.n]; delete s.rsNombre[r.n]; }
+      if(s.rsOverride && s.rsOverride[r.n]){ s.rsOverride[n] = s.rsOverride[r.n]; delete s.rsOverride[r.n]; }
     });
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
   } else {
@@ -3813,9 +3831,9 @@ function openTurnoModal(turnoId,presetDia){
 
 function saveTurno(turnoId){
   const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
-  if(turnoId){
+  if(turnoId && turnoId!=='null'){
     const t = TURNOS.find(x=>x.id===turnoId);
-    Object.assign(t,data);
+    if(t) Object.assign(t,data);
   } else {
     TURNOS.push({id:turnoSeq++, ...data});
   }
@@ -4225,7 +4243,7 @@ function pageQR(){
   <div class="card">
     <div class="section-head"><h3>Registro de entradas del día (${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length})</h3><button class="btn btn-outline btn-sm" onclick="exportarAsistenciasCSV()" title="Exportar asistencias a CSV"><i class="ti ti-download"></i> Exportar CSV</button></div>
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
-    <tbody>${REGS.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
+    <tbody>${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
   </div>`:''}`;
 }
 function renderQRInto(boxId, text, opts){
@@ -4324,8 +4342,8 @@ function fmtMesAnio(m){
 function ultimosPagosRowsHTML(q, mes, canEditPagos){
   q = (q||'').toLowerCase().trim();
   const rows = PAGOS.map((p,i)=>({p,i})).filter(({p})=>{
-    if(q && !p.n.toLowerCase().includes(q)) return false;
-    if(mes && p.f.slice(0,7)!==mes) return false;
+    if(q && !(p.n||'').toLowerCase().includes(q)) return false;
+    if(mes && (p.f||'').slice(0,7)!==mes) return false;
     return true;
   });
   return rows.length ? rows.map(({p,i})=>`<tr><td>${esc(p.n)}</td><td>${p.f}</td><td><span class="badge b-ok">${mesPagoLabel(p.mp)}</span></td><td>${esc(p.nt)||'-'}</td>${canEditPagos?`<td><button class="btn btn-outline btn-sm" onclick="openPagoModal(0,${i})" title="Editar/eliminar"><i class="ti ti-edit"></i></button></td>`:''}</tr>`).join('') : emptyRow('ti-cash-off',q||mes?'Sin pagos para ese filtro':'Sin pagos registrados todavía',canEditPagos?5:4);
@@ -4390,6 +4408,7 @@ function pageMovimientos(){
 }
 function openHistorialAnualModal(idx, year){
   const s = SOCIOS[idx];
+  if(!s) return;
   year = year || new Date().getFullYear();
   const entrenoMes = m => REGS.some(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
   const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return pagoBelongsTo(p,s) && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
@@ -5004,7 +5023,7 @@ function socioCuenta(){
       remote.SOCIOS.forEach(rs=>{
         if(rs.id && _delSet.has(rs.id)) return;
         const key=socioMergeKey(rs); let ls=localByKey[key];
-        if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ SOCIOS.push(rs); localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
+        if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ if(!Array.isArray(rs.nt)) rs.nt=[]; if(!Array.isArray(rs.rs)) rs.rs=[]; SOCIOS.push(rs); localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
@@ -5053,7 +5072,7 @@ function socioCuenta(){
     }
     if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
     if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
-    if(Array.isArray(remote.CLASES_HOY)){ const lk=new Set(CLASES_HOY.map(c=>c.cId).filter(Boolean)); remote.CLASES_HOY.forEach(c=>{ if(c.cId&&!lk.has(c.cId)){ CLASES_HOY.push(c); lk.add(c.cId); } }); }
+    if(Array.isArray(remote.CLASES_HOY)){ const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
     _merging = true;
