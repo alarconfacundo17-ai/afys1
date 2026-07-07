@@ -352,11 +352,23 @@ const PAGOS = [];
 const REGS = [];
 
 const SOCIOS_LOGIN = {};
+// Busca SOCIOS_LOGIN ignorando mayúsculas/minúsculas en el email
+function lookupSocioLogin(email){
+  if(!email) return null;
+  const low = email.toLowerCase();
+  if(SOCIOS_LOGIN[email]) return SOCIOS_LOGIN[email];
+  if(SOCIOS_LOGIN[low]) return SOCIOS_LOGIN[low];
+  const key = Object.keys(SOCIOS_LOGIN).find(k=>k.toLowerCase()===low);
+  return key ? SOCIOS_LOGIN[key] : null;
+}
 function cleanOrphanSocioLogin(email){
-  const info = SOCIOS_LOGIN[email];
-  if(!info) return;
-  const linked = SOCIOS[info.idx];
-  if(!linked || linked.email!==email) delete SOCIOS_LOGIN[email];
+  if(!email) return;
+  const low = email.toLowerCase();
+  const key = Object.keys(SOCIOS_LOGIN).find(k=>k.toLowerCase()===low);
+  if(!key) return;
+  const info = SOCIOS_LOGIN[key];
+  const linked = info && Number.isInteger(info.idx) && SOCIOS[info.idx];
+  if(!linked || (linked.email||'').toLowerCase()!==low) delete SOCIOS_LOGIN[key];
 }
 
 const EJD = {
@@ -1209,10 +1221,17 @@ async function doLoginDni(){
   if(!dni){ loginError='Ingresá tu DNI.'; renderLogin(); return; }
   const email = dniCache[dni];
   if(!email){
+    // Primera vez en este dispositivo: pedir email+contraseña
     loginView='loginDniFirstTime'; loginError=''; renderLogin(); return;
   }
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
-  if(error){ loginError='DNI incorrecto. Si es tu primera vez en este dispositivo, usá el botón de abajo.'; renderLogin(); return; }
+  if(error){
+    // El DNI está en el caché pero la contraseña no coincide (ej: la cuenta
+    // es vieja y nunca se actualizó la contraseña al DNI). Ir a email+pass.
+    loginView='loginDniFirstTime';
+    loginError='Ingresá tu email y contraseña para continuar.';
+    renderLogin(); return;
+  }
   loginError=''; loginInfo='';
   cacheDni(dni, email);
   await routeLoggedInUser(email);
@@ -1250,14 +1269,9 @@ async function routeLoggedInUser(email){
     enterStaff();
     return;
   }
-  // lookup case-insensitive: old data may have mixed-case keys
   const emailLow = email.toLowerCase();
-  let info = SOCIOS_LOGIN[email] || SOCIOS_LOGIN[emailLow];
-  if(!info){
-    const found = Object.keys(SOCIOS_LOGIN).find(k=>k.toLowerCase()===emailLow);
-    if(found) info = SOCIOS_LOGIN[found];
-  }
-  if(info && SOCIOS[info.idx] && (SOCIOS[info.idx].email||'').toLowerCase() === emailLow){
+  const info = lookupSocioLogin(email);
+  if(info && Number.isInteger(info.idx) && SOCIOS[info.idx] && (SOCIOS[info.idx].email||'').toLowerCase()===emailLow){
     currentRole='socio'; currentSocioIdx=info.idx; _dniPopupShown=false;
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
@@ -1283,7 +1297,8 @@ function recrearPerfilSocioPerdido(email, nombre){
   const emailLower = (email||'').trim().toLowerCase();
   const existente = SOCIOS.findIndex(s=>(s.email||'').trim().toLowerCase()===emailLower);
   if(existente!==-1){
-    SOCIOS_LOGIN[email] = {idx:existente, pe:SOCIOS[existente].es||'ok', pm:'Sin plan asignado todavía'};
+    // Normalizar siempre con lowercase para que lookupSocioLogin lo encuentre fácil
+    SOCIOS_LOGIN[emailLower] = {idx:existente, pe:SOCIOS[existente].es||'ok', pm:'Sin plan asignado todavía'};
     notifSocio[existente] = notifSocio[existente]||[];
     persist();
     return existente;
@@ -1301,14 +1316,15 @@ function recrearPerfilSocioPerdido(email, nombre){
 
 async function intentarRecuperarPerfilSocio(email){
   try{
+    const emailLow = (email||'').toLowerCase();
+    // 1. Buscar por email en SOCIOS (la forma más directa, no depende de metadata)
+    const idxDirecto = SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===emailLow);
+    if(idxDirecto !== -1) return recrearPerfilSocioPerdido(email, SOCIOS[idxDirecto].n);
+    // 2. Si no está en SOCIOS, revisar metadata de Supabase para ver si es un socio
+    //    nuevo que nunca fue añadido manualmente (ej: se registró vía QR en otro dispositivo)
     const {data} = await sb.auth.getUser();
     const meta = data && data.user && data.user.user_metadata;
-    // cuentas nuevas tienen role:'socio'; cuentas viejas no tienen role pero pueden
-    // existir en SOCIOS → buscar por email de todas formas
-    const emailLow = (email||'').toLowerCase();
-    const existeEnSocios = SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===emailLow) !== -1;
-    if(!meta) return null;
-    if(meta.role !== 'socio' && !existeEnSocios) return null;
+    if(!meta || meta.role !== 'socio') return null;
     return recrearPerfilSocioPerdido(email, meta.nombre || meta.name);
   }catch(e){
     console.error('Error intentando recuperar perfil de socio:', e);
@@ -1482,23 +1498,22 @@ async function openQRGate(){
   $('#login').classList.add('hidden');
   $('#qrGate').classList.remove('hidden');
   const savedEmail = localStorage.getItem(QR_DEVICE_KEY);
-  if(savedEmail && SOCIOS_LOGIN[savedEmail]){
+  const savedInfo = savedEmail ? lookupSocioLogin(savedEmail) : null;
+  if(savedEmail && savedInfo && Number.isInteger(savedInfo.idx) && SOCIOS[savedInfo.idx]){
     // Si ya hay sesión activa en este dispositivo, entrar directo sin pedir nada
     try{
       const {data:{session}} = await sb.auth.getSession();
-      if(session && session.user && session.user.email===savedEmail){
-        const info = SOCIOS_LOGIN[savedEmail];
+      if(session && session.user && session.user.email.toLowerCase()===savedEmail.toLowerCase()){
         currentRole = 'socio'; _dniPopupShown = false;
-        currentSocioIdx = info.idx;
+        currentSocioIdx = savedInfo.idx;
         pendingQR = pendingQR || {tipo:'general'};
         $('#qrGate').classList.add('hidden');
         startScan();
         return;
       }
     }catch(e){}
-    // Si el socio no tiene DNI en su perfil, usar formulario de email+contraseña
-    const socioInfo = SOCIOS_LOGIN[savedEmail];
-    const socioTieneDni = socioInfo && SOCIOS[socioInfo.idx] && SOCIOS[socioInfo.idx].dni;
+    // Sin sesión activa: si tiene DNI pedir DNI, si no tiene pedir email+contraseña
+    const socioTieneDni = SOCIOS[savedInfo.idx] && SOCIOS[savedInfo.idx].dni;
     if(socioTieneDni){
       renderQRGateLogin(savedEmail);
     } else {
@@ -1598,10 +1613,18 @@ function qrGateUseOtherAccount(){
 }
 
 async function qrGateLoginAndCheckIn(email){
-  const info = SOCIOS_LOGIN[email];
+  const info = lookupSocioLogin(email);
+  if(!info || !Number.isInteger(info.idx) || !SOCIOS[info.idx]){
+    $('#qrLoginError').textContent = 'No encontramos tu perfil. Probá con email y contraseña.';
+    return;
+  }
   const dni = String($('#qrg_login_dni').value).trim();
+  if(!dni){ $('#qrLoginError').textContent = 'Ingresá tu DNI.'; return; }
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
-  if(error){ $('#qrLoginError').textContent = 'DNI incorrecto.'; return; }
+  if(error){
+    $('#qrLoginError').innerHTML = 'DNI incorrecto. <a href="#" style="color:var(--primary);" onclick="renderQRGateLoginForm();return false;">Ingresá con email y contraseña</a>';
+    return;
+  }
   cacheDni(dni, email);
   currentRole = 'socio'; _dniPopupShown = false;
   currentSocioIdx = info.idx;
@@ -1629,12 +1652,13 @@ function renderQRGateLoginForm(qrError){
 async function qrGateLoginByForm(){
   const email = $('#qrg_form_e').value.trim().toLowerCase();
   const password = $('#qrg_form_p').value.trim();
+  if(!email || !password){ renderQRGateLoginForm('Completá email y contraseña.'); return; }
   const {error} = await sb.auth.signInWithPassword({email, password});
   if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
   // Si la contraseña era el DNI, cachearla para login rápido futuro
-  if(/^\d{7,8}$/.test(password)) cacheDni(password, email);
-  let info = SOCIOS_LOGIN[email];
-  if(!info){
+  if(/^\d{6,8}$/.test(password)) cacheDni(password, email);
+  let info = lookupSocioLogin(email);
+  if(!info || !Number.isInteger(info.idx) || !SOCIOS[info.idx]){
     const idxRecuperado = await intentarRecuperarPerfilSocio(email);
     if(idxRecuperado===null){
       await sb.auth.signOut();
