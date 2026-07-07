@@ -1250,8 +1250,14 @@ async function routeLoggedInUser(email){
     enterStaff();
     return;
   }
-  const info = SOCIOS_LOGIN[email];
-  if(info && SOCIOS[info.idx] && SOCIOS[info.idx].email === email){
+  // lookup case-insensitive: old data may have mixed-case keys
+  const emailLow = email.toLowerCase();
+  let info = SOCIOS_LOGIN[email] || SOCIOS_LOGIN[emailLow];
+  if(!info){
+    const found = Object.keys(SOCIOS_LOGIN).find(k=>k.toLowerCase()===emailLow);
+    if(found) info = SOCIOS_LOGIN[found];
+  }
+  if(info && SOCIOS[info.idx] && (SOCIOS[info.idx].email||'').toLowerCase() === emailLow){
     currentRole='socio'; currentSocioIdx=info.idx; _dniPopupShown=false;
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
@@ -1297,8 +1303,13 @@ async function intentarRecuperarPerfilSocio(email){
   try{
     const {data} = await sb.auth.getUser();
     const meta = data && data.user && data.user.user_metadata;
-    if(!meta || meta.role!=='socio') return null;
-    return recrearPerfilSocioPerdido(email, meta.nombre);
+    // cuentas nuevas tienen role:'socio'; cuentas viejas no tienen role pero pueden
+    // existir en SOCIOS → buscar por email de todas formas
+    const emailLow = (email||'').toLowerCase();
+    const existeEnSocios = SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===emailLow) !== -1;
+    if(!meta) return null;
+    if(meta.role !== 'socio' && !existeEnSocios) return null;
+    return recrearPerfilSocioPerdido(email, meta.nombre || meta.name);
   }catch(e){
     console.error('Error intentando recuperar perfil de socio:', e);
     return null;
@@ -1439,7 +1450,7 @@ function enterDemo(role, idOrIdx){
   if(bar) bar.classList.remove('hidden');
   if(role==='socio'){
     currentRole='socio'; currentSocioIdx=idOrIdx; _dniPopupShown=false;
-    const txt = $('#demoBarTxt'); if(txt) txt.textContent = `Modo demo — viendo como socio: ${esc(SOCIOS[idOrIdx].n)}`;
+    const txt = $('#demoBarTxt'); if(txt) txt.textContent = `Modo demo — viendo como socio: ${SOCIOS[idOrIdx].n}`;
     $('#staff').classList.add('hidden');
     $('#socio').classList.remove('hidden');
     socioPage='inicio'; renderSocio();
@@ -3054,7 +3065,7 @@ function openClaseModal(idx){
   editClaseIdx = (typeof idx==='number') ? idx : null;
   const c = editClaseIdx!==null ? CLASES_HOY[editClaseIdx] : null;
   const profes = STAFF.filter(s=>s.role==='profesor');
-  const cupoMax = c ? (c.cu.split('/')[1]||12) : 12;
+  const cupoMax = c ? ((c.cu||'0/12').split('/')[1]||12) : 12;
   const isOtro = c && !profes.find(p=>c.insId?p.id===c.insId:p.n===c.ins);
   openModal(`
     <div class="modal-head"><h3>${c?'Editar clase':'Nueva clase'}</h3><button onclick="closeModal()">✕</button></div>
@@ -3086,7 +3097,7 @@ function saveClase(){
   let c;
   if(editClaseIdx!==null){
     c = CLASES_HOY[editClaseIdx];
-    const entradas = (c.cu.split('/')[0])||0;
+    const entradas = ((c.cu||'0/12').split('/')[0])||0;
     Object.assign(c, {n,d,h,dur,ins,insId,cu:`${entradas}/${cupo}`});
   } else {
     c = {n,d,h,dur,ins,insId,cu:`0/${cupo}`,cId:newClaseId()};
@@ -3154,7 +3165,7 @@ function rutinasTbodyHTML(){
   const canCreate = isSuperOwner() || hasPerm('editarRutinas');
   const canAssign = isSuperOwner() || hasPerm('asignarRutinas');
   return RUTINAS.map((r,idx)=>{
-    const socCount = SOCIOS.filter(s=>s.rs.includes(r.n)).length;
+    const socCount = SOCIOS.filter(s=>Array.isArray(s.rs)&&s.rs.includes(r.n)).length;
     return `<tr ${canCreate?`ondragover="event.preventDefault()" ondrop="dragReorder(RUTINAS,dragSrcIdx,${idx},renderRutinasTable)"`:''}>
       ${canCreate?`<td style="cursor:grab;color:var(--text2);text-align:center;" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical" draggable="true" ondragstart="dragSrcIdx=${idx}"></i></td>`:''}
       <td>${esc(r.n)}</td><td><span class="badge b-purple">${esc(r.t)}</span></td><td>${esc(r.ob)||'-'}</td>
@@ -4336,7 +4347,7 @@ function showDniSetupPopup(){
       </div>
 
       <h2 style="font-size:19px;font-weight:700;margin-bottom:8px;color:#111;">
-        ${nombre ? `${nombre}, ` : ''}activá el acceso rápido
+        ${nombre ? `${esc(nombre)}, ` : ''}activá el acceso rápido
       </h2>
       <p style="color:#6b7280;font-size:13.5px;line-height:1.55;margin-bottom:22px;">
         Guardá tu número de DNI y la próxima vez que escanees el QR entrarás automáticamente, sin escribir nada.
@@ -4851,7 +4862,7 @@ function socioCuenta(){
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(rs.activo===false) ls.activo=false;
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
-        if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs.map(r=>r.n)); rs.rs.forEach(r=>{if(!lk.has(r.n)){ls.rs.push(r);lk.add(r.n);}}); }
+        if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
       });
       if(remote.SOCIOS_LOGIN&&typeof remote.SOCIOS_LOGIN==='object'){ Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{ if(!SOCIOS_LOGIN[email]){ const li=SOCIOS.findIndex(s=>s.email===email); if(li>=0) SOCIOS_LOGIN[email]={...remote.SOCIOS_LOGIN[email],idx:li}; } }); }
     }
@@ -4906,7 +4917,9 @@ function socioCuenta(){
       window.history.replaceState({}, '', window.location.pathname);
       loginView='resetPassword'; loginError=''; loginInfo='';
       $('#login').classList.remove('hidden');
-      $('#app').classList.add('hidden');
+      $('#staff').classList.add('hidden');
+      $('#socio').classList.add('hidden');
+      $('#qrGate').classList.add('hidden');
       renderLogin();
     }
   });
