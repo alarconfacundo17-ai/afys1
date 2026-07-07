@@ -1435,7 +1435,7 @@ function enterDemo(role, idOrIdx){
   const bar = $('#demoBar');
   if(bar) bar.classList.remove('hidden');
   if(role==='socio'){
-    currentRole='socio'; currentSocioIdx=idOrIdx;
+    currentRole='socio'; currentSocioIdx=idOrIdx; _dniPopupShown=false;
     const txt = $('#demoBarTxt'); if(txt) txt.textContent = `Modo demo — viendo como socio: ${esc(SOCIOS[idOrIdx].n)}`;
     $('#staff').classList.add('hidden');
     $('#socio').classList.remove('hidden');
