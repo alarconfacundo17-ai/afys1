@@ -1523,54 +1523,74 @@ async function openQRGate(){
   const savedEmail = localStorage.getItem(QR_DEVICE_KEY);
   const savedInfo = savedEmail ? lookupSocioLogin(savedEmail) : null;
   if(savedEmail && savedInfo && Number.isInteger(savedInfo.idx) && SOCIOS[savedInfo.idx]){
-    // Si ya hay sesión activa en este dispositivo, entrar directo sin pedir nada
+    // Sesión activa en este dispositivo → entrar directo sin pedir nada
     try{
       const {data:{session}} = await sb.auth.getSession();
       if(session && session.user && session.user.email.toLowerCase()===savedEmail.toLowerCase()){
-        currentRole = 'socio'; _dniPopupShown = false;
-        currentSocioIdx = savedInfo.idx;
-        pendingQR = pendingQR || {tipo:'general'};
+        currentRole='socio'; _dniPopupShown=false;
+        currentSocioIdx=savedInfo.idx;
+        pendingQR=pendingQR||{tipo:'general'};
         $('#qrGate').classList.add('hidden');
-        startScan();
-        return;
+        startScan(); return;
       }
     }catch(e){}
-    // Sin sesión activa: si tiene DNI pedir DNI, si no tiene pedir email+contraseña
+    // Sin sesión: si tiene DNI pedir DNI, si no tiene mostrar login con DNI+fallback
     const socioTieneDni = SOCIOS[savedInfo.idx] && SOCIOS[savedInfo.idx].dni;
     if(socioTieneDni){
-      renderQRGateLogin(savedEmail);
+      renderQRGateLoginDni(savedEmail);
     } else {
-      renderQRGateLoginForm();
+      renderQRGateLoginDni(null); // pantalla de login sin usuario recordado
     }
   } else {
-    renderQRGateSignup();
+    renderQRGateLanding();
   }
 }
 
-function renderQRGateSignup(qrError){
+// ── Pantalla inicial: dos botones ──────────────────────────────────────────
+function renderQRGateLanding(){
   $('#qrGateContent').innerHTML = `
-    <h1 style="font-size:20px;">👋 ¡Bienvenido/a!</h1>
-    <p class="sub" style="margin-bottom:0;">Escaneaste el QR del gimnasio. Creá tu cuenta de socio para registrar tu ingreso, o iniciá sesión si ya tenés una.</p>
-    <label>Nombre y apellido</label>
-    <input id="qrg_n" type="text" placeholder="Tu nombre completo">
-    <label>Email</label>
-    <input id="qrg_e" type="email" placeholder="tu@gmail.com">
-    <label>DNI</label>
-    <input id="qrg_dni" type="number" placeholder="Tu número de DNI">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:48px;margin-bottom:10px;">🏋️</div>
+      <h1 style="font-size:22px;font-weight:700;margin-bottom:6px;">¡Bienvenido/a a AFYS!</h1>
+      <p style="color:var(--text2);font-size:14px;">Escaneaste el QR del gimnasio.<br>¿Qué querés hacer?</p>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:14px;" onclick="renderQRGateCreateAccount()">
+      <i class="ti ti-user-plus" style="font-size:20px;"></i> Crear cuenta
+    </button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;font-size:15px;padding:14px;margin-top:12px;" onclick="renderQRGateLoginDni(null)">
+      <i class="ti ti-login" style="font-size:20px;"></i> Iniciar sesión
+    </button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:16px;opacity:0.6;" onclick="closeQRGate()">Cancelar</button>
+  `;
+}
+
+// ── Crear cuenta ───────────────────────────────────────────────────────────
+function renderQRGateCreateAccount(qrError){
+  $('#qrGateContent').innerHTML = `
+    <div class="modal-head" style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;">Crear cuenta</h2>
+      <button onclick="renderQRGateLanding()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">✕</button>
+    </div>
+    <label>Nombre y apellido *</label>
+    <input id="qrg_n" type="text" placeholder="Tu nombre completo" style="margin-bottom:8px;">
+    <label>Email *</label>
+    <input id="qrg_e" type="email" placeholder="tu@gmail.com" style="margin-bottom:8px;">
+    <label>DNI *</label>
+    <input id="qrg_dni" type="number" placeholder="Sin puntos, mínimo 6 dígitos" style="margin-bottom:8px;">
     <label>Teléfono</label>
-    <input id="qrg_t" type="tel" placeholder="11 1234-5678">
+    <input id="qrg_t" type="tel" placeholder="11 1234-5678" style="margin-bottom:8px;">
     <label>Fecha de nacimiento</label>
-    <input id="qrg_cumple" type="date">
+    <input id="qrg_cumple" type="date" style="margin-bottom:8px;">
     <label>Peso (kg, opcional)</label>
-    <input id="qrg_pe" type="number" placeholder="70">
+    <input id="qrg_pe" type="number" placeholder="70" style="margin-bottom:8px;">
     <label>Objetivo de entrenamiento</label>
-    <input id="qrg_ob" type="text" placeholder="Bajar peso, ganar músculo, etc.">
+    <input id="qrg_ob" type="text" placeholder="Bajar peso, ganar músculo, etc." style="margin-bottom:8px;">
     <label>Observaciones (opcional)</label>
-    <textarea id="qrg_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea>
-    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateCreateSocio()">Crear cuenta y registrar ingreso</button>
-    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateLoginForm()">Ya tengo cuenta, iniciar sesión</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
+    <textarea id="qrg_obs" rows="2" placeholder="Lesiones, condiciones médicas..." style="margin-bottom:8px;"></textarea>
+    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-bottom:8px;">${esc(qrError)}</p>`:''}
+    <button id="qrg_create_btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px;" onclick="qrGateCreateSocio()">
+      <i class="ti ti-check"></i> Crear cuenta y registrar ingreso
+    </button>
   `;
 }
 
@@ -1579,126 +1599,154 @@ async function qrGateCreateSocio(){
   const e = $('#qrg_e').value.trim().toLowerCase();
   const dni = String($('#qrg_dni').value).trim();
   const t = $('#qrg_t').value.trim();
-  const cumple = $('#qrg_cumple').value || null;
+  const cumple = $('#qrg_cumple').value||null;
   const pe = parseInt($('#qrg_pe').value)||null;
   const ob = $('#qrg_ob').value.trim()||null;
   const obs = $('#qrg_obs').value.trim()||null;
-  if(!n || !e || !dni || isNaN(Number(dni)) || dni.length<6){ renderQRGateSignup('Completá nombre, email y un DNI válido (mínimo 6 dígitos).'); return; }
+  if(!n||!e||!dni||isNaN(Number(dni))||dni.length<6){ renderQRGateCreateAccount('Completá nombre, email y un DNI válido (mínimo 6 dígitos).'); return; }
   cleanOrphanSocioLogin(e);
-  if(SOCIOS_LOGIN[e]){ renderQRGateSignup('Ya existe una cuenta con ese email. Iniciá sesión desde "No soy yo / usar otra cuenta".'); return; }
-  let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
-  if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
-    error = {message:'already registered'};
-  }
+  if(lookupSocioLogin(e)){ renderQRGateCreateAccount('Ya existe una cuenta con ese email. Usá "Iniciar sesión".'); return; }
+  const btn=$('#qrg_create_btn'); btn.disabled=true; btn.textContent='Creando cuenta...';
+  let {data,error}=await sb.auth.signUp({email:e,password:dni,options:{data:{nombre:n,role:'socio',dni},emailRedirectTo:APP_URL}});
+  if(!error&&data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0) error={message:'already registered'};
   if(error){
     if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
-      const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:dni});
-      if(loginErr){ renderQRGateSignup('Ese email ya tiene una cuenta. Si no recordás tu DNI, contactá al gimnasio.'); return; }
-    } else { renderQRGateSignup(sbErr(error)); return; }
+      const {error:le}=await sb.auth.signInWithPassword({email:e,password:dni});
+      if(le){ renderQRGateCreateAccount('Ese email ya tiene cuenta. Si no recordás tu DNI, usá "Iniciar sesión" → "Ingresar con email y contraseña".'); return; }
+    } else { renderQRGateCreateAccount(sbErr(error)); return; }
   }
-  const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const idx = SOCIOS.length;
-  const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, dni, tel:t, cumple, es:'ok', vence:null, rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
-  SOCIOS_LOGIN[e] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
+  const initialsV=n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const idx=SOCIOS.length;
+  const ed=cumple?calcAge(cumple):null;
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++),i:initialsV,n,email:e,dni,tel:t,cumple,es:'ok',vence:null,rs:[],nt:[],ed,pe,ob,obs,hoy:false,entradaHora:null,activo:true,altaPendiente:true});
+  SOCIOS_LOGIN[e]={idx,pe:'ok',pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
-  notifStaff.unshift({txt:`${n} se registró por primera vez escaneando el QR. ¿Ya era socio del gimnasio antes de usar la app?`, new:true, altaIdx:idx});
-  logMovimiento('alta_socio', `Alta de socio: ${n} (${e}) vía QR`);
-  cacheDni(dni, e);
+  notifStaff.unshift({txt:`${n} se registró escaneando el QR. ¿Ya era socio antes de usar la app?`,new:true,altaIdx:idx});
+  logMovimiento('alta_socio',`Alta de socio: ${n} (${e}) vía QR`);
+  cacheDni(dni,e);
   persist();
-  currentRole = 'socio'; _dniPopupShown = false;
-  currentSocioIdx = idx;
-  pendingQR = pendingQR || {tipo:'general'};
-  localStorage.setItem(QR_DEVICE_KEY, e);
+  currentRole='socio'; _dniPopupShown=false; currentSocioIdx=idx;
+  pendingQR=pendingQR||{tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY,e);
   $('#qrGate').classList.add('hidden');
   startScan();
 }
 
-function renderQRGateLogin(email){
-  const info = SOCIOS_LOGIN[email];
-  const socio = info && SOCIOS[info.idx];
-  if(!socio){ localStorage.removeItem(QR_DEVICE_KEY); renderQRGateSignup(); return; }
+// ── Iniciar sesión con DNI (+ fallback email+contraseña) ───────────────────
+function renderQRGateLoginDni(savedEmail, dniError){
+  const info = savedEmail ? lookupSocioLogin(savedEmail) : null;
+  const socio = info && Number.isInteger(info.idx) && SOCIOS[info.idx];
   $('#qrGateContent').innerHTML = `
-    <h1 style="font-size:20px;">👋 Hola, ${esc(socio.n)}</h1>
-    <p class="sub" style="margin-bottom:0;">Ingresá tu DNI para registrar tu entrada de hoy.</p>
-    <label>DNI</label>
-    <input id="qrg_login_dni" type="number" placeholder="Tu DNI sin puntos">
-    <div id="qrLoginError" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginAndCheckIn('${email}')">Ingresar y marcar entrada</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>
-    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:6px;opacity:0.6;" onclick="renderQRGateLoginForm()">¿Problemas? Ingresá con email y contraseña</button>
+    <div class="modal-head" style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;">${socio ? `👋 Hola, ${esc(socio.n.split(' ')[0])}` : 'Iniciar sesión'}</h2>
+      <button onclick="${socio?'qrGateUseOtherAccount()':'renderQRGateLanding()'}" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">✕</button>
+    </div>
+    <p style="color:var(--text2);font-size:13.5px;margin-bottom:14px;">${socio?'Ingresá tu DNI para registrar tu entrada.':'Ingresá tu DNI para entrar.'}</p>
+    <label>Número de DNI</label>
+    <input id="qrg_login_dni" type="number" placeholder="Sin puntos" style="font-size:18px;padding:12px;letter-spacing:1px;margin-bottom:8px;" onkeydown="if(event.key==='Enter')qrGateLoginAndCheckIn('${savedEmail||''}')">
+    <div id="qrLoginError" style="color:var(--red);font-size:12.5px;min-height:18px;">${dniError?esc(dniError):''}</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:13px;margin-top:8px;" onclick="qrGateLoginAndCheckIn('${savedEmail||''}')">
+      <i class="ti ti-login"></i> Ingresar
+    </button>
+    <div style="display:flex;align-items:center;gap:8px;margin:16px 0;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="color:var(--text2);font-size:12px;">¿No recordás tu DNI?</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="renderQRGateLoginForm()">
+      <i class="ti ti-mail"></i> Ingresar con email y contraseña
+    </button>
+    ${socio?`<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;opacity:0.6;" onclick="qrGateUseOtherAccount()">No soy yo / usar otra cuenta</button>`:''}
   `;
+  setTimeout(()=>{ const inp=$('#qrg_login_dni'); if(inp) inp.focus(); },100);
 }
 
 function qrGateUseOtherAccount(){
   localStorage.removeItem(QR_DEVICE_KEY);
-  renderQRGateSignup();
+  renderQRGateLanding();
 }
 
-async function qrGateLoginAndCheckIn(email){
-  const info = lookupSocioLogin(email);
-  if(!info || !Number.isInteger(info.idx) || !SOCIOS[info.idx]){
-    $('#qrLoginError').textContent = 'No encontramos tu perfil. Probá con email y contraseña.';
+async function qrGateLoginAndCheckIn(savedEmail){
+  const dni=String($('#qrg_login_dni').value).trim();
+  if(!dni){ $('#qrLoginError').textContent='Ingresá tu DNI.'; return; }
+
+  // Buscar email: si hay uno guardado usarlo, si no buscar en el caché de DNI
+  let email = savedEmail || dniCache[dni];
+  if(!email){
+    // No conocemos el email → pedir email+contraseña
+    renderQRGateLoginForm('No encontramos tu cuenta con ese DNI. Ingresá con email y contraseña.');
     return;
   }
-  const dni = String($('#qrg_login_dni').value).trim();
-  if(!dni){ $('#qrLoginError').textContent = 'Ingresá tu DNI.'; return; }
-  const {error} = await sb.auth.signInWithPassword({email, password: dni});
+
+  const {error}=await sb.auth.signInWithPassword({email,password:dni});
   if(error){
-    $('#qrLoginError').innerHTML = 'DNI incorrecto. <a href="#" style="color:var(--primary);" onclick="renderQRGateLoginForm();return false;">Ingresá con email y contraseña</a>';
+    $('#qrLoginError').innerHTML='DNI incorrecto. <a href="#" style="color:var(--primary);" onclick="renderQRGateLoginForm();return false;">Ingresá con email y contraseña</a>';
     return;
   }
-  cacheDni(dni, email);
-  currentRole = 'socio'; _dniPopupShown = false;
-  currentSocioIdx = info.idx;
-  pendingQR = pendingQR || {tipo:'general'};
-  localStorage.setItem(QR_DEVICE_KEY, email);
+  cacheDni(dni,email);
+  let info=lookupSocioLogin(email);
+  if(!info||!Number.isInteger(info.idx)||!SOCIOS[info.idx]){
+    const idxR=await intentarRecuperarPerfilSocio(email);
+    if(idxR===null){ await sb.auth.signOut(); renderQRGateLoginForm('No encontramos tu perfil. Contactá al gimnasio.'); return; }
+    info={idx:idxR};
+  }
+  currentRole='socio'; _dniPopupShown=false; currentSocioIdx=info.idx;
+  pendingQR=pendingQR||{tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY,email);
   $('#qrGate').classList.add('hidden');
   startScan();
 }
 
+// ── Ingresar con email y contraseña ────────────────────────────────────────
 function renderQRGateLoginForm(qrError){
   $('#qrGateContent').innerHTML = `
-    <h1 style="font-size:20px;">👋 Iniciar sesión</h1>
-    <p class="sub" style="margin-bottom:0;">Ingresá con tu email y contraseña. Si tu cuenta es nueva, tu contraseña es tu número de DNI.</p>
+    <div class="modal-head" style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;">Email y contraseña</h2>
+      <button onclick="renderQRGateLoginDni(null)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">✕</button>
+    </div>
     <label>Email</label>
-    <input id="qrg_form_e" type="email" placeholder="tu@gmail.com">
+    <input id="qrg_form_e" type="email" placeholder="tu@gmail.com" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')document.getElementById('qrg_form_p').focus()">
     <label>Contraseña</label>
-    <input id="qrg_form_p" type="password" placeholder="Contraseña o DNI">
-    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(qrError)}</p>`:''}
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="qrGateLoginByForm()">Ingresar y marcar entrada</button>
-    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px;" onclick="renderQRGateSignup()">No tengo cuenta, crear una</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="closeQRGate()">Cancelar</button>
+    <input id="qrg_form_p" type="password" placeholder="Tu contraseña o DNI" style="margin-bottom:8px;" onkeydown="if(event.key==='Enter')qrGateLoginByForm()">
+    ${qrError?`<p style="color:var(--red);font-size:12.5px;margin-bottom:8px;">${esc(qrError)}</p>`:''}
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:13px;" onclick="qrGateLoginByForm()">
+      <i class="ti ti-login"></i> Ingresar
+    </button>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:10px;" onclick="qrGateForgotPassword()">
+      ¿Olvidaste tu contraseña?
+    </button>
+    <div id="qrg_forgot_msg" style="font-size:12.5px;margin-top:8px;text-align:center;min-height:18px;"></div>
   `;
+  setTimeout(()=>{ const inp=$('#qrg_form_e'); if(inp) inp.focus(); },100);
+}
+
+async function qrGateForgotPassword(){
+  const email=$('#qrg_form_e').value.trim().toLowerCase();
+  const msgEl=$('#qrg_forgot_msg');
+  if(!email){ msgEl.style.color='var(--red)'; msgEl.textContent='Ingresá tu email arriba primero.'; return; }
+  msgEl.style.color='var(--text2)'; msgEl.textContent='Enviando...';
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});
+  if(error){ msgEl.style.color='var(--red)'; msgEl.textContent=sbErr(error); return; }
+  msgEl.style.color='var(--green)'; msgEl.textContent='¡Listo! Revisá tu email (también el spam).';
 }
 
 async function qrGateLoginByForm(){
-  const email = $('#qrg_form_e').value.trim().toLowerCase();
-  const password = $('#qrg_form_p').value.trim();
-  if(!email || !password){ renderQRGateLoginForm('Completá email y contraseña.'); return; }
-  const {error} = await sb.auth.signInWithPassword({email, password});
+  const email=$('#qrg_form_e').value.trim().toLowerCase();
+  const password=$('#qrg_form_p').value.trim();
+  if(!email||!password){ renderQRGateLoginForm('Completá email y contraseña.'); return; }
+  const {error}=await sb.auth.signInWithPassword({email,password});
   if(error){ renderQRGateLoginForm('Email o contraseña incorrectos.'); return; }
-  // Si la contraseña era el DNI, cachearla para login rápido futuro
-  if(/^\d{6,8}$/.test(password)) cacheDni(password, email);
-  let info = lookupSocioLogin(email);
-  if(!info || !Number.isInteger(info.idx) || !SOCIOS[info.idx]){
-    const idxRecuperado = await intentarRecuperarPerfilSocio(email);
-    if(idxRecuperado===null){
-      await sb.auth.signOut();
-      renderQRGateLoginForm('Esta cuenta no es de socio. Si sos personal del gimnasio, iniciá sesión desde la pantalla principal.');
-      return;
-    }
-    info = {idx:idxRecuperado};
+  if(/^\d{6,8}$/.test(password)) cacheDni(password,email);
+  let info=lookupSocioLogin(email);
+  if(!info||!Number.isInteger(info.idx)||!SOCIOS[info.idx]){
+    const idxR=await intentarRecuperarPerfilSocio(email);
+    if(idxR===null){ await sb.auth.signOut(); renderQRGateLoginForm('Esta cuenta no es de socio. Si sos personal del gimnasio, iniciá sesión desde la pantalla principal.'); return; }
+    info={idx:idxR};
   }
-  if(!Number.isInteger(info.idx) || !SOCIOS[info.idx]){
-    await sb.auth.signOut();
-    renderQRGateLoginForm('No pudimos encontrar tu perfil. Contactá al gimnasio.');
-    return;
-  }
-  currentRole = 'socio'; _dniPopupShown = false;
-  currentSocioIdx = info.idx;
-  pendingQR = pendingQR || {tipo:'general'};
-  localStorage.setItem(QR_DEVICE_KEY, email);
+  if(!Number.isInteger(info.idx)||!SOCIOS[info.idx]){ await sb.auth.signOut(); renderQRGateLoginForm('No pudimos encontrar tu perfil. Contactá al gimnasio.'); return; }
+  currentRole='socio'; _dniPopupShown=false; currentSocioIdx=info.idx;
+  pendingQR=pendingQR||{tipo:'general'};
+  localStorage.setItem(QR_DEVICE_KEY,email);
   $('#qrGate').classList.add('hidden');
   startScan();
 }
