@@ -772,6 +772,8 @@ async function mergeRemoteAntesDeGuardar(){
           const nn = normName(rs.n);
           ls = nn ? localByNormName[nn] : null;
           if(!ls){
+            if(!Array.isArray(rs.nt)) rs.nt=[];
+            if(!Array.isArray(rs.rs)) rs.rs=[];
             SOCIOS.push(rs);
             localByKey[key] = rs;
             if(nn) localByNormName[nn] = rs;
@@ -1249,7 +1251,7 @@ async function routeLoggedInUser(email){
     return;
   }
   const info = SOCIOS_LOGIN[email];
-  if(info && SOCIOS[info.idx]){
+  if(info && SOCIOS[info.idx] && SOCIOS[info.idx].email === email){
     currentRole='socio'; currentSocioIdx=info.idx; _dniPopupShown=false;
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
@@ -2422,6 +2424,7 @@ function openBajaModal(idx){
 function confirmBaja(idx){
   const s = SOCIOS[idx];
   s.activo = false;
+  if(!Array.isArray(s.nt)) s.nt=[];
   const motivo = $('#bj_m').value;
   const nota = $('#bj_n').value.trim();
   s.nt.push(`Dado de baja — Motivo: ${motivo}${nota?'. '+nota:''} (${new Date().toLocaleDateString('es-AR')})`);
@@ -2432,6 +2435,7 @@ function confirmBaja(idx){
 function reactivarSocio(idx){
   const s = SOCIOS[idx];
   s.activo = true;
+  if(!Array.isArray(s.nt)) s.nt=[];
   s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
   logMovimiento('reactivacion_socio', `Reactivación de socio: ${s.n}`);
   persist();
@@ -2850,7 +2854,7 @@ let editPagoKey = null; // clave estable sid|f|m|mp para no depender de índice
 function pagoSocioResultsHTML(q){
   q = (q||'').toLowerCase().trim();
   const res = SOCIOS.filter(s=>s.n.toLowerCase().includes(q)).slice(0,8);
-  return res.length ? res.map(s=>`<div class="ej-picker-item" onclick="selectPagoSocio('${esc(s.id)}','${s.n.replace(/'/g,"\\'")}')">${esc(s.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
+  return res.length ? res.map(s=>`<div class="ej-picker-item" onclick="selectPagoSocio('${esc(s.id)}','${jsAttr(s.n)}')">${esc(s.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
 }
 function filterPagoSocioSelect(q){
   const list = document.getElementById('pg_s_list');
