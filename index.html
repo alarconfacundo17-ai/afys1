@@ -4307,6 +4307,7 @@ function renderSocio(){
 
 function showDniSetupPopup(){
   if(document.getElementById('dniSetupPopup')) return;
+  if(socioPage !== 'inicio') return;
   const socio = SOCIOS[currentSocioIdx];
   const nombre = socio ? socio.n.split(' ')[0] : '';
   const overlay = document.createElement('div');
