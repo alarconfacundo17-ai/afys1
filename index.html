@@ -761,7 +761,7 @@ function migrateProfesorDefaultPermsV2(){
 
 let persistTimer = null;
 let toastTimer = null;
-function showToast(msg, type){
+function showToast(msg, type, duration){
   let t = document.getElementById('appToast');
   if(!t){
     t = document.createElement('div');
@@ -769,12 +769,13 @@ function showToast(msg, type){
     t.className = 'toast';
     document.body.appendChild(t);
   }
-  const icon = type==='error' ? 'ti-alert-circle' : 'ti-circle-check';
+  const icon = type==='error' ? 'ti-alert-circle' : type==='info' ? 'ti-cake' : 'ti-circle-check';
   t.innerHTML = `<i class="ti ${icon}"></i>${esc(msg)}`;
   t.classList.toggle('toast-error', type==='error');
   clearTimeout(toastTimer);
   t.classList.add('show');
-  toastTimer = setTimeout(()=>t.classList.remove('show'), type==='error'?4000:2000);
+  const ms = duration || (type==='error'?4000:2000);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), ms);
 }
 function socioMergeKey(s){ return s.id || (s.email||'').trim().toLowerCase() || s.n; }
 function mergeRsHechos(local, remote){
@@ -2107,6 +2108,8 @@ function staffBlocked(){
   return !!(st && st.activo===false);
 }
 function renderStaff(){
+  // Notificación de cumpleaños de socios (una vez por sesión, con delay para que no bloquee el render)
+  if(!_cumpleStaffNotified) setTimeout(checkCumpleaniosStaff, 1200);
   const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos',movimientos:'Movimientos'};
   $('#staffTitle').textContent = titles[staffPage]||'Panel';
   const c = $('#staffContent');
@@ -2564,8 +2567,21 @@ function openSocioOpcionesModal(idx){
   const canEdit = hasPerm('editarSocios')||hasPerm('editarFichas')||isSuperOwner();
   const canRemove = hasPerm('removerSocios')||isSuperOwner();
   const optSt = 'justify-content:flex-start;width:100%;padding:13px 16px;font-size:15px;gap:10px;';
+  const edad = getEdad(s);
+  const cumpleLabel = fmtCumpleLabel(s.cumple);
+  const esHoyCumple = esCumpleHoy(s);
+  const fichaItems = [
+    edad!=null ? `<div><span style="color:var(--text2);font-size:11.5px;">Edad</span><div style="font-weight:600;">${edad} años</div></div>` : '',
+    cumpleLabel ? `<div><span style="color:var(--text2);font-size:11.5px;">Cumpleaños</span><div style="font-weight:600;">${cumpleLabel}${esHoyCumple?' 🎂':''}</div></div>` : '',
+    s.tel ? `<div><span style="color:var(--text2);font-size:11.5px;">Teléfono</span><div style="font-weight:600;">${esc(s.tel)}</div></div>` : '',
+    s.pe ? `<div><span style="color:var(--text2);font-size:11.5px;">Peso</span><div style="font-weight:600;">${s.pe} kg</div></div>` : '',
+    s.ob ? `<div style="grid-column:1/-1;"><span style="color:var(--text2);font-size:11.5px;">Objetivo</span><div style="font-weight:600;">${esc(s.ob)}</div></div>` : '',
+    s.obs ? `<div style="grid-column:1/-1;"><span style="color:var(--text2);font-size:11.5px;">Observaciones</span><div style="font-weight:600;font-size:13px;">${esc(s.obs)}</div></div>` : '',
+  ].filter(Boolean).join('');
+  const fichaCard = fichaItems ? `<div class="card" style="padding:12px 14px;margin-bottom:4px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:14px;">${fichaItems}</div>` : '';
   openModal(`
-    <div class="modal-head"><h3 style="font-size:18px;">${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:18px;">${esc(s.n)}${esHoyCumple?' 🎂':''}</h3><button onclick="closeModal()">✕</button></div>
+    ${fichaCard}
     <div style="display:flex;flex-direction:column;gap:10px;">
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoModal(${idx})"><i class="ti ti-cash" style="font-size:20px;color:var(--green);"></i>Registrar pago</button>`:''}
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoAnteriorModal(${idx})"><i class="ti ti-clock-dollar" style="font-size:20px;color:var(--text2);"></i>Registrar pago anterior</button>`:''}
@@ -4540,10 +4556,16 @@ function renderSocio(){
   void c.offsetWidth;
   c.classList.add('page-fade');
   updateNotifDots();
+  // Popup de cumpleaños para el socio (una vez por sesión, solo en inicio)
+  if(!_cumplePopupShown && socioPage==='inicio' && esCumpleHoy(SOCIOS[currentSocioIdx]||{})){
+    setTimeout(showCumpleSocioPopup, 900);
+  }
   // Mostrar popup de DNI una sola vez por sesión, solo en la página de inicio
   if(!_dniPopupShown && socioPage==='inicio' && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
     _dniPopupShown = true;
-    setTimeout(showDniSetupPopup, 1400);
+    // No mostrar popup de DNI el día del cumpleaños para no solapar los popups
+    const delay = esCumpleHoy(SOCIOS[currentSocioIdx]||{}) ? 4500 : 1400;
+    setTimeout(showDniSetupPopup, delay);
   }
 }
 
@@ -4646,6 +4668,65 @@ function getEdad(s){
   return s.cumple ? calcAge(s.cumple) : s.ed;
 }
 let showWelcomeBanner = false;
+let _cumplePopupShown = false;    // popup de cumple al socio (una vez por sesión)
+let _cumpleStaffNotified = false; // notificación de cumple al staff (una vez por sesión)
+
+function esCumpleHoy(s){
+  if(!s.cumple) return false;
+  const b = new Date(s.cumple+'T00:00:00');
+  const now = new Date();
+  return b.getMonth()===now.getMonth() && b.getDate()===now.getDate();
+}
+function fmtCumpleLabel(cumple){
+  if(!cumple) return null;
+  const b = new Date(cumple+'T00:00:00');
+  if(isNaN(b)) return null;
+  return `${b.getDate()} de ${MESES[b.getMonth()].toLowerCase()}`;
+}
+function checkCumpleaniosStaff(){
+  if(_cumpleStaffNotified) return;
+  _cumpleStaffNotified = true;
+  const cumpleros = SOCIOS.filter(s=>s.activo!==false && esCumpleHoy(s));
+  if(!cumpleros.length) return;
+  // Mostrar un toast por cada cumpleaniero
+  cumpleros.forEach((s,i)=>{
+    setTimeout(()=>{
+      showToast(`🎂 ¡Hoy cumple años ${s.n}! Felicitalo cuando venga.`, 'info', 7000);
+    }, i*800);
+  });
+  // Si hay varios, también abrir un modal con la lista
+  if(cumpleros.length>1){
+    setTimeout(()=>{
+      openModal(`
+        <div class="modal-head"><h3 style="font-size:18px;">🎂 Cumpleaños de hoy</h3><button onclick="closeModal()">✕</button></div>
+        <p style="color:var(--text2);font-size:14px;margin-bottom:12px;">Hoy cumplen años los siguientes socios. ¡No te olvides de felicitarlos!</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${cumpleros.map(s=>{const edad=getEdad(s); return `<div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:10px;"><div class="avatar" style="width:36px;height:36px;min-width:36px;font-size:15px;">${esc(s.i||'?')}</div><div><b>${esc(s.n)}</b>${edad?`<div style="font-size:12px;color:var(--text2);">Cumple ${edad} años hoy</div>`:''}</div></div>`;}).join('')}
+        </div>
+        <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>
+      `);
+    }, cumpleros.length*800+300);
+  }
+}
+function showCumpleSocioPopup(){
+  if(_cumplePopupShown) return;
+  _cumplePopupShown = true;
+  const s = SOCIOS[currentSocioIdx];
+  if(!s) return;
+  const nombre = s.n.split(' ')[0];
+  const edad = getEdad(s);
+  document.body.insertAdjacentHTML('beforeend',`
+    <div id="cumplePopup" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:var(--card);border-radius:18px;max-width:380px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25);animation:modalIn .35s ease;">
+        <div style="font-size:52px;margin-bottom:8px;">🎂</div>
+        <h2 style="margin:0 0 10px;font-size:22px;">¡Feliz cumpleaños, ${esc(nombre)}!</h2>
+        ${edad?`<p style="color:var(--primary);font-weight:700;margin:0 0 14px;font-size:16px;">${edad} años</p>`:''}
+        <p style="color:var(--text2);font-size:14.5px;line-height:1.6;margin:0 0 22px;">El equipo de AFYS te manda un abrazo enorme. Sos parte de nuestra familia y estamos muy contentos de acompañarte en el día a día. ¡Que este nuevo año te traiga mucha salud, fuerza y alegría!</p>
+        <button class="btn btn-primary" style="width:100%;font-size:16px;padding:14px;" onclick="document.getElementById('cumplePopup').remove()">¡Gracias! 🙌</button>
+      </div>
+    </div>
+  `);
+}
 function socioInicio(){
   const s = SOCIOS[currentSocioIdx];
   const welcomeHTML = showWelcomeBanner ? `<div class="welcome-banner">
