@@ -4299,7 +4299,7 @@ function renderSocio(){
   c.classList.add('page-fade');
   updateNotifDots();
   // Mostrar popup de DNI una sola vez por sesión, solo en la página de inicio
-  if(!_dniPopupShown && !demoMode && socioPage==='inicio' && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
+  if(!_dniPopupShown && socioPage==='inicio' && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
     _dniPopupShown = true;
     setTimeout(showDniSetupPopup, 1400);
   }
