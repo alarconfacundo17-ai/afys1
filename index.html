@@ -2551,15 +2551,17 @@ function hasPermSocios(){
 function openSocioModal(){
   openModal(`
     <div class="modal-head"><h3>Nuevo socio</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre y apellido</label><input id="ns_n" placeholder="Nombre completo"></div>
-    <div class="field"><label>Email (Gmail)</label><input id="ns_email" type="email" placeholder="nombre@gmail.com"></div>
+    <div class="field"><label>Nombre y apellido *</label><input id="ns_n" placeholder="Nombre completo"></div>
+    <div class="field"><label>Email *</label><input id="ns_email" type="email" placeholder="nombre@gmail.com"></div>
+    <div class="field"><label>DNI *</label><input id="ns_dni" type="number" placeholder="Sin puntos, mínimo 6 dígitos"></div>
     <div class="field"><label>Teléfono</label><input id="ns_tel" type="tel" placeholder="11 1234-5678"></div>
     <div class="field"><label>Fecha de nacimiento</label><input id="ns_cumple" type="date" oninput="onNsCumpleInput()"></div>
     <div class="field"><label>Edad</label><input id="ns_ed" type="number"></div>
     <div class="field"><label>Peso (kg, opcional)</label><input id="ns_pe" type="number"></div>
     <div class="field"><label>Objetivo de entrenamiento</label><input id="ns_ob" placeholder="Bajar peso, ganar músculo, etc."></div>
     <div class="field"><label>Observaciones (opcional)</label><textarea id="ns_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
+    <div id="ns_error" style="color:var(--red);font-size:12.5px;display:none;"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button id="ns_btn" class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
   `);
 }
 function onNsCumpleInput(){
@@ -2568,22 +2570,50 @@ function onNsCumpleInput(){
   if(v){ edInput.value = calcAge(v)||''; edInput.disabled = true; }
   else { edInput.disabled = false; }
 }
-function saveSocio(){
-  const n = $('#ns_n').value.trim()||'Nuevo Socio';
+async function saveSocio(){
+  const n = $('#ns_n').value.trim();
   const email = $('#ns_email').value.trim().toLowerCase();
+  const dni = String($('#ns_dni').value).trim();
+  const errEl = $('#ns_error');
+  if(!n){ errEl.textContent='El nombre es obligatorio.'; errEl.style.display='block'; return; }
+  if(!email){ errEl.textContent='El email es obligatorio.'; errEl.style.display='block'; return; }
+  if(!dni || isNaN(Number(dni)) || dni.length<6){ errEl.textContent='El DNI debe tener al menos 6 dígitos.'; errEl.style.display='block'; return; }
+  if(lookupSocioLogin(email)){ errEl.textContent='Ya existe un socio con ese email.'; errEl.style.display='block'; return; }
+  errEl.style.display='none';
+  const btn = $('#ns_btn'); btn.disabled=true; btn.textContent='Guardando...';
+
   const tel = $('#ns_tel').value.trim();
   const cumple = $('#ns_cumple').value || null;
   const ed = cumple ? calcAge(cumple) : (parseInt($('#ns_ed').value)||null);
   const pe = parseInt($('#ns_pe').value)||null;
   const ob = $('#ns_ob').value.trim()||null;
   const obs = $('#ns_obs').value.trim()||null;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email:email||null, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
-  const idx = SOCIOS.length-1;
+
+  // Crear cuenta Supabase con DNI como contraseña
+  let {data, error} = await sb.auth.signUp({email, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
+  // Si la cuenta ya existe intentar con las credenciales actuales
+  if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
+    error = {message:'already registered'};
+  }
+  if(error){
+    if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
+      // Cuenta existente — vincularla igualmente al perfil local
+    } else {
+      errEl.textContent = sbErr(error);
+      errEl.style.display='block';
+      btn.disabled=false; btn.textContent='Guardar';
+      return;
+    }
+  }
+
+  const idx = SOCIOS.length;
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
   notifSocio[idx]=[];
-  if(email) SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
-  logMovimiento('alta_socio', `Alta de socio: ${n}${email?' ('+email+')':''}`);
+  SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
+  cacheDni(dni, email);
+  logMovimiento('alta_socio', `Alta de socio: ${n} (${email})`);
   persist();
-  showToast('Guardado');
+  showToast('Socio creado. Ya puede entrar con su DNI.');
   closeModal(); renderStaff();
 }
 
