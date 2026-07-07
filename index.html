@@ -485,6 +485,18 @@ const _initialHash = window.location.hash;
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{flowType:'implicit'}});
 const APP_URL = window.location.origin + window.location.pathname;
 
+function sbErr(error){
+  const m = (error&&(error.message||error.msg||''))||'';
+  if(/rate.limit|too.many.request/i.test(m)) return 'Se enviaron demasiados intentos. Esperá unos minutos y volvé a intentar.';
+  if(/email.not.confirmed/i.test(m)) return 'Todavía no confirmaste tu email. Revisá tu casilla de correo.';
+  if(/invalid.login|invalid.email.or.password|email.*password|credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if(/already.registered|user.already.exists|already.exists/i.test(m)) return 'Ya existe una cuenta con ese email.';
+  if(/email.link.is.invalid|token.expired|otp.expired/i.test(m)) return 'El link expiró o ya fue usado. Pedí uno nuevo.';
+  if(/password.*length|must be at least/i.test(m)) return 'La contraseña debe tener al menos 6 caracteres.';
+  if(/network|failed.to.fetch|connection/i.test(m)) return 'Error de conexión. Verificá tu internet y volvé a intentar.';
+  return 'Ocurrió un error inesperado. Intentá de nuevo o contactá al gimnasio.';
+}
+
 function fillArray(arr, data){ if(!Array.isArray(data)) return; arr.length=0; arr.push(...data); }
 function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; Object.keys(obj).forEach(k=>delete obj[k]); Object.assign(obj, data); }
 
@@ -1189,9 +1201,20 @@ async function submitForgotPassword(){
   if(!email){ loginError='Ingresá tu email.'; loginInfo=''; renderLogin(); return; }
   loginError=''; loginInfo='Enviando...'; renderLogin();
   const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: APP_URL});
-  if(error){ loginError = error.message; loginInfo=''; renderLogin(); return; }
-  loginInfo = 'Listo, revisá tu email para crear una nueva contraseña.';
-  renderLogin();
+  if(error){
+    const msg = error.message||'';
+    if(/rate.limit|too.many/i.test(msg))
+      loginError='Se enviaron demasiados emails seguidos. Esperá unos minutos y volvé a intentar.';
+    else if(/invalid.email|unable.to.validate/i.test(msg))
+      loginError='El email ingresado no es válido.';
+    else if(/not.found|user.not.found/i.test(msg))
+      loginError='No encontramos ninguna cuenta con ese email.';
+    else
+      loginError='No se pudo enviar el email. Revisá que la dirección sea correcta o contactá al gimnasio.';
+    loginInfo=''; renderLogin(); return;
+  }
+  loginInfo='¡Listo! Te mandamos un email con el link para cambiar tu contraseña. Revisá también la carpeta de spam si no aparece en unos minutos.';
+  loginError=''; renderLogin();
 }
 async function submitResetPassword(){
   const p1 = $('#rp_p1').value;
@@ -1200,7 +1223,7 @@ async function submitResetPassword(){
   if(p1!==p2){ loginError='Las contraseñas no coinciden.'; renderLogin(); return; }
   loginError=''; renderLogin();
   const {error} = await sb.auth.updateUser({password:p1});
-  if(error){ loginError = error.message; renderLogin(); return; }
+  if(error){ loginError = sbErr(error); renderLogin(); return; }
   await sb.auth.signOut();
   loginView='login'; loginError=''; loginInfo='Contraseña actualizada. Ingresá con tu nueva contraseña.';
   renderLogin();
@@ -1359,7 +1382,7 @@ async function submitSignupDueno(){
       await routeLoggedInUser(e);
       return;
     }
-    loginError=error.message; renderLogin(); return;
+    loginError=sbErr(error); renderLogin(); return;
   }
   DUENO_EMAIL = e;
   if(!DUENOS.find(d=>d.email===e)) DUENOS.push({id:'dueno_'+e.replace(/[^a-z0-9]/gi,'_'), n, email:e, color:''});
@@ -1387,7 +1410,7 @@ async function submitSignupSocio(){
     if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
       const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:dni});
       if(loginErr){ loginError='Ese email ya tiene una cuenta. Si no recordás tu DNI, contactá al gimnasio.'; renderLogin(); return; }
-    } else { loginError=error.message; renderLogin(); return; }
+    } else { loginError=sbErr(error); renderLogin(); return; }
   }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
@@ -1571,7 +1594,7 @@ async function qrGateCreateSocio(){
     if(/already.*(registered|exists)|user_already_exists/i.test(error.message)){
       const {error:loginErr} = await sb.auth.signInWithPassword({email:e, password:dni});
       if(loginErr){ renderQRGateSignup('Ese email ya tiene una cuenta. Si no recordás tu DNI, contactá al gimnasio.'); return; }
-    } else { renderQRGateSignup(error.message); return; }
+    } else { renderQRGateSignup(sbErr(error)); return; }
   }
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
@@ -1766,7 +1789,7 @@ async function staffGateCreate(){
   const edad = parseInt(edadStr);
   if(STAFF.find(s=>s.email===email) || email===DUENO_EMAIL){ renderStaffGateSignup('Ya existe una cuenta con ese email. Iniciá sesión.'); return; }
   const {error} = await sb.auth.signUp({email, password:pass, options:{data:{nombre:n, role}, emailRedirectTo:APP_URL}});
-  if(error){ renderStaffGateSignup(error.message); return; }
+  if(error){ renderStaffGateSignup(sbErr(error)); return; }
   const id = 'st_'+Date.now();
   const perms = role==='profesor'
     ? {...PROFESOR_DEFAULT_PERMS}
