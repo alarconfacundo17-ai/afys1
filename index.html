@@ -394,6 +394,9 @@ const EJ_IMAGES = {};
 const RESERVAS = {};
 let socioSeq = 1; // contador de IDs únicos de socio
 let deletedSocioIds = []; // IDs de socios eliminados definitivamente, para que el merge remoto no los reintroduzca
+let deletedTurnoIds = []; // IDs de turnos eliminados, para que el merge remoto no los reintroduzca
+let deletedPagoKeys = []; // claves "sid|f|m|mp" de pagos eliminados
+let deletedRutinaNames = []; // nombres de rutinas eliminadas
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 
 // Caché local de DNI→email para login rápido (solo en este dispositivo)
@@ -503,7 +506,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds,
+    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds, deletedTurnoIds, deletedPagoKeys, deletedRutinaNames,
   };
 }
 
@@ -536,6 +539,9 @@ function applyState(s){
   if(typeof s.socioSeq==='number') socioSeq = s.socioSeq;
   if(s.gymHoursOk === true) gymHoursOk = true;
   if(Array.isArray(s.deletedSocioIds)) deletedSocioIds = s.deletedSocioIds;
+  if(Array.isArray(s.deletedTurnoIds)) deletedTurnoIds = s.deletedTurnoIds;
+  if(Array.isArray(s.deletedPagoKeys)) deletedPagoKeys = s.deletedPagoKeys;
+  if(Array.isArray(s.deletedRutinaNames)) deletedRutinaNames = s.deletedRutinaNames;
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
   // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
   let _migChanged = false;
@@ -866,10 +872,11 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(Array.isArray(remote.PAGOS)){
+      const delPK = new Set(deletedPagoKeys);
       const localKeys = new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp));
       remote.PAGOS.forEach(p=>{
         const key = p.sid+'|'+p.f+'|'+p.m+'|'+p.mp;
-        if(!localKeys.has(key)){ PAGOS.push(p); localKeys.add(key); }
+        if(!delPK.has(key) && !localKeys.has(key)){ PAGOS.push(p); localKeys.add(key); }
       });
       PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
     }
@@ -904,8 +911,42 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(Array.isArray(remote.TURNOS)){
-      const localIds = new Set(TURNOS.map(t=>t.id));
-      remote.TURNOS.forEach(t=>{ if(!localIds.has(t.id)){ TURNOS.push(t); localIds.add(t.id); } });
+      const delT = new Set(deletedTurnoIds);
+      const localById = {};
+      TURNOS.forEach(t=>{ localById[t.id]=t; });
+      remote.TURNOS.forEach(t=>{
+        if(!t.id || delT.has(t.id)) return;
+        if(localById[t.id]){ if(!document.querySelector('.modal-overlay')) Object.assign(localById[t.id], t); }
+        else { TURNOS.push(t); localById[t.id]=t; }
+      });
+      // aplicar eliminaciones remotas
+      if(Array.isArray(remote.deletedTurnoIds)){
+        remote.deletedTurnoIds.forEach(id=>{ if(!deletedTurnoIds.includes(id)) deletedTurnoIds.push(id); });
+        TURNOS = TURNOS.filter(t=>!new Set(deletedTurnoIds).has(t.id));
+      }
+    }
+
+    // RUTINAS: sync aditivo con actualización de existentes y respeto de eliminadas
+    if(Array.isArray(remote.RUTINAS)){
+      const delR = new Set(deletedRutinaNames);
+      if(Array.isArray(remote.deletedRutinaNames)){
+        remote.deletedRutinaNames.forEach(n=>{ if(!deletedRutinaNames.includes(n)) deletedRutinaNames.push(n); delR.add(n); });
+        RUTINAS.splice(0, RUTINAS.length, ...RUTINAS.filter(r=>!delR.has(r.n)));
+      }
+      const localByName = {};
+      RUTINAS.forEach(r=>{ localByName[r.n]=r; });
+      remote.RUTINAS.forEach(r=>{
+        if(!r.n || delR.has(r.n)) return;
+        if(localByName[r.n]){ if(!document.querySelector('.modal-overlay')) Object.assign(localByName[r.n], r); }
+        else { RUTINAS.push(r); localByName[r.n]=r; }
+      });
+    }
+
+    // sync deletedPagoKeys remotos
+    if(Array.isArray(remote.deletedPagoKeys)){
+      remote.deletedPagoKeys.forEach(k=>{ if(!deletedPagoKeys.includes(k)) deletedPagoKeys.push(k); });
+      const delPK = new Set(deletedPagoKeys);
+      PAGOS.splice(0, PAGOS.length, ...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !delPK.has(k); }));
     }
 
     if(Array.isArray(remote.STAFF)){
@@ -3149,7 +3190,11 @@ function savePago(){
 function deletePago(payIdx){
   if(!confirm('¿Eliminar este pago? No se modificará el estado del socio.')) return;
   const pEliminado = PAGOS[payIdx];
-  if(pEliminado) logMovimiento('eliminacion_pago', `Eliminación de pago: ${pEliminado.m} de ${pEliminado.n}`);
+  if(pEliminado){
+    logMovimiento('eliminacion_pago', `Eliminación de pago: ${pEliminado.m} de ${pEliminado.n}`);
+    const pk = pEliminado.sid+'|'+pEliminado.f+'|'+pEliminado.m+'|'+pEliminado.mp;
+    if(!deletedPagoKeys.includes(pk)) deletedPagoKeys.push(pk);
+  }
   PAGOS.splice(payIdx,1);
   editPagoIdx = null; editPagoKey = null;
   persist();
@@ -3392,6 +3437,7 @@ function duplicarRutina(idx){
 function deleteRutina(idx){
   const r = RUTINAS[idx];
   if(!confirm(`¿Eliminar la rutina "${r.n}"? Se quitará también de los socios que la tengan asignada.`)) return;
+  if(!deletedRutinaNames.includes(r.n)) deletedRutinaNames.push(r.n);
   SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; if(s.rsNotas) delete s.rsNotas[r.n]; if(s.rsNombre) delete s.rsNombre[r.n]; if(s.rsOverride) delete s.rsOverride[r.n]; });
   RUTINAS.splice(idx,1);
   persist();
@@ -3596,13 +3642,17 @@ function saveRutina(){
   const ejs = newRutinaEjs.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,v:''});
   if(editRutinaIdx!==null){
     const r = RUTINAS[editRutinaIdx];
-    if(r.n!==n) SOCIOS.forEach(s=>{
-      s.rs = s.rs.map(x=>x===r.n?n:x);
-      if(s.rsDias && s.rsDias[r.n]){ s.rsDias[n] = s.rsDias[r.n]; delete s.rsDias[r.n]; }
-      if(s.rsNotas && s.rsNotas[r.n]){ s.rsNotas[n] = s.rsNotas[r.n]; delete s.rsNotas[r.n]; }
-      if(s.rsNombre && s.rsNombre[r.n]){ s.rsNombre[n] = s.rsNombre[r.n]; delete s.rsNombre[r.n]; }
-      if(s.rsOverride && s.rsOverride[r.n]){ s.rsOverride[n] = s.rsOverride[r.n]; delete s.rsOverride[r.n]; }
-    });
+    if(r.n!==n){
+      // quitar el nombre viejo de la lista de eliminados (renombre = no es borrado)
+      deletedRutinaNames = deletedRutinaNames.filter(x=>x!==r.n);
+      SOCIOS.forEach(s=>{
+        s.rs = s.rs.map(x=>x===r.n?n:x);
+        if(s.rsDias && s.rsDias[r.n]){ s.rsDias[n] = s.rsDias[r.n]; delete s.rsDias[r.n]; }
+        if(s.rsNotas && s.rsNotas[r.n]){ s.rsNotas[n] = s.rsNotas[r.n]; delete s.rsNotas[r.n]; }
+        if(s.rsNombre && s.rsNombre[r.n]){ s.rsNombre[n] = s.rsNombre[r.n]; delete s.rsNombre[r.n]; }
+        if(s.rsOverride && s.rsOverride[r.n]){ s.rsOverride[n] = s.rsOverride[r.n]; delete s.rsOverride[r.n]; }
+      });
+    }
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
   } else {
     if(RUTINAS.some(r=>r.n===n)){ showToast('Ya existe una rutina con ese nombre.','error'); return; }
@@ -3842,6 +3892,7 @@ function saveTurno(turnoId){
   closeModal(); renderStaff();
 }
 function deleteTurno(turnoId){
+  if(!deletedTurnoIds.includes(turnoId)) deletedTurnoIds.push(turnoId);
   TURNOS = TURNOS.filter(t=>t.id!==turnoId);
   persist(); closeModal(); renderStaff();
 }
@@ -5036,8 +5087,19 @@ function socioCuenta(){
     }
     if(remote.RESERVAS) Object.keys(remote.RESERVAS).forEach(k=>{ if(!RESERVAS[k]) RESERVAS[k]={}; Object.keys(remote.RESERVAS[k]).forEach(ck=>{ if(remote.RESERVAS[k][ck] && RESERVAS[k][ck]===undefined) RESERVAS[k][ck]=true; }); });
     if(Array.isArray(remote.REGS)){ const lk=new Set(REGS.map(r=>r.sid+'|'+r.f)); remote.REGS.forEach(r=>{ const k=r.sid+'|'+r.f; if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
-    if(Array.isArray(remote.PAGOS)){ const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
-    if(Array.isArray(remote.TURNOS)){ const lk=new Set(TURNOS.map(t=>t.id)); remote.TURNOS.forEach(t=>{ if(!lk.has(t.id)){ TURNOS.push(t); lk.add(t.id); } }); }
+    if(Array.isArray(remote.PAGOS)){ const delPK=new Set(deletedPagoKeys); const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!delPK.has(k)&&!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
+    if(Array.isArray(remote.TURNOS)){
+      const delT=new Set(deletedTurnoIds); const lkT={}; TURNOS.forEach(t=>{ lkT[t.id]=t; });
+      remote.TURNOS.forEach(t=>{ if(!t.id||delT.has(t.id)) return; if(lkT[t.id]){if(!document.querySelector('.modal-overlay')) Object.assign(lkT[t.id],t);} else {TURNOS.push(t); lkT[t.id]=t;} });
+      if(Array.isArray(remote.deletedTurnoIds)){ remote.deletedTurnoIds.forEach(id=>{if(!deletedTurnoIds.includes(id)) deletedTurnoIds.push(id);}); TURNOS=TURNOS.filter(t=>!new Set(deletedTurnoIds).has(t.id)); }
+    }
+    if(Array.isArray(remote.RUTINAS)){
+      const delR=new Set(deletedRutinaNames);
+      if(Array.isArray(remote.deletedRutinaNames)){ remote.deletedRutinaNames.forEach(n=>{if(!deletedRutinaNames.includes(n)){deletedRutinaNames.push(n); delR.add(n);}}); RUTINAS.splice(0,RUTINAS.length,...RUTINAS.filter(r=>!delR.has(r.n))); }
+      const lkR={}; RUTINAS.forEach(r=>{lkR[r.n]=r;});
+      remote.RUTINAS.forEach(r=>{ if(!r.n||delR.has(r.n)) return; if(lkR[r.n]){if(!document.querySelector('.modal-overlay')) Object.assign(lkR[r.n],r);} else {RUTINAS.push(r); lkR[r.n]=r;} });
+    }
+    if(Array.isArray(remote.deletedPagoKeys)){ remote.deletedPagoKeys.forEach(k=>{if(!deletedPagoKeys.includes(k)) deletedPagoKeys.push(k);}); const delPK=new Set(deletedPagoKeys); PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !delPK.has(k); })); }
     if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
     // STAFF: agregar nuevos y actualizar permisos/rol de los existentes (fuente de verdad = remoto)
     if(Array.isArray(remote.STAFF)){
