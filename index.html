@@ -4298,46 +4298,95 @@ function renderSocio(){
   void c.offsetWidth;
   c.classList.add('page-fade');
   updateNotifDots();
-  // Mostrar popup de DNI una sola vez por sesión si el socio no tiene DNI cargado
-  if(!_dniPopupShown && !demoMode && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
+  // Mostrar popup de DNI una sola vez por sesión, solo en la página de inicio
+  if(!_dniPopupShown && !demoMode && socioPage==='inicio' && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
     _dniPopupShown = true;
-    setTimeout(showDniSetupPopup, 900);
+    setTimeout(showDniSetupPopup, 1400);
   }
 }
 
 function showDniSetupPopup(){
   if(document.getElementById('dniSetupPopup')) return;
-  const div = document.createElement('div');
-  div.id = 'dniSetupPopup';
-  div.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);width:min(340px,92vw);background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.22);z-index:9999;animation:fadeInUp .3s ease;';
-  div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-      <strong style="font-size:15px;">Completá tu DNI</strong>
-      <button onclick="document.getElementById('dniSetupPopup').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1;padding:0 0 0 8px;">✕</button>
+  const socio = SOCIOS[currentSocioIdx];
+  const nombre = socio ? socio.n.split(' ')[0] : '';
+  const overlay = document.createElement('div');
+  overlay.id = 'dniSetupPopup';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fadeIn .35s ease;';
+  overlay.innerHTML = `
+    <div style="
+      width:min(360px,100%);
+      background:var(--card);
+      border-radius:24px;
+      padding:32px 28px 28px;
+      box-shadow:0 24px 64px rgba(0,0,0,0.28);
+      animation:modalIn .35s cubic-bezier(.22,1,.36,1);
+      position:relative;
+    ">
+      <button onclick="closeDniPopup()" style="position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:20px;line-height:1;padding:4px;">✕</button>
+
+      <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#6d28d9,#4f46e5);display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
+        <i class="ti ti-id-badge-2" style="font-size:28px;color:#fff;"></i>
+      </div>
+
+      <h2 style="font-size:19px;font-weight:700;margin-bottom:8px;color:var(--text);">
+        ${nombre ? `${nombre}, ` : ''}activá el acceso rápido
+      </h2>
+      <p style="color:var(--text2);font-size:13.5px;line-height:1.55;margin-bottom:22px;">
+        Guardá tu número de DNI y la próxima vez que escanees el QR entrarás automáticamente, sin escribir nada.
+      </p>
+
+      <label style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Número de DNI</label>
+      <input
+        id="dniPopupInput"
+        type="number"
+        placeholder="Ej: 38456123"
+        style="width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:12px;margin-bottom:16px;letter-spacing:1px;"
+        onkeydown="if(event.key==='Enter')saveDniFromPopup()"
+        autofocus
+      >
+      <div id="dniPopupError" style="color:var(--red);font-size:12.5px;margin-top:-10px;margin-bottom:12px;display:none;"></div>
+
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:15px;border-radius:12px;font-weight:600;" onclick="saveDniFromPopup()">
+        Guardar y activar acceso rápido
+      </button>
+      <button onclick="closeDniPopup()" style="width:100%;margin-top:10px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;padding:6px;">
+        Ahora no
+      </button>
     </div>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">La próxima vez podrás entrar solo con tu DNI, sin escribir email ni contraseña.</p>
-    <input id="dniPopupInput" type="number" placeholder="Tu DNI sin puntos" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
-    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveDniFromPopup()">Guardar DNI</button>
   `;
-  document.body.appendChild(div);
+  document.body.appendChild(overlay);
+  setTimeout(()=>{ const i=document.getElementById('dniPopupInput'); if(i) i.focus(); }, 100);
+}
+
+function closeDniPopup(){
+  const el = document.getElementById('dniSetupPopup');
+  if(el){ el.style.opacity='0'; el.style.transition='opacity .2s'; setTimeout(()=>el.remove(), 200); }
 }
 
 async function saveDniFromPopup(){
   const socio = SOCIOS[currentSocioIdx];
   const dni = String(document.getElementById('dniPopupInput').value||'').trim();
-  if(!dni || isNaN(Number(dni)) || dni.length<6){ showToast('El DNI debe tener al menos 6 dígitos.'); return; }
+  const errEl = document.getElementById('dniPopupError');
+  if(!dni || isNaN(Number(dni)) || dni.length<6){
+    if(errEl){ errEl.textContent='El DNI debe tener al menos 6 dígitos.'; errEl.style.display='block'; }
+    return;
+  }
+  if(errEl) errEl.style.display='none';
+  // Deshabilitar botón mientras guarda
+  const btn = document.querySelector('#dniSetupPopup .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
   socio.dni = dni;
   cacheDni(dni, socio.email);
   const {error: pwErr} = await sb.auth.updateUser({password: dni});
   if(pwErr){
-    showToast('DNI guardado en tu perfil, pero no se pudo activar el login rápido. Contactá al gimnasio.');
     persist();
-    document.getElementById('dniSetupPopup').remove();
+    closeDniPopup();
+    showToast('DNI guardado en tu perfil. Para activar el login rápido contactá al gimnasio.');
     return;
   }
   persist();
-  document.getElementById('dniSetupPopup').remove();
-  showToast('¡DNI guardado! La próxima vez entrás solo con tu DNI.');
+  closeDniPopup();
+  showToast('¡Listo! La próxima vez entrás solo con tu DNI.');
 }
 
 function calcAge(birthStr){
