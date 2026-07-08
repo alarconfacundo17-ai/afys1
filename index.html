@@ -2555,8 +2555,8 @@ function openBuscarSocioModal(){
 function buscarSocioRowsHTML(q){
   q = (q||'').toLowerCase().trim();
   if(!q) return emptyState('ti-search','Empezá a escribir para buscar');
-  const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.n.toLowerCase().includes(q)).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).slice(0,20);
-  return list.length ? list.map(({s,idx})=>`<div class="ej-picker-item" style="display:flex;justify-content:space-between;align-items:center;" onclick="closeModal();openSocioOpcionesModal(${idx})"><span>${esc(s.n)}</span>${payBadge(s.es)}</div>`).join('') : emptyState('ti-mood-empty',`Sin resultados para "${esc(q)}"`);
+  const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.n.toLowerCase().includes(q)).sort((a,b)=>{ if(a.s.activo===false && b.s.activo!==false) return 1; if(a.s.activo!==false && b.s.activo===false) return -1; return a.s.n.localeCompare(b.s.n,'es'); }).slice(0,20);
+  return list.length ? list.map(({s,idx})=>`<div class="ej-picker-item" style="display:flex;justify-content:space-between;align-items:center;${s.activo===false?'opacity:.6;':''}" onclick="closeModal();openSocioOpcionesModal(${idx})"><span>${esc(s.n)}${s.activo===false?' <span style="font-size:11px;color:var(--red);">(inactivo)</span>':''}</span>${payBadge(s.es)}</div>`).join('') : emptyState('ti-mood-empty',`Sin resultados para "${esc(q)}"`);
 }
 function filterBuscarSocio(q){
   const box = document.getElementById('bsm_list');
@@ -2570,15 +2570,14 @@ function openSocioOpcionesModal(idx){
   const edad = getEdad(s);
   const cumpleLabel = fmtCumpleLabel(s.cumple);
   const esHoyCumple = esCumpleHoy(s);
-  const fichaItems = [
-    edad!=null ? `<div><span style="color:var(--text2);font-size:11.5px;">Edad</span><div style="font-weight:600;">${edad} años</div></div>` : '',
-    cumpleLabel ? `<div><span style="color:var(--text2);font-size:11.5px;">Cumpleaños</span><div style="font-weight:600;">${cumpleLabel}${esHoyCumple?' 🎂':''}</div></div>` : '',
-    s.tel ? `<div><span style="color:var(--text2);font-size:11.5px;">Teléfono</span><div style="font-weight:600;">${esc(s.tel)}</div></div>` : '',
-    s.pe ? `<div><span style="color:var(--text2);font-size:11.5px;">Peso</span><div style="font-weight:600;">${s.pe} kg</div></div>` : '',
-    s.ob ? `<div style="grid-column:1/-1;"><span style="color:var(--text2);font-size:11.5px;">Objetivo</span><div style="font-weight:600;">${esc(s.ob)}</div></div>` : '',
-    s.obs ? `<div style="grid-column:1/-1;"><span style="color:var(--text2);font-size:11.5px;">Observaciones</span><div style="font-weight:600;font-size:13px;">${esc(s.obs)}</div></div>` : '',
+  const fichaChips = [
+    edad!=null ? `<span style="background:var(--bg2,#f3f4f6);border-radius:6px;padding:3px 9px;font-size:13px;"><b>${edad} años</b></span>` : '',
+    cumpleLabel ? `<span style="background:var(--bg2,#f3f4f6);border-radius:6px;padding:3px 9px;font-size:13px;">🎂 ${cumpleLabel}${esHoyCumple?' · hoy':''}</span>` : '',
+    s.tel ? `<span style="background:var(--bg2,#f3f4f6);border-radius:6px;padding:3px 9px;font-size:13px;">📞 ${esc(s.tel)}</span>` : '',
+    s.pe ? `<span style="background:var(--bg2,#f3f4f6);border-radius:6px;padding:3px 9px;font-size:13px;">${s.pe} kg</span>` : '',
   ].filter(Boolean).join('');
-  const fichaCard = fichaItems ? `<div class="card" style="padding:12px 14px;margin-bottom:4px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:14px;">${fichaItems}</div>` : '';
+  const fichaOb = s.ob ? `<div style="font-size:12.5px;color:var(--text2);margin-top:4px;">🎯 ${esc(s.ob)}</div>` : '';
+  const fichaCard = fichaChips||fichaOb ? `<div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">${fichaChips}${fichaOb}</div>` : '';
   openModal(`
     <div class="modal-head"><h3 style="font-size:18px;">${esc(s.n)}${esHoyCumple?' 🎂':''}</h3><button onclick="closeModal()">✕</button></div>
     ${fichaCard}
@@ -2625,6 +2624,8 @@ function reactivarSocio(idx){
   s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
   logMovimiento('reactivacion_socio', `Reactivación de socio: ${s.n}`);
   persist();
+  showToast(`${s.n} reactivado`);
+  closeModal();
   renderStaff();
 }
 function openEliminarSocioModal(idx){
