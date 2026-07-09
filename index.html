@@ -4718,11 +4718,11 @@ function showCumpleSocioPopup(){
   const edad = getEdad(s);
   document.body.insertAdjacentHTML('beforeend',`
     <div id="cumplePopup" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="background:var(--card);border-radius:18px;max-width:380px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25);animation:modalIn .35s ease;">
+      <div style="background:#fff;border-radius:18px;max-width:380px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25);animation:modalIn .35s ease;">
         <div style="font-size:52px;margin-bottom:8px;">🎂</div>
-        <h2 style="margin:0 0 10px;font-size:22px;">¡Feliz cumpleaños, ${esc(nombre)}!</h2>
+        <h2 style="margin:0 0 10px;font-size:22px;color:#111;">¡Feliz cumpleaños, ${esc(nombre)}!</h2>
         ${edad?`<p style="color:var(--primary);font-weight:700;margin:0 0 14px;font-size:16px;">${edad} años</p>`:''}
-        <p style="color:var(--text2);font-size:14.5px;line-height:1.6;margin:0 0 22px;">El equipo de AFYS te manda un abrazo enorme. Sos parte de nuestra familia y estamos muy contentos de acompañarte en el día a día. ¡Que este nuevo año te traiga mucha salud, fuerza y alegría!</p>
+        <p style="color:#555;font-size:14.5px;line-height:1.6;margin:0 0 22px;">El equipo de AFYS te manda un abrazo enorme. Sos parte de nuestra familia y estamos muy contentos de acompañarte en el día a día. ¡Que este nuevo año te traiga mucha salud, fuerza y alegría!</p>
         <button class="btn btn-primary" style="width:100%;font-size:16px;padding:14px;" onclick="document.getElementById('cumplePopup').remove()">¡Gracias! 🙌</button>
       </div>
     </div>
