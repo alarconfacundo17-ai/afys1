@@ -825,6 +825,8 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
         // si el remoto marca inactivo, respetar la baja
         if(rs.activo===false) ls.activo = false;
+        // propagar DNI si el local no lo tiene aún
+        if(rs.dni && !ls.dni) ls.dni = rs.dni;
         // merge de notas (nt) aditivo
         if(Array.isArray(rs.nt) && rs.nt.length){
           if(!Array.isArray(ls.nt)) ls.nt = [];
@@ -4562,10 +4564,13 @@ function renderSocio(){
     setTimeout(showCumpleSocioPopup, 900);
   }
   // Mostrar popup de DNI una sola vez por sesión, solo en la página de inicio
-  if(!_dniPopupShown && socioPage==='inicio' && !SOCIOS[currentSocioIdx].dni && !document.getElementById('dniSetupPopup')){
+  // No mostrar si el socio ya tiene DNI guardado en su perfil O en localStorage
+  const _socioActual = SOCIOS[currentSocioIdx];
+  const _dniGuardado = _socioActual && (_socioActual.dni || localStorage.getItem('afys_dni_set_'+(_socioActual.email||_socioActual.id||'')));
+  if(!_dniPopupShown && socioPage==='inicio' && !_dniGuardado && !document.getElementById('dniSetupPopup')){
     _dniPopupShown = true;
     // No mostrar popup de DNI el día del cumpleaños para no solapar los popups
-    const delay = esCumpleHoy(SOCIOS[currentSocioIdx]||{}) ? 4500 : 1400;
+    const delay = esCumpleHoy(_socioActual||{}) ? 4500 : 1400;
     setTimeout(showDniSetupPopup, delay);
   }
 }
@@ -4644,6 +4649,8 @@ async function saveDniFromPopup(){
   if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
   socio.dni = dni;
   cacheDni(dni, socio.email);
+  // Marcar en localStorage para que el popup nunca vuelva a aparecer en este dispositivo
+  try{ localStorage.setItem('afys_dni_set_'+(socio.email||socio.id||''), '1'); }catch(e){}
   const {error: pwErr} = await sb.auth.updateUser({password: dni});
   if(pwErr){
     persist();
@@ -5169,6 +5176,7 @@ function socioCuenta(){
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(rs.activo===false) ls.activo=false;
+        if(rs.dni && !ls.dni) ls.dni=rs.dni;
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
       });
