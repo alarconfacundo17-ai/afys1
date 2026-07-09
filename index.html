@@ -397,6 +397,7 @@ let deletedSocioIds = []; // IDs de socios eliminados definitivamente, para que 
 let deletedTurnoIds = []; // IDs de turnos eliminados, para que el merge remoto no los reintroduzca
 let deletedPagoKeys = []; // claves "sid|f|m|mp" de pagos eliminados
 let deletedRutinaNames = []; // nombres de rutinas eliminadas
+let deletedClaseIds = []; // cIds de clases eliminadas
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 
 // Caché local de DNI→email para login rápido (solo en este dispositivo)
@@ -506,7 +507,7 @@ function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; O
 function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
-    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds, deletedTurnoIds, deletedPagoKeys, deletedRutinaNames,
+    STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds, deletedTurnoIds, deletedPagoKeys, deletedRutinaNames, deletedClaseIds,
   };
 }
 
@@ -542,6 +543,7 @@ function applyState(s){
   if(Array.isArray(s.deletedTurnoIds)) deletedTurnoIds = s.deletedTurnoIds;
   if(Array.isArray(s.deletedPagoKeys)) deletedPagoKeys = s.deletedPagoKeys;
   if(Array.isArray(s.deletedRutinaNames)) deletedRutinaNames = s.deletedRutinaNames;
+  if(Array.isArray(s.deletedClaseIds)) deletedClaseIds = s.deletedClaseIds;
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
   // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
   let _migChanged = false;
@@ -795,6 +797,12 @@ async function mergeRemoteAntesDeGuardar(){
     const remote = data.data;
 
     if(Array.isArray(remote.SOCIOS)){
+      // importar eliminaciones definitivas del remoto y limpiar locales
+      if(Array.isArray(remote.deletedSocioIds)){
+        remote.deletedSocioIds.forEach(id=>{ if(!deletedSocioIds.includes(id)) deletedSocioIds.push(id); });
+        const delSet = new Set(deletedSocioIds);
+        for(let i=SOCIOS.length-1;i>=0;i--){ if(SOCIOS[i].id && delSet.has(SOCIOS[i].id)) SOCIOS.splice(i,1); }
+      }
       const localByKey = {};
       const localByNormName = {};
       SOCIOS.forEach(s=>{
@@ -824,7 +832,7 @@ async function mergeRemoteAntesDeGuardar(){
         // tomar el vencimiento más tardío (el más actualizado gana)
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
         // si el remoto marca inactivo, respetar la baja
-        if(rs.activo===false) ls.activo = false;
+        if(typeof rs.activo==='boolean') ls.activo = rs.activo;
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni) ls.dni = rs.dni;
         // merge de notas (nt) aditivo
@@ -979,11 +987,17 @@ async function mergeRemoteAntesDeGuardar(){
     if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
 
     if(Array.isArray(remote.CLASES_HOY)){
+      if(Array.isArray(remote.deletedClaseIds)){
+        remote.deletedClaseIds.forEach(id=>{ if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id); });
+        const delC=new Set(deletedClaseIds);
+        for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId && delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); }
+      }
+      const delC=new Set(deletedClaseIds);
       const modalOpen = !!document.querySelector('.modal-overlay');
       const localByClaseId = {};
       CLASES_HOY.forEach(c=>{ if(c.cId) localByClaseId[c.cId]=c; });
       remote.CLASES_HOY.forEach(c=>{
-        if(!c.cId) return;
+        if(!c.cId || delC.has(c.cId)) return;
         if(localByClaseId[c.cId]){ if(!modalOpen) Object.assign(localByClaseId[c.cId], c); }
         else { CLASES_HOY.push(c); localByClaseId[c.cId]=c; }
       });
@@ -3345,7 +3359,10 @@ function saveClase(){
 function deleteClase(idx){
   const c = CLASES_HOY[idx];
   if(!confirm(`¿Eliminar la clase "${c.n}"?`)) return;
-  if(c.cId) TURNOS = TURNOS.filter(t=>t.claseId!==c.cId);
+  if(c.cId){
+    if(!deletedClaseIds.includes(c.cId)) deletedClaseIds.push(c.cId);
+    TURNOS = TURNOS.filter(t=>t.claseId!==c.cId);
+  }
   CLASES_HOY.splice(idx,1);
   persist();
   closeModal();
@@ -5164,6 +5181,12 @@ function socioCuenta(){
 
   async function mergeRemoteIntoLocal(remote){
     if(Array.isArray(remote.SOCIOS)){
+      // importar eliminaciones definitivas del remoto y limpiar locales
+      if(Array.isArray(remote.deletedSocioIds)){
+        remote.deletedSocioIds.forEach(id=>{ if(!deletedSocioIds.includes(id)) deletedSocioIds.push(id); });
+        const delSet=new Set(deletedSocioIds);
+        for(let i=SOCIOS.length-1;i>=0;i--){ if(SOCIOS[i].id && delSet.has(SOCIOS[i].id)) SOCIOS.splice(i,1); }
+      }
       const localByKey={}, localByNormName={};
       SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)]=s; const nn=normName(s.n); if(nn) localByNormName[nn]=s; });
       const _delSet=new Set(deletedSocioIds);
@@ -5175,7 +5198,7 @@ function socioCuenta(){
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
-        if(rs.activo===false) ls.activo=false;
+        if(typeof rs.activo==='boolean') ls.activo=rs.activo;
         if(rs.dni && !ls.dni) ls.dni=rs.dni;
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
@@ -5231,7 +5254,7 @@ function socioCuenta(){
     }
     if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
     if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
-    if(Array.isArray(remote.CLASES_HOY)){ const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
+    if(Array.isArray(remote.CLASES_HOY)){ if(Array.isArray(remote.deletedClaseIds)){ remote.deletedClaseIds.forEach(id=>{if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id);}); const delC=new Set(deletedClaseIds); for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId&&delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); } } const delC=new Set(deletedClaseIds); const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId||delC.has(c.cId)) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
     _merging = true;
