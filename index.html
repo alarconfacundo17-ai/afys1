@@ -192,6 +192,8 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-done-btn{transition:background-color .3s ease,color .3s ease,border-color .3s ease;}
 .ej-done-btn.pop{animation:checkPop .3s ease;}
 .ej-row-card{transition:background-color .35s ease,border-color .35s ease;}
+.ej-row-done{background:rgba(5,150,105,.07) !important;border-color:rgba(5,150,105,.3) !important;}
+[data-theme="dark"] .ej-row-done{background:rgba(52,211,153,.09) !important;border-color:rgba(52,211,153,.25) !important;}
 .page-fade{animation:fadeInUp .22s ease;}
 .btn{transition:opacity .15s ease,transform .12s ease,background-color .2s ease,border-color .2s ease,color .2s ease;}
 .btn:active{transform:scale(.96);}
@@ -5147,7 +5149,7 @@ function openSocioRutinaDetalleModal(rname){
     ${ejs.map((e,ei)=>{
       const done = hechos[e.n]===hoy;
       const img = EJ_IMAGES[e.n];
-      return `<div id="ejRow${ei}" class="ej-row-card" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;${done?'background:#eceef1;':''}">
+      return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
@@ -5181,7 +5183,7 @@ function toggleEjercicioHecho(rname, ejName, ei){
     const row = document.getElementById('ejRow'+ei);
     const btn = document.getElementById('ejBtn'+ei);
     if(row && btn){
-      row.style.backgroundColor = done ? '#eceef1' : '';
+      if(done) row.classList.add('ej-row-done'); else row.classList.remove('ej-row-done');
       btn.className = 'btn btn-sm ej-done-btn '+(done?'btn-primary':'btn-outline');
       btn.querySelector('span').textContent = done ? 'Hecho' : 'Marcar hecho';
       btn.classList.remove('pop');
