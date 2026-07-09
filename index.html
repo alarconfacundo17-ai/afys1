@@ -1492,7 +1492,7 @@ function recrearPerfilSocioPerdido(email, nombre){
   }
   const initialsV = (nombre||email).trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
-  SOCIOS.push({i:initialsV, n:nombre||email, email:emailLower, tel:'', cumple:null, es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n:nombre||email, email:emailLower, tel:'', cumple:null, es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[emailLower] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`Se recuperó automáticamente el perfil de ${nombre||email} (${email}), que se había perdido. Revisá y completá sus datos.`, new:true, altaIdx:idx});
@@ -1565,7 +1565,7 @@ async function submitSignupSocio(){
   const ob = $('#su_ob').value.trim()||null;
   if(!n||!e||!dni||isNaN(Number(dni))||dni.length<6){ loginError='Completá nombre, email y un DNI válido (mínimo 6 dígitos).'; renderLogin(); return; }
   cleanOrphanSocioLogin(e);
-  if(SOCIOS_LOGIN[e]){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
+  if(lookupSocioLogin(e)){ loginError='Ya existe una cuenta con ese email.'; renderLogin(); return; }
   let {data, error} = await sb.auth.signUp({email:e, password:dni, options:{data:{nombre:n, role:'socio', dni}, emailRedirectTo:APP_URL}});
   if(!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){
     error = {message:'already registered'};
@@ -1579,9 +1579,10 @@ async function submitSignupSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
+  notifStaff.unshift({txt:`${n} se registró desde la app. ¿Ya era socio antes de usar la app?`, new:true, altaIdx:idx});
   cacheDni(dni, e);
   persist();
   loginView='login'; loginError='';
@@ -2813,6 +2814,7 @@ async function saveSocio(){
   if(!n){ errEl.textContent='El nombre es obligatorio.'; errEl.style.display='block'; return; }
   if(!email){ errEl.textContent='El email es obligatorio.'; errEl.style.display='block'; return; }
   if(!dni || isNaN(Number(dni)) || dni.length<6){ errEl.textContent='El DNI debe tener al menos 6 dígitos.'; errEl.style.display='block'; return; }
+  cleanOrphanSocioLogin(email);
   if(lookupSocioLogin(email)){ errEl.textContent='Ya existe un socio con ese email.'; errEl.style.display='block'; return; }
   errEl.style.display='none';
   const btn = $('#ns_btn'); btn.disabled=true; btn.textContent='Guardando...';
