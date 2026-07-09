@@ -381,7 +381,7 @@ h3{font-size:15px;margin-bottom:10px;}
 <!-- ===================== SOCIO ===================== -->
 <div id="socio" class="hidden">
   <div class="socio-topbar">
-    <img src="logo.jpg" alt="AFYS" class="socio-logo">
+    <img src="logo.png" alt="AFYS" class="socio-logo">
     <div style="display:flex;gap:10px;align-items:center;">
       <div class="notif-wrap">
         <button class="bell" onclick="toggleNotif('socio')"><i class="ti ti-bell"></i><span class="dot hidden" id="socioNotifDot"></span></button>
@@ -1324,7 +1324,7 @@ function renderLogin(){
     `;
   } else if(loginView==='loginEmail'){
     box.innerHTML = `
-      <img src="logo.jpg" alt="AFYS" class="login-logo">
+      <img src="logo.png" alt="AFYS" class="login-logo">
       <label>Email</label>
       <input id="loginEmail" type="email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
       <label>Contraseña</label>
@@ -1337,7 +1337,7 @@ function renderLogin(){
     `;
   } else if(loginView==='loginDniFirstTime'){
     box.innerHTML = `
-      <img src="logo.jpg" alt="AFYS" class="login-logo">
+      <img src="logo.png" alt="AFYS" class="login-logo">
       <p class="sub" style="margin-bottom:8px;">Primera vez en este dispositivo. Ingresá tu email y contraseña para vincular tu cuenta.</p>
       <label>Email</label>
       <input id="loginEmail2" type="email" placeholder="tu@gmail.com" onkeydown="if(event.key==='Enter')document.getElementById('loginPass2').focus()">
@@ -1349,7 +1349,7 @@ function renderLogin(){
     `;
   } else {
     box.innerHTML = `
-      <img src="logo.jpg" alt="AFYS" class="login-logo">
+      <img src="logo.png" alt="AFYS" class="login-logo">
       <label>Número de DNI</label>
       <input id="loginDni" type="number" placeholder="Tu DNI sin puntos" onkeydown="if(event.key==='Enter')doLoginDni()">
       ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:8px;">${esc(loginError)}</p>`:''}
@@ -2188,7 +2188,7 @@ function renderStaffSidebar(){
     return true;
   });
   $('#staffSidebar').innerHTML = `
-    <div class="logo"><img src="logo.jpg" alt="AFYS"></div>
+    <div class="logo"><img src="logo.png" alt="AFYS"></div>
     ${items.map(it=>`<div class="nav-item ${it.id===staffPage?'active':''}" data-page="${it.id}"><i class="ti ${it.icon}"></i>${it.label}</div>`).join('')}
   `;
   $all('.nav-item',$('#staffSidebar')).forEach(el=>el.addEventListener('click',()=>{
@@ -2286,7 +2286,7 @@ function pagePanel(){
         <h3 style="margin:0 0 4px;color:var(--primary);font-size:16px;">Bienvenido, ${esc(st?st.n:'')} a la app de AFYS</h3>
         <p style="margin:0;color:var(--primary);font-size:13.5px;line-height:1.5;">Desde aquí podés ver tus turnos y clases, anotar observaciones de los alumnos en sus fichas, y asignarles rutinas. Cualquier duda que tengas o por consultas, habla con el director del gimnasio.</p>
       </div>
-      <img src="logo.jpg" alt="AFYS" style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:#fff;padding:6px;flex-shrink:0;">
+      <img src="logo.png" alt="AFYS" style="width:64px;height:64px;border-radius:14px;object-fit:contain;flex-shrink:0;">
     </div>
     <div class="profile-card">
       <button style="position:absolute;top:14px;right:14px;color:#fff;font-size:18px;background:rgba(255,255,255,.18);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;" onclick="openEditPerfilStaff()" title="Editar"><i class="ti ti-pencil" style="font-size:16px;"></i></button>
@@ -4854,7 +4854,7 @@ function showCumpleSocioPopup(){
 function socioInicio(){
   const s = SOCIOS[currentSocioIdx];
   const welcomeHTML = showWelcomeBanner ? `<div class="welcome-banner">
-    <img src="logo.jpg" alt="AFYS" class="welcome-logo">
+    <img src="logo.png" alt="AFYS" class="welcome-logo">
     <div>
       <h2>¡Bienvenido/a a la app de AFYS, ${esc(s.n.split(' ')[0])}!</h2>
       <p>Acá vas a encontrar tus rutinas, clases y progreso, a un solo click.</p>
