@@ -841,11 +841,20 @@ async function mergeRemoteAntesDeGuardar(){
           const localNtSet = new Set(ls.nt);
           rs.nt.forEach(n=>{ if(!localNtSet.has(n)){ ls.nt.push(n); localNtSet.add(n); } });
         }
-        // merge de rutinas asignadas (rs) aditivo por nombre
+        // merge de rutinas asignadas (rs): aditivo pero respetando tombstone rsRemoved
+        if(Array.isArray(rs.rsRemoved) && rs.rsRemoved.length){
+          if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved = [];
+          const lrr = new Set(ls.rsRemoved);
+          rs.rsRemoved.forEach(n=>{ if(!lrr.has(n)){ ls.rsRemoved.push(n); lrr.add(n); } });
+          // aplicar tombstone: quitar del rs local
+          const removed = new Set(ls.rsRemoved);
+          ls.rs = ls.rs.filter(r=>!removed.has(r));
+        }
         if(Array.isArray(rs.rs) && rs.rs.length){
           if(!Array.isArray(ls.rs)) ls.rs = [];
+          const localRemoved = new Set(ls.rsRemoved || []);
           const localRsNames = new Set(ls.rs);
-          rs.rs.forEach(r=>{ if(!localRsNames.has(r)){ ls.rs.push(r); localRsNames.add(r); } });
+          rs.rs.forEach(r=>{ if(!localRemoved.has(r) && !localRsNames.has(r)){ ls.rs.push(r); localRsNames.add(r); } });
         }
       });
     }
@@ -3007,12 +3016,16 @@ function setRutinaNombreSocio(si, rname, val, search){
 function asignarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
   if(!s.rs.includes(rname)) s.rs.push(rname);
+  // quitar del tombstone para que el merge no lo bloquee
+  if(s.rsRemoved) s.rsRemoved = s.rsRemoved.filter(r=>r!==rname);
   persist();
   refreshSocioRutinasList(si, search);
 }
 function quitarRutinaSocio(si, rname, search){
   const s = SOCIOS[si];
   s.rs = s.rs.filter(r=>r!==rname);
+  if(!s.rsRemoved) s.rsRemoved = [];
+  if(!s.rsRemoved.includes(rname)) s.rsRemoved.push(rname);
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
@@ -3528,6 +3541,7 @@ function refreshAsignarModal(idx, search){
 function asignarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   if(!s.rs.includes(rname)) s.rs.push(rname);
+  if(s.rsRemoved) s.rsRemoved = s.rsRemoved.filter(r=>r!==rname);
   persist();
   refreshAsignarModal(idx, search);
 }
@@ -3540,6 +3554,8 @@ function setRutinaNota(si, rname, val){
 function quitarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
   s.rs = s.rs.filter(r=>r!==rname);
+  if(!s.rsRemoved) s.rsRemoved = [];
+  if(!s.rsRemoved.includes(rname)) s.rsRemoved.push(rname);
   if(s.rsDias) delete s.rsDias[rname];
   if(s.rsNotas) delete s.rsNotas[rname];
   if(s.rsNombre) delete s.rsNombre[rname];
@@ -5201,7 +5217,8 @@ function socioCuenta(){
         if(typeof rs.activo==='boolean') ls.activo=rs.activo;
         if(rs.dni && !ls.dni) ls.dni=rs.dni;
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
-        if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
+        if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
+        if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const localRemoved=new Set(ls.rsRemoved||[]); const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
       });
       if(remote.SOCIOS_LOGIN&&typeof remote.SOCIOS_LOGIN==='object'){ Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{ const eLow=email.toLowerCase(); if(!lookupSocioLogin(eLow)){ const li=SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===eLow); if(li>=0) SOCIOS_LOGIN[eLow]={...remote.SOCIOS_LOGIN[email],idx:li}; } }); }
     }
