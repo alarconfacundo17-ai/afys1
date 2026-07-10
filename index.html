@@ -676,6 +676,8 @@ function migrateSocioFields(){
   SOCIOS.forEach(s=>{
     if(!Array.isArray(s.rs)) s.rs=[];
     if(!Array.isArray(s.nt)) s.nt=[];
+    // Migrar vencimientos antiguos: día 10 → día 11
+    if(s.vence && s.vence.endsWith('-10')){ s.vence = s.vence.slice(0,-2)+'11'; changed=true; }
   });
   if(autoActivateDni()) changed = true;
   if(changed) persistDirect();
@@ -1310,7 +1312,7 @@ function recalcEstados(opts){
     v.setHours(0,0,0,0);
     const diffDias = Math.round((v-today)/86400000);
     const prev = s.es;
-    const next = diffDias<0 ? 'de' : (diffDias<=5 ? 've' : 'ok'); // aviso 5 días antes del vencimiento
+    const next = diffDias<=0 ? 'de' : (diffDias<=5 ? 've' : 'ok'); // vence el día 11: diffDias=0 → vencido
     if(next!==prev){
       s.es = next;
       changed = true;
@@ -3390,12 +3392,12 @@ function venceDesdeMp(mp){
   const [y,m] = mp.split('-').map(Number);
   const nextM = m===12 ? 1 : m+1;
   const nextY = m===12 ? y+1 : y;
-  return `${nextY}-${String(nextM).padStart(2,'0')}-10`;
+  return `${nextY}-${String(nextM).padStart(2,'0')}-11`;
 }
 function actualizarInfoVencePago(mp){
   const el = $('#pg_vence_info'); if(!el) return;
   const v = venceDesdeMp(mp);
-  if(v) el.textContent = `Vence el 10/${v.slice(5,7)}/${v.slice(0,4)} — si no renueva ese día se vence`;
+  if(v) el.textContent = `Vence el ${v.slice(8,10)}/${v.slice(5,7)}/${v.slice(0,4)} — a partir del día 11 se marca como vencido`;
 }
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
@@ -3455,7 +3457,7 @@ function savePagoAnterior(idx){
   if(!f){ showToast('Elegí una fecha.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pga_m').value||'$0', f, mp:$('#pga_mp').value, nt:($('#pga_n').value||'Pago anterior al sistema').trim()};
   if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-  s.vence = venceDesdeMp($('#pga_mp').value); // vence el día 10 del mes siguiente
+  s.vence = venceDesdeMp($('#pga_mp').value); // vence el día 11 del mes siguiente (partir del 11 = vencido)
   s.es = 'ok';
   PAGOS.push(data);
   PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
@@ -3474,7 +3476,7 @@ function savePago(){
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-    s.vence = venceDesdeMp(data.mp); // vence el día 10 del mes siguiente
+    s.vence = venceDesdeMp(data.mp); // vence el día 11 del mes siguiente (partir del 11 = vencido)
     s.es='ok';
     PAGOS.unshift(data);
     if(currentRole==='profesor'){
