@@ -4703,18 +4703,18 @@ function pagePagos(){
     <div class="metric"><div class="num">${activos}</div><div class="lbl">Activos</div></div>
     <div class="metric"><div class="num">${fmtMonto(totalAnio)}</div><div class="lbl">Año</div></div>
   </div>
-  ${proximos.length?`
-  <div class="section-head"><h3 style="margin:0;">Próximos vencimientos</h3></div>
-  <div class="card" style="margin-bottom:16px;">
-  <table><thead><tr><th>Nombre</th><th>Vence</th><th>Estado</th></tr></thead>
-  <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
-  </div>`:''}
   <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
   <input id="histSocioSearch" placeholder="🔍 Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
   <div id="histSociosTableWrap" style="display:none;margin-bottom:16px;" class="card">
   <table><thead><tr><th>Nombre</th><th></th></tr></thead>
   <tbody id="histSociosTableBody"></tbody></table>
   </div>
+  ${proximos.length?`
+  <div class="section-head"><h3 style="margin:0;">Próximos vencimientos</h3></div>
+  <div class="card" style="margin-bottom:16px;">
+  <table><thead><tr><th>Nombre</th><th>Vence</th><th>Estado</th></tr></thead>
+  <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
+  </div>`:''}
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
   <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
     <input id="pagosFiltroSocio" placeholder="Buscar por socio..." oninput="filterUltimosPagos()" style="flex:1;min-width:160px;">
