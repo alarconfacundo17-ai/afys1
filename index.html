@@ -308,7 +308,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .cal-hour{font-size:8.5px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;overflow:hidden;white-space:nowrap;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;min-width:0;overflow:hidden;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-event{position:absolute;left:1px;right:1px;border-radius:3px;padding:0 2px;font-size:8.5px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;white-space:nowrap;text-overflow:ellipsis;}
+.cal-event{position:absolute;border-radius:3px;padding:0 3px;font-size:8.5px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;white-space:nowrap;text-overflow:ellipsis;}
 </style>
 </head>
 <body>
@@ -4108,24 +4108,43 @@ function pageHorarios(){
             }).join('')}
             ${(()=>{
               const sorted = [...turnos].sort((a,b)=>hToMin(a.desde)-hToMin(b.desde));
-              // Compute overlap depth index per event (0 = bottom, 1 = above, etc.)
-              const depth = new Map();
-              sorted.forEach((t,i)=>{
+              // Agrupar eventos que se solapan en "clusters" y asignar columna lateral a cada uno
+              // (igual que Google Calendar: cada evento solapado ocupa una fracción del ancho)
+              const colOf = new Map(); // turno.id → { col, totalCols }
+              const assigned = [];
+              sorted.forEach(t=>{
                 const tStart=hToMin(t.desde), tEnd=hToMin(t.hasta);
-                const prev = sorted.slice(0,i).filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
-                depth.set(t.id, prev.length);
+                // Encontrar todos los que ya están asignados y se solapan con t
+                const overlapping = assigned.filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
+                if(!overlapping.length){
+                  colOf.set(t.id,{col:0,totalCols:1});
+                } else {
+                  // Buscar la primera columna libre
+                  const usedCols = new Set(overlapping.map(o=>colOf.get(o.id).col));
+                  let col=0; while(usedCols.has(col)) col++;
+                  // Determinar cuántas columnas necesita este cluster
+                  const clusterIds = new Set([t.id,...overlapping.map(o=>o.id)]);
+                  const totalCols = Math.max(col+1, ...overlapping.map(o=>colOf.get(o.id).totalCols));
+                  colOf.set(t.id,{col,totalCols});
+                  // Actualizar totalCols de los que se solapan
+                  overlapping.forEach(o=>{ colOf.get(o.id).totalCols = totalCols; });
+                }
+                assigned.push(t);
               });
               return sorted.map(t=>{
-                const d = depth.get(t.id);
-                const offset = d * 5;
+                const {col,totalCols} = colOf.get(t.id);
                 const st = STAFF.find(s=>s.id===t.staffId) || DUENOS.find(dd=>dd.id===t.staffId);
-                const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH + offset;
-                const h = Math.max(16,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH - offset);
-                const col = staffColor(t.staffId);
-                const bg = t.clase ? `${col}cc` : `${col}22`;
-                const fg = t.clase ? '#fff' : col;
-                const shadow = d>0 ? `box-shadow:0 -2px 6px rgba(0,0,0,.13);` : '';
-                return `<div class="cal-event" style="top:${top}px;height:${h}px;width:calc(100% - ${4+offset}px);background:${bg};border-left:3px solid ${col};color:${fg};z-index:${10+d};${shadow}" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
+                const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
+                const h = Math.max(18,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH - 2);
+                const col_pct = 100/totalCols;
+                const left_pct = col*col_pct;
+                const width = `calc(${col_pct}% - 3px)`;
+                const left = `calc(${left_pct}% + ${col>0?2:0}px)`;
+                const zIdx = 10+col;
+                const colr = staffColor(t.staffId);
+                const bg = t.clase ? `${colr}cc` : `${colr}22`;
+                const fg = t.clase ? '#fff' : colr;
+                return `<div class="cal-event" style="top:${top}px;height:${h}px;left:${left};width:${width};background:${bg};border-left:3px solid ${colr};color:${fg};z-index:${zIdx};" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
                   ${t.clase?`<b>${esc(t.clase)}</b> <small style="opacity:.85;">${esc(st?st.n:'-')}</small>`:`<b>${esc(st?st.n:'-')}</b>`} <small>${t.desde}–${t.hasta}</small>
                 </div>`;
               }).join('');
