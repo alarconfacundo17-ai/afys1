@@ -482,6 +482,8 @@ let deletedPagoKeys = []; // claves "sid|f|m|mp" de pagos eliminados
 let deletedRutinaNames = []; // nombres de rutinas eliminadas
 let deletedClaseIds = []; // cIds de clases eliminadas
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
+let _editingRutinaName = null; // nombre de la rutina siendo editada ahora mismo
+let _editingTurnoId = null;    // id del turno siendo editado ahora mismo
 
 // Caché local de DNI→email para login rápido (solo en este dispositivo)
 let dniCache = {};
@@ -587,7 +589,7 @@ function sbErr(error){
 }
 
 function fillArray(arr, data){ if(!Array.isArray(data)) return; arr.length=0; arr.push(...data); }
-function fillObject(obj, data){ if(!data || !Object.keys(data).length) return; Object.keys(obj).forEach(k=>delete obj[k]); Object.assign(obj, data); }
+function fillObject(obj, data){ if(data===undefined||data===null) return; Object.keys(obj).forEach(k=>delete obj[k]); if(data && typeof data==='object') Object.assign(obj, data); }
 
 function snapshotState(){
   return {
@@ -629,6 +631,8 @@ function applyState(s){
   if(Array.isArray(s.deletedPagoKeys)) deletedPagoKeys = s.deletedPagoKeys;
   if(Array.isArray(s.deletedRutinaNames)) deletedRutinaNames = s.deletedRutinaNames;
   if(Array.isArray(s.deletedClaseIds)) deletedClaseIds = s.deletedClaseIds;
+  // Filtrar pagos eliminados (los tombstones se cargan arriba)
+  if(deletedPagoKeys.length){ const _delPK=new Set(deletedPagoKeys); PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !_delPK.has(k); })); }
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
   // (corre DESPUÉS de restaurar DUENO_EMAIL para que persistDirect() lo incluya)
   let _migChanged = false;
@@ -654,11 +658,27 @@ function applyState(s){
   migrateSocioFields();
   Object.keys(EJD).forEach(g=>{ if(Array.isArray(EJD[g])) EJD[g].sort((a,b)=>a.localeCompare(b,'es')); });
 }
+function autoActivateDni(){
+  // Auto-activar acceso por DNI para cualquier socio que ya tenga DNI cargado
+  let changed = false;
+  SOCIOS.forEach(s=>{
+    if(s.dni && !s.dniAccesoRapido){
+      s.dniAccesoRapido = true;
+      changed = true;
+      // Cachear si tiene email registrado en SOCIOS_LOGIN
+      if(s.email) cacheDni(s.dni, (s.email||'').toLowerCase());
+    }
+  });
+  return changed;
+}
 function migrateSocioFields(){
+  let changed = false;
   SOCIOS.forEach(s=>{
     if(!Array.isArray(s.rs)) s.rs=[];
     if(!Array.isArray(s.nt)) s.nt=[];
   });
+  if(autoActivateDni()) changed = true;
+  if(changed) persistDirect();
 }
 function migrateGymHours(){
   if(gymHoursOk) return; // ya migrado, el dueño puede cambiarlos libremente
@@ -759,7 +779,7 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   if(!keep.pe && dup.pe) keep.pe = dup.pe;
   if(!keep.ob && dup.ob) keep.ob = dup.ob;
   if(!keep.obs && dup.obs) keep.obs = dup.obs;
-  if(!keep.nt && dup.nt) keep.nt = dup.nt;
+  if((!keep.nt || !keep.nt.length) && dup.nt) keep.nt = dup.nt;
 
   if(!keep.vence && dup.vence) keep.vence = dup.vence;
   // merge rs: additive union, respetando rsRemoved de ambos
@@ -775,7 +795,7 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
     const rmSet = new Set(keep.rsRemoved);
     keep.rs = keep.rs.filter(r=>!rmSet.has(r));
   }
-  if(dup.rsHechos && !keep.rsHechos) keep.rsHechos = dup.rsHechos;
+  if(dup.rsHechos){ if(!keep.rsHechos) keep.rsHechos={}; mergeRsHechos(keep.rsHechos, dup.rsHechos); }
   PAGOS.forEach(p=>{ if(p.sid===dup.id) p.sid = keep.id; });
   REGS.forEach(r=>{ if(r.sid===dup.id) r.sid = keep.id; });
   Object.keys(SOCIOS_LOGIN).forEach(em=>{ if(SOCIOS_LOGIN[em].idx===dupIdx) SOCIOS_LOGIN[em] = {idx:keepIdx, pe:SOCIOS_LOGIN[em].pe, pm:SOCIOS_LOGIN[em].pm}; });
@@ -882,7 +902,7 @@ function mergeRsHechos(local, remote){
   Object.keys(remote).forEach(rname=>{
     if(!local[rname]) local[rname] = {};
     Object.keys(remote[rname]).forEach(ejName=>{
-      if(local[rname][ejName]===undefined) local[rname][ejName] = remote[rname][ejName];
+      local[rname][ejName] = remote[rname][ejName]; // last-write-wins: remote may be newer
     });
   });
 }
@@ -917,7 +937,9 @@ async function mergeRemoteAntesDeGuardar(){
           if(!ls){
             if(!Array.isArray(rs.nt)) rs.nt=[];
             if(!Array.isArray(rs.rs)) rs.rs=[];
+            const _ni4a = SOCIOS.length;
             SOCIOS.push(rs);
+            if(!notifSocio[_ni4a]) notifSocio[_ni4a]=[];
             localByKey[key] = rs;
             if(nn) localByNormName[nn] = rs;
             return;
@@ -931,7 +953,8 @@ async function mergeRemoteAntesDeGuardar(){
         // si el remoto marca inactivo, respetar la baja
         if(typeof rs.activo==='boolean') ls.activo = rs.activo;
         // propagar DNI si el local no lo tiene aún
-        if(rs.dni && !ls.dni) ls.dni = rs.dni;
+        if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
+        if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido = true; if(ls.email) cacheDni(ls.dni, (ls.email||'').toLowerCase()); }
         // merge de notas (nt) aditivo
         if(Array.isArray(rs.nt) && rs.nt.length){
           if(!Array.isArray(ls.nt)) ls.nt = [];
@@ -956,6 +979,8 @@ async function mergeRemoteAntesDeGuardar(){
       });
     }
 
+    // Rebuild SOCIOS_LOGIN idx — array positions may have shifted after splice/push
+    SOCIOS.forEach((s, idx)=>{ const eKey=(s.email||'').toLowerCase(); if(eKey && SOCIOS_LOGIN[eKey]) SOCIOS_LOGIN[eKey].idx=idx; });
     // sync SOCIOS_LOGIN para socios recién mergeados
     if(remote.SOCIOS_LOGIN && typeof remote.SOCIOS_LOGIN==='object'){
       Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{
@@ -1033,7 +1058,7 @@ async function mergeRemoteAntesDeGuardar(){
       TURNOS.forEach(t=>{ localById[t.id]=t; });
       remote.TURNOS.forEach(t=>{
         if(!t.id || delT.has(t.id)) return;
-        if(localById[t.id]){ if(!document.querySelector('.modal-overlay')) Object.assign(localById[t.id], t); }
+        if(localById[t.id]){ if(!_editingTurnoId || _editingTurnoId!==t.id) Object.assign(localById[t.id], t); }
         else { TURNOS.push(t); localById[t.id]=t; }
       });
       // aplicar eliminaciones remotas
@@ -1054,7 +1079,7 @@ async function mergeRemoteAntesDeGuardar(){
       RUTINAS.forEach(r=>{ localByName[r.n]=r; });
       remote.RUTINAS.forEach(r=>{
         if(!r.n || delR.has(r.n)) return;
-        if(localByName[r.n]){ if(!document.querySelector('.modal-overlay')) Object.assign(localByName[r.n], r); }
+        if(localByName[r.n]){ if(!_editingRutinaName || _editingRutinaName!==r.n) Object.assign(localByName[r.n], r); }
         else { RUTINAS.push(r); localByName[r.n]=r; }
       });
     }
@@ -1602,7 +1627,7 @@ async function submitSignupSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true, dniAccesoRapido:!!dni});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró desde la app. ¿Ya era socio antes de usar la app?`, new:true, altaIdx:idx});
@@ -2959,13 +2984,16 @@ function saveEditSocio(idx){
   s.ob = $('#es_ob').value.trim()||null;
   s.obs = $('#es_obs').value.trim()||null;
   s.vence = $('#es_vence').value || null;
-  recalcEstados({notify:false});
+  // Update SOCIOS_LOGIN BEFORE recalcEstados so any persist() it triggers sees correct state
   if(oldEmail && oldEmail!==newEmail){
     delete SOCIOS_LOGIN[oldEmail];
     delete SOCIOS_LOGIN[(oldEmail||'').toLowerCase()];
     if(s.dni) cacheDni(s.dni, newEmail);
   }
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
+  // Auto-activar acceso por DNI si tiene DNI cargado
+  if(s.dni && !s.dniAccesoRapido){ s.dniAccesoRapido=true; if(s.email) cacheDni(s.dni,(s.email||'').toLowerCase()); }
+  recalcEstados({notify:false});
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
@@ -3764,8 +3792,10 @@ function openRutinaModal(idx){
   editRutinaIdx = (typeof idx==='number') ? idx : null;
   if(editRutinaIdx!==null){
     const r = RUTINAS[editRutinaIdx];
+    _editingRutinaName = r.n;
     newRutinaEjs = r.ejs.length ? r.ejs.map(e=>({n:e.n,s:e.s,r:e.r,modo:e.modo||'',tiempo:e.tiempo||''})) : [{n:'',s:3,r:'10'}];
   } else {
+    _editingRutinaName = null;
     newRutinaEjs = [{n:'',s:3,r:'10'}];
   }
   currentEjsArr = newRutinaEjs;
@@ -4112,6 +4142,7 @@ function openCalendarEvent(turnoId){
   openTurnoModal(turnoId);
 }
 function openTurnoModal(turnoId,presetDia){
+  _editingTurnoId = turnoId || null;
   const t = turnoId?TURNOS.find(x=>x.id===turnoId):null;
   const profes = STAFF.filter(s=>s.role==='profesor' || s.role==='admin');
   const allPersonal = [...profes, ...DUENOS];
@@ -4756,7 +4787,7 @@ function openModal(html, size){
     }
   }
 }
-function closeModal(){ $('#modalHost').innerHTML=''; editNotaIdx=null; }
+function closeModal(){ $('#modalHost').innerHTML=''; editNotaIdx=null; _editingRutinaName=null; _editingTurnoId=null; }
 
 /* ============ SOCIO APP ============ */
 $all('.bn-item').forEach(el=>el.addEventListener('click',()=>{
@@ -5449,17 +5480,19 @@ function socioCuenta(){
       remote.SOCIOS.forEach(rs=>{
         if(rs.id && _delSet.has(rs.id)) return;
         const key=socioMergeKey(rs); let ls=localByKey[key];
-        if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ if(!Array.isArray(rs.nt)) rs.nt=[]; if(!Array.isArray(rs.rs)) rs.rs=[]; SOCIOS.push(rs); localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
+        if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ if(!Array.isArray(rs.nt)) rs.nt=[]; if(!Array.isArray(rs.rs)) rs.rs=[]; const _ni4b=SOCIOS.length; SOCIOS.push(rs); if(!notifSocio[_ni4b]) notifSocio[_ni4b]=[]; localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(typeof rs.activo==='boolean') ls.activo=rs.activo;
-        if(rs.dni && !ls.dni) ls.dni=rs.dni;
+        if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
         if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const localRemoved=new Set(ls.rsRemoved||[]); const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
       });
+      // Rebuild SOCIOS_LOGIN idx after merge (array positions may have shifted)
+      SOCIOS.forEach((s,idx)=>{ const eKey=(s.email||'').toLowerCase(); if(eKey&&SOCIOS_LOGIN[eKey]) SOCIOS_LOGIN[eKey].idx=idx; });
       if(remote.SOCIOS_LOGIN&&typeof remote.SOCIOS_LOGIN==='object'){ Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{ const eLow=email.toLowerCase(); if(!lookupSocioLogin(eLow)){ const li=SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===eLow); if(li>=0) SOCIOS_LOGIN[eLow]={...remote.SOCIOS_LOGIN[email],idx:li}; } }); }
     }
     if(remote.RESERVAS) Object.keys(remote.RESERVAS).forEach(k=>{ if(!RESERVAS[k]) RESERVAS[k]={}; Object.keys(remote.RESERVAS[k]).forEach(ck=>{ if(remote.RESERVAS[k][ck] && RESERVAS[k][ck]===undefined) RESERVAS[k][ck]=true; }); });
@@ -5467,14 +5500,14 @@ function socioCuenta(){
     if(Array.isArray(remote.PAGOS)){ const delPK=new Set(deletedPagoKeys); const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!delPK.has(k)&&!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
     if(Array.isArray(remote.TURNOS)){
       const delT=new Set(deletedTurnoIds); const lkT={}; TURNOS.forEach(t=>{ lkT[t.id]=t; });
-      remote.TURNOS.forEach(t=>{ if(!t.id||delT.has(t.id)) return; if(lkT[t.id]){if(!document.querySelector('.modal-overlay')) Object.assign(lkT[t.id],t);} else {TURNOS.push(t); lkT[t.id]=t;} });
+      remote.TURNOS.forEach(t=>{ if(!t.id||delT.has(t.id)) return; if(lkT[t.id]){if(!_editingTurnoId||_editingTurnoId!==t.id) Object.assign(lkT[t.id],t);} else {TURNOS.push(t); lkT[t.id]=t;} });
       if(Array.isArray(remote.deletedTurnoIds)){ remote.deletedTurnoIds.forEach(id=>{if(!deletedTurnoIds.includes(id)) deletedTurnoIds.push(id);}); TURNOS=TURNOS.filter(t=>!new Set(deletedTurnoIds).has(t.id)); }
     }
     if(Array.isArray(remote.RUTINAS)){
       const delR=new Set(deletedRutinaNames);
       if(Array.isArray(remote.deletedRutinaNames)){ remote.deletedRutinaNames.forEach(n=>{if(!deletedRutinaNames.includes(n)){deletedRutinaNames.push(n); delR.add(n);}}); RUTINAS.splice(0,RUTINAS.length,...RUTINAS.filter(r=>!delR.has(r.n))); }
       const lkR={}; RUTINAS.forEach(r=>{lkR[r.n]=r;});
-      remote.RUTINAS.forEach(r=>{ if(!r.n||delR.has(r.n)) return; if(lkR[r.n]){if(!document.querySelector('.modal-overlay')) Object.assign(lkR[r.n],r);} else {RUTINAS.push(r); lkR[r.n]=r;} });
+      remote.RUTINAS.forEach(r=>{ if(!r.n||delR.has(r.n)) return; if(lkR[r.n]){if(!_editingRutinaName||_editingRutinaName!==r.n) Object.assign(lkR[r.n],r);} else {RUTINAS.push(r); lkR[r.n]=r;} });
     }
     if(Array.isArray(remote.deletedPagoKeys)){ remote.deletedPagoKeys.forEach(k=>{if(!deletedPagoKeys.includes(k)) deletedPagoKeys.push(k);}); const delPK=new Set(deletedPagoKeys); PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !delPK.has(k); })); }
     if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
@@ -5514,9 +5547,7 @@ function socioCuenta(){
     if(Array.isArray(remote.CLASES_HOY)){ if(Array.isArray(remote.deletedClaseIds)){ remote.deletedClaseIds.forEach(id=>{if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id);}); const delC=new Set(deletedClaseIds); for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId&&delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); } } const delC=new Set(deletedClaseIds); const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId||delC.has(c.cId)) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
-    _merging = true;
-    recalcEstados({notify:false});
-    _merging = false;
+    recalcEstados({notify:false}); // _merging removed: allows persist() when es status changes
   }
 
   sb.auth.onAuthStateChange((event) => {
