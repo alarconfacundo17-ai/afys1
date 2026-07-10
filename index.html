@@ -4782,37 +4782,84 @@ function pageMovimientos(){
   <tbody id="movimientosTableBody">${movimientosTablaHTML()}</tbody></table>
   </div>`;
 }
-function openHistorialAnualModal(idx, year){
+let _histEditMode = false;
+function openHistorialAnualModal(idx, year, editMode){
   const s = SOCIOS[idx];
   if(!s) return;
   year = year || new Date().getFullYear();
   const canEdit = isSuperOwner() || hasPerm('cargarPagos');
+  _histEditMode = canEdit && !!editMode;
+  const nowYear = new Date().getFullYear(), nowMonth = new Date().getMonth();
   const entrenoMes = m => REGS.some(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
   const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return pagoBelongsTo(p,s) && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
+
   const rows = MESES.map((nombre,m)=>{
-    const futureMes = (year > new Date().getFullYear()) || (year === new Date().getFullYear() && m > new Date().getMonth());
-    const tiene_entreno = entrenoMes(m);
-    const tiene_pago = pagoMes(m);
+    const futureMes = year > nowYear || (year===nowYear && m > nowMonth);
+    const te = entrenoMes(m), tp = pagoMes(m);
     const mpKey = `${year}-${String(m+1).padStart(2,'0')}`;
-    const entrenoBtn = canEdit && !futureMes
-      ? `<button class="btn ${tiene_entreno?'btn-outline':'btn-green'} btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleHistorialEntreno(${idx},${year},${m})">${tiene_entreno?'✓ Quitar':'+ Agregar'}</button>`
-      : (tiene_entreno ? '<span class="badge b-ok">✓</span>' : '<span style="color:var(--text2);">—</span>');
-    const pagoBtn = canEdit && !futureMes
-      ? `<button class="btn ${tiene_pago?'btn-outline':'btn-green'} btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleHistorialPago(${idx},${year},${m},'${mpKey}')">${tiene_pago?'✓ Quitar':'+ Agregar'}</button>`
-      : (tiene_pago ? '<span class="badge b-ok">✓</span>' : (tiene_entreno ? '<span class="badge b-err">✕</span>' : '<span style="color:var(--text2);">—</span>'));
-    return `<tr><td style="font-weight:500;">${nombre}</td><td>${entrenoBtn}</td><td>${pagoBtn}</td></tr>`;
+
+    // Chips visuales (modo lectura)
+    const chipE = te
+      ? `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--green,#22c55e)22;color:var(--green,#16a34a);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;"><i class="ti ti-run" style="font-size:12px;"></i>Sí</span>`
+      : `<span style="color:var(--text2);font-size:13px;">—</span>`;
+    const chipP = tp
+      ? `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;"><i class="ti ti-cash" style="font-size:12px;"></i>Sí</span>`
+      : (te && !futureMes
+          ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#ef444422;color:#dc2626;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;"><i class="ti ti-x" style="font-size:12px;"></i>No</span>`
+          : `<span style="color:var(--text2);font-size:13px;">—</span>`);
+
+    if(_histEditMode && !futureMes){
+      const btnE = `<button onclick="toggleHistorialEntreno(${idx},${year},${m})" style="all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:600;border:1.5px solid ${te?'var(--green,#16a34a)':'var(--border)'};background:${te?'var(--green,#22c55e)22':'var(--bg2)'};color:${te?'var(--green,#16a34a)':'var(--text2)'};" title="${te?'Quitar entrada':'Agregar entrada'}"><i class="ti ${te?'ti-run':'ti-plus'}" style="font-size:12px;"></i>${te?'Sí':'Agregar'}</button>`;
+      const btnP = `<button onclick="toggleHistorialPago(${idx},${year},${m},'${mpKey}')" style="all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:600;border:1.5px solid ${tp?'var(--primary)':'var(--border)'};background:${tp?'var(--primary-light)':'var(--bg2)'};color:${tp?'var(--primary)':'var(--text2)'};" title="${tp?'Quitar pago':'Agregar pago'}"><i class="ti ${tp?'ti-cash':'ti-plus'}" style="font-size:12px;"></i>${tp?'Sí':'Agregar'}</button>`;
+      return `<tr style="border-bottom:1px solid var(--border2);">
+        <td style="font-weight:600;font-size:13.5px;padding:10px 0 10px 2px;color:var(--text);">${nombre}</td>
+        <td style="padding:10px 6px;">${btnE}</td>
+        <td style="padding:10px 6px;">${btnP}</td>
+      </tr>`;
+    }
+    return `<tr style="border-bottom:1px solid var(--border2);">
+      <td style="font-weight:600;font-size:13.5px;padding:10px 0 10px 2px;color:${futureMes?'var(--text2)':'var(--text)'};">${nombre}</td>
+      <td style="padding:10px 6px;">${chipE}</td>
+      <td style="padding:10px 6px;">${chipP}</td>
+    </tr>`;
   }).join('');
+
+  // Resumen rápido del año
+  const totalE = MESES.filter((_,m)=>entrenoMes(m)).length;
+  const totalP = MESES.filter((_,m)=>pagoMes(m)).length;
+
   openModal(`
-    <div class="modal-head"><h3>Historial ${year} — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year-1})">‹ ${year-1}</button>
-      <b style="font-size:14px;">${year}</b>
-      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year+1})">${year+1} ›</button>
+    <div class="modal-head">
+      <h3 style="font-size:16px;">Historial anual — <span style="color:var(--primary)">${esc(s.n)}</span></h3>
+      <button onclick="closeModal()">✕</button>
     </div>
-    ${canEdit?'<p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Tocá los botones para agregar o quitar entradas y pagos de cada mes.</p>':''}
-    <table><thead><tr><th>Mes</th><th>Entrenó</th><th>Pagó</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year-1},${_histEditMode})" style="font-size:13px;">‹ ${year-1}</button>
+      <b style="font-size:16px;letter-spacing:.5px;">${year}</b>
+      <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year+1},${_histEditMode})" style="font-size:13px;">${year+1} ›</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <div style="flex:1;background:var(--green,#22c55e)11;border:1px solid var(--green,#22c55e)44;border-radius:10px;padding:9px 12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--green,#16a34a);">${totalE}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px;">meses entrenó</div>
+      </div>
+      <div style="flex:1;background:var(--primary-light);border:1px solid var(--primary)44;border-radius:10px;padding:9px 12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--primary);">${totalP}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px;">meses pagó</div>
+      </div>
+      ${canEdit?`<button onclick="openHistorialAnualModal(${idx},${year},${!_histEditMode})" style="all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:${_histEditMode?'var(--primary)':'var(--bg2)'};border:1.5px solid ${_histEditMode?'var(--primary)':'var(--border)'};border-radius:10px;padding:9px 14px;font-size:11px;font-weight:600;color:${_histEditMode?'#fff':'var(--text2)'};min-width:56px;"><i class="ti ti-edit" style="font-size:18px;"></i>${_histEditMode?'Listo':'Editar'}</button>`:''}
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:6px 2px;font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.4px;">MES</th>
+        <th style="text-align:left;padding:6px 6px;font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.4px;">ENTRENÓ</th>
+        <th style="text-align:left;padding:6px 6px;font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.4px;">PAGÓ</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-primary" onclick="closeModal()">Cerrar</button>
+    </div>
   `);
 }
 function toggleHistorialEntreno(idx, year, m){
