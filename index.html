@@ -4662,13 +4662,18 @@ function openClaseQR(name){
 /* ---- PAGOS ---- */
 function historialSociosRowsHTML(q){
   q = (q||'').toLowerCase().trim();
-  if(!q) return `<tr><td colspan="3" style="text-align:center;color:var(--text2);padding:20px;">Buscá un socio para ver su historial</td></tr>`;
+  if(!q) return '';
   const list = SOCIOS.map((s,idx)=>({s,idx})).filter(({s})=>s.activo!==false && s.n.toLowerCase().includes(q)).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
   return list.length ? list.map(({s,idx})=>`<tr><td>${esc(s.n)}</td><td><button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx})"><i class="ti ti-calendar-stats"></i>Ver año</button></td></tr>`).join('') : `<tr><td colspan="2" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
 }
 function filterHistorialSociosTable(q){
   const tbody = document.getElementById('histSociosTableBody');
-  if(tbody) tbody.innerHTML = historialSociosRowsHTML(q);
+  const wrap = document.getElementById('histSociosTableWrap');
+  if(!tbody) return;
+  const trimmed = (q||'').trim();
+  if(!trimmed){ wrap && (wrap.style.display='none'); tbody.innerHTML=''; return; }
+  tbody.innerHTML = historialSociosRowsHTML(q);
+  wrap && (wrap.style.display='');
 }
 function pagePagos(){
   const canEditPagos = hasPerm('cargarPagos')||isSuperOwner();
@@ -4702,10 +4707,10 @@ function pagePagos(){
   <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
   </div>`:''}
   <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
-  <input id="histSocioSearch" placeholder="Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
-  <div class="card" style="margin-bottom:16px;">
+  <input id="histSocioSearch" placeholder="🔍 Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
+  <div id="histSociosTableWrap" style="display:none;margin-bottom:16px;" class="card">
   <table><thead><tr><th>Nombre</th><th></th></tr></thead>
-  <tbody id="histSociosTableBody">${historialSociosRowsHTML('')}</tbody></table>
+  <tbody id="histSociosTableBody"></tbody></table>
   </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
   <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
