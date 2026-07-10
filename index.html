@@ -529,6 +529,8 @@ let STAFF = [];
 let DUENOS = [];
 let CO_DUENOS = [];
 let _lastOwnWrite = 0;
+let _lastOwnWriteTs = ''; // updated_at ISO del último upsert propio
+let _lastRemoteTs = '';   // updated_at ISO del último estado remoto procesado
 let currentStaffId = null;
 let DUENO_EMAIL = null;
 let gymHoursOk = false;
@@ -1113,9 +1115,11 @@ async function mergeRemoteAntesDeGuardar(){
 function persistDirect(){
   if(demoMode) return;
   clearTimeout(persistTimer);
-  _lastOwnWrite = Date.now();
-  sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
+  const ts = new Date().toISOString();
+  _lastOwnWrite = Date.now(); _lastOwnWriteTs = ts;
+  sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: ts}).then(({error})=>{
     if(error) console.error('Error guardando en Supabase:', error);
+    else _lastRemoteTs = ts;
   });
 }
 function persist(){
@@ -1123,21 +1127,25 @@ function persist(){
   clearTimeout(persistTimer);
   persistTimer = setTimeout(async ()=>{
     await mergeRemoteAntesDeGuardar();
-    _lastOwnWrite = Date.now();
-    sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: new Date().toISOString()}).then(({error})=>{
+    const ts = new Date().toISOString();
+    _lastOwnWrite = Date.now(); _lastOwnWriteTs = ts;
+    sb.from('app_state').upsert({id:1, data: snapshotState(), updated_at: ts}).then(({error})=>{
       if(error){
         console.error('Error guardando en Supabase:', error);
         showToast('No se pudo guardar. Revisá tu conexión a internet.', 'error');
-      }
+      } else { _lastRemoteTs = ts; }
     });
   }, 500);
 }
 
 async function loadState(){
   try{
-    const {data, error} = await sb.from('app_state').select('data').eq('id',1).single();
+    const {data, error} = await sb.from('app_state').select('data, updated_at').eq('id',1).single();
     if(error){ console.error('Error cargando de Supabase:', error); throw error; }
-    if(data && data.data) applyState(data.data);
+    if(data && data.data){
+      applyState(data.data);
+      _lastRemoteTs = data.updated_at || '';
+    }
   }catch(e){
     console.error('Error cargando de Supabase:', e);
     throw e;
@@ -5334,17 +5342,38 @@ function socioCuenta(){
   const isRecovery = _initialHash.includes('type=recovery') || urlParams.get('type')==='recovery';
 
   // Realtime: sincronizar estado cuando otro usuario guarda
+  async function handleRemoteUpdate(data, updatedAt){
+    // ignorar si el updated_at coincide con un write propio (evita procesar nuestro propio upsert)
+    if(updatedAt && updatedAt === _lastOwnWriteTs) return;
+    if(!data) return;
+    _lastRemoteTs = updatedAt || _lastRemoteTs;
+    await mergeRemoteIntoLocal(data);
+    if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
+  }
+
   sb.channel('app_state_sync')
     .on('postgres_changes', {event:'UPDATE', schema:'public', table:'app_state', filter:'id=eq.1'}, async (payload)=>{
-      if(Date.now() - _lastOwnWrite < 2000) return; // ignorar nuestro propio write
       if(!payload.new || !payload.new.data) return;
-      const remote = payload.new.data;
-      // merge remoto en local usando la misma lógica de mergeRemoteAntesDeGuardar
-      await mergeRemoteIntoLocal(remote);
-      // no re-renderizar si hay un modal abierto para no pisar lo que el usuario está cargando
-      if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
+      await handleRemoteUpdate(payload.new.data, payload.new.updated_at);
     })
-    .subscribe();
+    .subscribe((status)=>{
+      if(status === 'SUBSCRIBED') console.log('[sync] realtime conectado');
+      if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[sync] realtime caído, polling activo como fallback');
+    });
+
+  // Polling de backup: cada 45s compara updated_at remoto y si es más nuevo, hace merge
+  // Cubre casos donde el WebSocket realtime se cortó sin reconectar
+  setInterval(async ()=>{
+    if(demoMode) return;
+    try{
+      const {data, error} = await sb.from('app_state').select('data, updated_at').eq('id',1).single();
+      if(error || !data) return;
+      const remoteTs = data.updated_at || '';
+      if(remoteTs && remoteTs !== _lastRemoteTs && remoteTs !== _lastOwnWriteTs){
+        await handleRemoteUpdate(data.data, remoteTs);
+      }
+    }catch(e){ /* silencioso */ }
+  }, 45000);
 
   async function mergeRemoteIntoLocal(remote){
     if(Array.isArray(remote.SOCIOS)){
