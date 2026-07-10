@@ -801,6 +801,7 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   PAGOS.forEach(p=>{ if(p.sid===dup.id) p.sid = keep.id; });
   REGS.forEach(r=>{ if(r.sid===dup.id) r.sid = keep.id; });
   Object.keys(SOCIOS_LOGIN).forEach(em=>{ if(SOCIOS_LOGIN[em].idx===dupIdx) SOCIOS_LOGIN[em] = {idx:keepIdx, pe:SOCIOS_LOGIN[em].pe, pm:SOCIOS_LOGIN[em].pm}; });
+  if(notifSocio[dupIdx] && notifSocio[dupIdx].length){ if(!notifSocio[keepIdx]) notifSocio[keepIdx]=[]; notifSocio[keepIdx].push(...notifSocio[dupIdx]); delete notifSocio[dupIdx]; }
   toRemove.add(dupIdx);
 }
 function migrateDedupSocios(){
@@ -930,6 +931,7 @@ async function mergeRemoteAntesDeGuardar(){
         // Remap RESERVAS indices after splice
         if(_ki2 < _preLen){
           const _newRes={}; Object.keys(RESERVAS).map(Number).forEach(k=>{ const nk=_idxRemap[k]; if(nk!==undefined) _newRes[nk]=RESERVAS[k]; }); Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]); Object.assign(RESERVAS,_newRes);
+          const _newNotif={}; Object.keys(notifSocio).map(Number).forEach(k=>{ const nk=_idxRemap[k]; if(nk!==undefined) _newNotif[nk]=notifSocio[k]; }); Object.keys(notifSocio).forEach(k=>delete notifSocio[k]); Object.assign(notifSocio,_newNotif);
         }
       }
       const localByKey = {};
@@ -1016,9 +1018,10 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(Array.isArray(remote.REGS)){
-      const localKeys = new Set(REGS.map(r=>r.sid+'|'+r.f));
+      const _regKey = r => r.sid+'|'+(r.f?localDateISO(r.f):r.f);
+      const localKeys = new Set(REGS.map(_regKey));
       remote.REGS.forEach(r=>{
-        const key = r.sid+'|'+r.f;
+        const key = _regKey(r);
         if(!localKeys.has(key)){ REGS.push(r); localKeys.add(key); }
       });
       REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
@@ -1305,7 +1308,7 @@ function recalcEstados(opts){
   let changed = false;
   const today = new Date(); today.setHours(0,0,0,0);
   SOCIOS.forEach(s=>{
-    if(s.activo===false){ if(s.es && s.es!=='de') { s.es='de'; changed=true; } return; }
+    if(s.activo===false){ if(s.es !== 'de') { s.es='de'; changed=true; } return; }
     if(!s.vence) return;
     const v = new Date(s.vence);
     if(isNaN(v)) return;
@@ -3474,6 +3477,9 @@ function savePago(){
   if(editPagoKey!==null){
     const realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
+    // Recalcular vencimiento desde el mes más reciente pagado por este socio
+    const latestMp = PAGOS.filter(p=>p.sid===s.id).reduce((best,p)=>(!best||p.mp>best)?p.mp:best, null);
+    if(latestMp){ s.vence = venceDesdeMp(latestMp); s.es='ok'; }
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
     s.vence = venceDesdeMp(data.mp); // vence el día 11 del mes siguiente (partir del 11 = vencido)
@@ -3492,13 +3498,16 @@ function savePago(){
 }
 function deletePago(payIdx){
   if(!confirm('¿Eliminar este pago? No se modificará el estado del socio.')) return;
-  const pEliminado = PAGOS[payIdx];
+  const realIdx = editPagoKey
+    ? PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey)
+    : payIdx;
+  const pEliminado = realIdx>=0 ? PAGOS[realIdx] : null;
   if(pEliminado){
     logMovimiento('eliminacion_pago', `Eliminación de pago: ${pEliminado.m} de ${pEliminado.n}`);
     const pk = pEliminado.sid+'|'+pEliminado.f+'|'+pEliminado.m+'|'+pEliminado.mp;
     if(!deletedPagoKeys.includes(pk)) deletedPagoKeys.push(pk);
+    PAGOS.splice(realIdx,1);
   }
-  PAGOS.splice(payIdx,1);
   editPagoIdx = null; editPagoKey = null;
   persist();
   showToast('Eliminado');
@@ -3967,8 +3976,9 @@ function saveRutina(){
   if(editRutinaIdx!==null){
     const r = RUTINAS[editRutinaIdx];
     if(r.n!==n){
-      // quitar el nombre viejo de la lista de eliminados (renombre = no es borrado)
-      deletedRutinaNames = deletedRutinaNames.filter(x=>x!==r.n);
+      // tombstonear el nombre viejo para que el merge remoto no lo reimporte
+      if(!deletedRutinaNames.includes(r.n)) deletedRutinaNames.push(r.n);
+      deletedRutinaNames = deletedRutinaNames.filter(x=>x!==n); // si el nuevo nombre era un tombstone, limpiarlo
       SOCIOS.forEach(s=>{
         s.rs = s.rs.map(x=>x===r.n?n:x);
         if(s.rsDias && s.rsDias[r.n]){ s.rsDias[n] = s.rsDias[r.n]; delete s.rsDias[r.n]; }
@@ -5597,7 +5607,7 @@ function socioCuenta(){
         const delSet=new Set(deletedSocioIds);
         const _pre2b=SOCIOS.length; const _kf2b=SOCIOS.map(s=>!(s.id&&delSet.has(s.id))); const _ir2b={}; let _ki2b=0; _kf2b.forEach((k,i)=>{if(k){_ir2b[i]=_ki2b;_ki2b++;}});
         for(let i=SOCIOS.length-1;i>=0;i--){ if(SOCIOS[i].id && delSet.has(SOCIOS[i].id)) SOCIOS.splice(i,1); }
-        if(_ki2b<_pre2b){ const _nr2b={}; Object.keys(RESERVAS).map(Number).forEach(k=>{ const nk=_ir2b[k]; if(nk!==undefined) _nr2b[nk]=RESERVAS[k]; }); Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]); Object.assign(RESERVAS,_nr2b); }
+        if(_ki2b<_pre2b){ const _nr2b={}; Object.keys(RESERVAS).map(Number).forEach(k=>{ const nk=_ir2b[k]; if(nk!==undefined) _nr2b[nk]=RESERVAS[k]; }); Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]); Object.assign(RESERVAS,_nr2b); const _nn2b={}; Object.keys(notifSocio).map(Number).forEach(k=>{ const nk=_ir2b[k]; if(nk!==undefined) _nn2b[nk]=notifSocio[k]; }); Object.keys(notifSocio).forEach(k=>delete notifSocio[k]); Object.assign(notifSocio,_nn2b); }
       }
       const localByKey={}, localByNormName={};
       SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)]=s; const nn=normName(s.n); if(nn) localByNormName[nn]=s; });
@@ -5621,7 +5631,7 @@ function socioCuenta(){
       if(remote.SOCIOS_LOGIN&&typeof remote.SOCIOS_LOGIN==='object'){ Object.keys(remote.SOCIOS_LOGIN).forEach(email=>{ const eLow=email.toLowerCase(); if(!lookupSocioLogin(eLow)){ const li=SOCIOS.findIndex(s=>(s.email||'').toLowerCase()===eLow); if(li>=0) SOCIOS_LOGIN[eLow]={...remote.SOCIOS_LOGIN[email],idx:li}; } }); }
     }
     if(remote.RESERVAS) Object.keys(remote.RESERVAS).forEach(k=>{ if(!RESERVAS[k]) RESERVAS[k]={}; Object.keys(remote.RESERVAS[k]).forEach(ck=>{ if(remote.RESERVAS[k][ck] && RESERVAS[k][ck]===undefined) RESERVAS[k][ck]=true; }); });
-    if(Array.isArray(remote.REGS)){ const lk=new Set(REGS.map(r=>r.sid+'|'+r.f)); remote.REGS.forEach(r=>{ const k=r.sid+'|'+r.f; if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
+    if(Array.isArray(remote.REGS)){ const _rk=r=>r.sid+'|'+(r.f?localDateISO(r.f):r.f); const lk=new Set(REGS.map(_rk)); remote.REGS.forEach(r=>{ const k=_rk(r); if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
     if(Array.isArray(remote.PAGOS)){ const delPK=new Set(deletedPagoKeys); const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!delPK.has(k)&&!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
     if(Array.isArray(remote.TURNOS)){
       const delT=new Set(deletedTurnoIds); const lkT={}; TURNOS.forEach(t=>{ lkT[t.id]=t; });
