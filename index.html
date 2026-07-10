@@ -2518,6 +2518,8 @@ function openEliminarStaffModal(id){
 function eliminarStaffCompleto(id){
   const s = STAFF.find(x=>x.id===id);
   STAFF = STAFF.filter(s=>s.id!==id);
+  // Tombstonear los turnos del staff eliminado para que el merge remoto no los reimporte
+  TURNOS.filter(t=>t.staffId===id).forEach(t=>{ if(!deletedTurnoIds.includes(t.id)) deletedTurnoIds.push(t.id); });
   TURNOS = TURNOS.filter(t=>t.staffId!==id);
   if(s) logMovimiento('eliminacion_staff', `Eliminación definitiva de cuenta de staff: ${s.n} (${s.email})`);
   persist();
@@ -3633,6 +3635,7 @@ function deleteClase(idx){
   if(!confirm(`¿Eliminar la clase "${c.n}"?`)) return;
   if(c.cId){
     if(!deletedClaseIds.includes(c.cId)) deletedClaseIds.push(c.cId);
+    TURNOS.filter(t=>t.claseId===c.cId).forEach(t=>{ if(!deletedTurnoIds.includes(t.id)) deletedTurnoIds.push(t.id); });
     TURNOS = TURNOS.filter(t=>t.claseId!==c.cId);
   }
   CLASES_HOY.splice(idx,1);
