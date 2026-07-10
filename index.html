@@ -1460,6 +1460,9 @@ async function routeLoggedInUser(email){
   const info = lookupSocioLogin(email);
   if(info && Number.isInteger(info.idx) && SOCIOS[info.idx] && (SOCIOS[info.idx].email||'').toLowerCase()===emailLow){
     currentRole='socio'; currentSocioIdx=info.idx; _dniPopupShown=false;
+    // auto-cachear DNI si el dueño ya lo cargó en el perfil
+    const sp = SOCIOS[info.idx];
+    if(sp.dni && sp.dniAccesoRapido) cacheDni(sp.dni, emailLow);
     showWelcomeBanner = true;
     $('#socio').classList.remove('hidden');
     socioPage='inicio'; renderSocio();
@@ -2695,6 +2698,7 @@ function openSocioOpcionesModal(idx){
       ${hasPerm('cargarPagos')||isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openPagoAnteriorModal(${idx})"><i class="ti ti-clock-dollar" style="font-size:20px;color:var(--text2);"></i>Registrar pago anterior</button>`:''}
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
+      ${isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-fingerprint" style="font-size:20px;color:${s.dniAccesoRapido?'var(--green)':'var(--text2)'};"></i>Acceso por DNI${s.dniAccesoRapido?' <span style=\'font-size:11px;color:var(--green);\'>● Activo</span>':''}</button>`:''}
       ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
       ${(canEdit && currentRole!=='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${canRemove?(s.activo===false
@@ -2862,6 +2866,22 @@ async function saveSocio(){
 
 function openEditSocioModal(idx){
   const s = SOCIOS[idx];
+  const dniSection = isSuperOwner() ? `
+    <div style="border-top:1px solid var(--border);margin:12px 0 10px;padding-top:12px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.04em;margin-bottom:8px;">ACCESO POR DNI</div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>DNI del socio</label>
+        <input id="es_dni" type="number" placeholder="Sin puntos, mínimo 6 dígitos" value="${esc(s.dni||'')}">
+      </div>
+      <div id="es_dni_status" style="font-size:12.5px;margin-bottom:10px;${s.dniAccesoRapido?'color:var(--green);':'color:var(--text2);'}">
+        ${s.dniAccesoRapido
+          ? `<i class="ti ti-shield-check"></i> Acceso rápido por DNI activado`
+          : `<i class="ti ti-shield-off"></i> Acceso por DNI no activado aún`}
+      </div>
+      <button id="es_dni_btn" class="btn btn-primary" style="width:100%;justify-content:center;gap:8px;" onclick="activarAccesoDni(${idx})">
+        <i class="ti ti-fingerprint"></i> ${s.dniAccesoRapido ? 'Actualizar DNI y reactivar acceso' : 'Activar acceso por DNI'}
+      </button>
+    </div>` : '';
   openModal(`
     <div class="modal-head"><h3>Editar ficha — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Email (Gmail)</label><input id="es_email" type="email" value="${esc(s.email||'')}"></div>
@@ -2870,6 +2890,7 @@ function openEditSocioModal(idx){
     <div class="field"><label>Objetivo de entrenamiento</label><input id="es_ob" value="${esc(s.ob||'')}"></div>
     <div class="field"><label>Observaciones (opcional)</label><textarea id="es_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio...">${esc(s.obs||'')}</textarea></div>
     <div class="field"><label>Próximo vencimiento (opcional)</label><input id="es_vence" type="date" value="${s.vence||''}"></div>
+    ${dniSection}
     <div class="modal-actions">
       <button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="saveEditSocio(${idx})">Guardar</button>
@@ -2912,13 +2933,58 @@ function saveEditSocio(idx){
   if(oldEmail && oldEmail!==newEmail){
     delete SOCIOS_LOGIN[oldEmail];
     delete SOCIOS_LOGIN[(oldEmail||'').toLowerCase()];
-    // update dniCache so DNI still works with new email
     if(s.dni) cacheDni(s.dni, newEmail);
   }
   if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
+}
+
+async function activarAccesoDni(idx){
+  const s = SOCIOS[idx];
+  const dni = String($('#es_dni').value||'').trim();
+  const email = (s.email||'').trim().toLowerCase();
+  const errEl = $('#es_dni_status');
+  const btn = $('#es_dni_btn');
+
+  if(!dni || isNaN(Number(dni)) || dni.length < 6){
+    errEl.style.color='var(--red)'; errEl.innerHTML='<i class="ti ti-alert-circle"></i> El DNI debe tener al menos 6 dígitos.'; return;
+  }
+  if(!email){
+    errEl.style.color='var(--red)'; errEl.innerHTML='<i class="ti ti-alert-circle"></i> Este socio no tiene email asignado.'; return;
+  }
+
+  btn.disabled=true; btn.textContent='Activando...';
+
+  // Intentar crear cuenta Supabase con DNI como contraseña (si no existe aún)
+  const {data, error} = await sb.auth.signUp({email, password:dni, options:{data:{nombre:s.n, role:'socio', dni}, emailRedirectTo:APP_URL}});
+  const alreadyExists = error && /already.*(registered|exists)|user_already_exists/i.test(error.message||'');
+  const newAccount = !error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length > 0;
+  const identitiesEmpty = !error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+
+  if(error && !alreadyExists){
+    errEl.style.color='var(--red)'; errEl.innerHTML=`<i class="ti ti-alert-circle"></i> Error: ${esc(error.message||'Intentá de nuevo.')}`;
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-fingerprint"></i> Activar acceso por DNI'; return;
+  }
+
+  // Guardar DNI en perfil y activar flag
+  s.dni = dni;
+  s.dniAccesoRapido = true;
+  cacheDni(dni, email);
+  persist();
+
+  if(newAccount){
+    errEl.style.color='var(--green)';
+    errEl.innerHTML='<i class="ti ti-shield-check"></i> Cuenta creada y acceso por DNI activado. El socio ya puede entrar solo con su DNI.';
+  } else {
+    // La cuenta ya existía — el DNI queda cacheado en este dispositivo
+    errEl.style.color='var(--green)';
+    errEl.innerHTML='<i class="ti ti-shield-check"></i> Acceso por DNI activado en este dispositivo. En otros dispositivos se activa automáticamente cuando el socio inicia sesión.';
+  }
+  btn.disabled=false;
+  btn.innerHTML='<i class="ti ti-fingerprint"></i> Actualizar DNI y reactivar acceso';
+  renderStaff();
 }
 function slugRutina(rname){ return esc(rname).replace(/[^a-zA-Z0-9]/g,'_'); }
 function diasRutinaButtonHTML(si, rname, search){
