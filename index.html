@@ -762,7 +762,19 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   if(!keep.nt && dup.nt) keep.nt = dup.nt;
 
   if(!keep.vence && dup.vence) keep.vence = dup.vence;
-  if(dup.rs&&dup.rs.length && (!keep.rs||!keep.rs.length)) keep.rs = dup.rs;
+  // merge rs: additive union, respetando rsRemoved de ambos
+  if(!Array.isArray(keep.rs)) keep.rs = [];
+  if(Array.isArray(dup.rs)) dup.rs.forEach(r=>{ if(!keep.rs.includes(r)) keep.rs.push(r); });
+  // merge rsRemoved: union de tombstones
+  if(Array.isArray(dup.rsRemoved) && dup.rsRemoved.length){
+    if(!Array.isArray(keep.rsRemoved)) keep.rsRemoved = [];
+    dup.rsRemoved.forEach(r=>{ if(!keep.rsRemoved.includes(r)) keep.rsRemoved.push(r); });
+  }
+  // aplicar tombstone combinado a keep.rs
+  if(Array.isArray(keep.rsRemoved) && keep.rsRemoved.length){
+    const rmSet = new Set(keep.rsRemoved);
+    keep.rs = keep.rs.filter(r=>!rmSet.has(r));
+  }
   if(dup.rsHechos && !keep.rsHechos) keep.rsHechos = dup.rsHechos;
   PAGOS.forEach(p=>{ if(p.sid===dup.id) p.sid = keep.id; });
   REGS.forEach(r=>{ if(r.sid===dup.id) r.sid = keep.id; });
@@ -3663,7 +3675,18 @@ function deleteRutina(idx){
   const r = RUTINAS[idx];
   if(!confirm(`¿Eliminar la rutina "${r.n}"? Se quitará también de los socios que la tengan asignada.`)) return;
   if(!deletedRutinaNames.includes(r.n)) deletedRutinaNames.push(r.n);
-  SOCIOS.forEach(s=>{ s.rs = s.rs.filter(n=>n!==r.n); if(s.rsDias) delete s.rsDias[r.n]; if(s.rsNotas) delete s.rsNotas[r.n]; if(s.rsNombre) delete s.rsNombre[r.n]; if(s.rsOverride) delete s.rsOverride[r.n]; });
+  SOCIOS.forEach(s=>{
+    if(!Array.isArray(s.rs)) return;
+    if(s.rs.includes(r.n)){
+      s.rs = s.rs.filter(n=>n!==r.n);
+      if(!Array.isArray(s.rsRemoved)) s.rsRemoved = [];
+      if(!s.rsRemoved.includes(r.n)) s.rsRemoved.push(r.n);
+    }
+    if(s.rsDias) delete s.rsDias[r.n];
+    if(s.rsNotas) delete s.rsNotas[r.n];
+    if(s.rsNombre) delete s.rsNombre[r.n];
+    if(s.rsOverride) delete s.rsOverride[r.n];
+  });
   RUTINAS.splice(idx,1);
   persist();
   closeModal();
@@ -5357,8 +5380,35 @@ function socioCuenta(){
     if(updatedAt && updatedAt === _lastOwnWriteTs) return;
     if(!data) return;
     _lastRemoteTs = updatedAt || _lastRemoteTs;
+
+    // Detectar race condition: ¿tiene el local datos que el remoto no tiene?
+    // Si el remoto sobreescribió una asignación nuestra (otro device escribió estado viejo),
+    // necesitamos re-persistir después del merge para volver a escribir nuestro estado.
+    let localAheadOfRemote = false;
+    if(Array.isArray(data.SOCIOS)){
+      const remByKey = {};
+      data.SOCIOS.forEach(rs=>{ remByKey[socioMergeKey(rs)] = rs; });
+      for(const ls of SOCIOS){
+        const rs = remByKey[socioMergeKey(ls)];
+        if(!rs) continue;
+        const remRs = new Set(rs.rs || []);
+        const remRemoved = new Set(rs.rsRemoved || []);
+        // el local tiene asignaciones que el remoto no tiene y que el remoto no marcó como removidas
+        if(Array.isArray(ls.rs) && ls.rs.some(r => !remRs.has(r) && !remRemoved.has(r))){
+          localAheadOfRemote = true; break;
+        }
+        // el local tiene tombstones que el remoto no tiene
+        if(Array.isArray(ls.rsRemoved) && ls.rsRemoved.some(r => !remRemoved.has(r))){
+          localAheadOfRemote = true; break;
+        }
+      }
+    }
+
     await mergeRemoteIntoLocal(data);
     if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
+
+    // Si el local tenía datos que el remoto perdió (race condition), re-persistir para recuperarlos
+    if(localAheadOfRemote) persist();
   }
 
   sb.channel('app_state_sync')
