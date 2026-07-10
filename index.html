@@ -763,10 +763,10 @@ function migrateSocioIds(){
     const n = s.id ? parseInt(String(s.id).replace('soc','')) : NaN;
     if(!isNaN(n) && n>maxN) maxN = n;
   });
-  SOCIOS.forEach(s=>{ if(!s.id){ maxN++; s.id = 'soc'+maxN; } });
+  SOCIOS.forEach(s=>{ if(!s.id){ maxN++; s.id = 'soc'+maxN+'_'+Math.random().toString(36).slice(2,7); } });
   if(socioSeq <= maxN) socioSeq = maxN+1;
-  PAGOS.forEach(p=>{ if(!p.sid){ const s = SOCIOS.find(s=>s.n===p.n); if(s) p.sid = s.id; } });
-  REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
+  PAGOS.forEach(p=>{ if(!p.sid){ const s = SOCIOS.find(s=>s.n===p.n && (!p.email || s.email===p.email)) || SOCIOS.find(s=>s.n===p.n); if(s) p.sid = s.id; } });
+  REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.n===r.n) || SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
 }
 
 function normName(n){ return (n||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' '); }
@@ -918,7 +918,17 @@ async function mergeRemoteAntesDeGuardar(){
       if(Array.isArray(remote.deletedSocioIds)){
         remote.deletedSocioIds.forEach(id=>{ if(!deletedSocioIds.includes(id)) deletedSocioIds.push(id); });
         const delSet = new Set(deletedSocioIds);
+        // Build idx remap BEFORE splice for RESERVAS
+        const _preLen = SOCIOS.length;
+        const _keepFlags = SOCIOS.map(s=>!(s.id && delSet.has(s.id)));
+        const _idxRemap = {};
+        let _ki2 = 0;
+        _keepFlags.forEach((keep,oldI)=>{ if(keep){ _idxRemap[oldI]=_ki2; _ki2++; } });
         for(let i=SOCIOS.length-1;i>=0;i--){ if(SOCIOS[i].id && delSet.has(SOCIOS[i].id)) SOCIOS.splice(i,1); }
+        // Remap RESERVAS indices after splice
+        if(_ki2 < _preLen){
+          const _newRes={}; Object.keys(RESERVAS).map(Number).forEach(k=>{ const nk=_idxRemap[k]; if(nk!==undefined) _newRes[nk]=RESERVAS[k]; }); Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]); Object.assign(RESERVAS,_newRes);
+        }
       }
       const localByKey = {};
       const localByNormName = {};
@@ -1293,13 +1303,14 @@ function recalcEstados(opts){
   let changed = false;
   const today = new Date(); today.setHours(0,0,0,0);
   SOCIOS.forEach(s=>{
-    if(!s.vence || s.activo===false) return;
+    if(s.activo===false){ if(s.es && s.es!=='de') { s.es='de'; changed=true; } return; }
+    if(!s.vence) return;
     const v = new Date(s.vence);
     if(isNaN(v)) return;
     v.setHours(0,0,0,0);
     const diffDias = Math.round((v-today)/86400000);
     const prev = s.es;
-    const next = diffDias<0 ? 'de' : (diffDias<=7 ? 've' : 'ok');
+    const next = diffDias<0 ? 'de' : (diffDias<=5 ? 've' : 'ok'); // aviso 5 días antes del vencimiento
     if(next!==prev){
       s.es = next;
       changed = true;
@@ -1898,10 +1909,11 @@ async function qrGateLoginAndCheckIn(savedEmail){
   }
   cacheDni(dni,email);
   let info=lookupSocioLogin(email);
-  if(!info||!Number.isInteger(info.idx)||!SOCIOS[info.idx]){
+  if(!info||!Number.isInteger(info.idx)||!SOCIOS[info.idx]||(SOCIOS[info.idx].email||'').toLowerCase()!==email){
     const idxR=await intentarRecuperarPerfilSocio(email);
     if(idxR===null){ await sb.auth.signOut(); renderQRGateLoginForm('No encontramos tu perfil. Contactá al gimnasio.'); return; }
     info={idx:idxR};
+    if(SOCIOS_LOGIN[email]) SOCIOS_LOGIN[email].idx=idxR;
   }
   currentRole='socio'; _dniPopupShown=false; currentSocioIdx=info.idx;
   pendingQR=pendingQR||{tipo:'general'};
@@ -2084,6 +2096,8 @@ function finishScan(){
   let socio;
   if(currentRole==='socio'){
     socio = SOCIOS[currentSocioIdx];
+    // Guard against stale idx after a background merge
+    if(!socio){ console.warn('finishScan: socio not found at idx', currentSocioIdx); $('#scanStep2').classList.remove('hidden'); $('#scanStep1').classList.add('hidden'); $('#scanName').textContent='Error'; $('#scanDetail').textContent='Perfil no encontrado. Cerrá sesión y volvé a entrar.'; $('#scanTime').textContent=''; return; }
   } else {
     // staff simulating: pick a random socio that hasn't entered, fallback first
     socio = SOCIOS.find(s=>!s.hoy) || SOCIOS[0];
@@ -2813,6 +2827,13 @@ function eliminarSocioCompleto(idx){
     delete SOCIOS_LOGIN[sEliminado.email];
     delete SOCIOS_LOGIN[(sEliminado.email||'').toLowerCase()];
   }
+  // Limpiar PAGOS y REGS del socio eliminado
+  if(sEliminado.id){
+    const pk = new Set(PAGOS.filter(p=>p.sid===sEliminado.id).map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp));
+    pk.forEach(k=>{ if(!deletedPagoKeys.includes(k)) deletedPagoKeys.push(k); });
+    PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>p.sid!==sEliminado.id));
+    REGS.splice(0,REGS.length,...REGS.filter(r=>r.sid!==sEliminado.id));
+  }
   SOCIOS.splice(idx,1);
   Object.keys(SOCIOS_LOGIN).forEach(email=>{
     const info = SOCIOS_LOGIN[email];
@@ -3363,6 +3384,19 @@ function mesPagoLabel(mp){
   const [y,m] = mp.split('-').map(Number);
   return `${MESES[m-1]} ${y}`;
 }
+// Calcula vence = día 10 del mes siguiente al mes pagado (ej: mp='2025-07' → '2025-08-10')
+function venceDesdeMp(mp){
+  if(!mp) return addDaysISO(null, 40);
+  const [y,m] = mp.split('-').map(Number);
+  const nextM = m===12 ? 1 : m+1;
+  const nextY = m===12 ? y+1 : y;
+  return `${nextY}-${String(nextM).padStart(2,'0')}-10`;
+}
+function actualizarInfoVencePago(mp){
+  const el = $('#pg_vence_info'); if(!el) return;
+  const v = venceDesdeMp(mp);
+  if(v) el.textContent = `Vence el 10/${v.slice(5,7)}/${v.slice(0,4)} — si no renueva ese día se vence`;
+}
 function openPagoModal(idx, payIdx){
   editPagoIdx = (typeof payIdx==='number') ? payIdx : null;
   const p = editPagoIdx!==null ? PAGOS[editPagoIdx] : null;
@@ -3380,7 +3414,9 @@ function openPagoModal(idx, payIdx){
     </div>
     <div class="field"><label>Monto</label><input id="pg_m" placeholder="$8.000" value="${p?esc(p.m):''}"></div>
     <div class="field"><label>Fecha</label><input id="pg_f" type="date" value="${p?esc(p.f):''}"></div>
-    <div class="field"><label>Mes que pagó</label><select id="pg_mp">${mesPagoOptionsHTML(p?p.mp:'')}</select></div>
+    <div class="field"><label>Mes que pagó</label><select id="pg_mp" onchange="actualizarInfoVencePago(this.value)">${mesPagoOptionsHTML(p?p.mp:'')}</select>
+      <div id="pg_vence_info" style="font-size:12px;color:var(--text2);margin-top:4px;"></div>
+    </div>
     <div class="field"><label>Medio de pago</label>
       <div style="display:flex;gap:10px;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="pg_med" id="pg_med_ef" value="Efectivo" ${(!p||p.med==='Efectivo'||!p.med)?'checked':''}> Efectivo</label>
@@ -3394,6 +3430,9 @@ function openPagoModal(idx, payIdx){
       <button class="btn btn-primary" onclick="savePago()">Guardar</button>
     </div>
   `);
+  // Mostrar info de vencimiento al abrir
+  const _initMp = (p?p.mp:'') || (new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0'));
+  actualizarInfoVencePago(_initMp);
 }
 function openPagoAnteriorModal(idx){
   const s = SOCIOS[idx];
@@ -3416,7 +3455,7 @@ function savePagoAnterior(idx){
   if(!f){ showToast('Elegí una fecha.', 'error'); return; }
   const data = {sid:s.id, n:s.n, m:$('#pga_m').value||'$0', f, mp:$('#pga_mp').value, nt:($('#pga_n').value||'Pago anterior al sistema').trim()};
   if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-  s.vence = addDaysISO(f, 30);
+  s.vence = venceDesdeMp($('#pga_mp').value); // vence el día 10 del mes siguiente
   s.es = 'ok';
   PAGOS.push(data);
   PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
@@ -3435,7 +3474,7 @@ function savePago(){
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-    s.vence = addDaysISO(data.f!=='-'?data.f:null, 30);
+    s.vence = venceDesdeMp(data.mp); // vence el día 10 del mes siguiente
     s.es='ok';
     PAGOS.unshift(data);
     if(currentRole==='profesor'){
@@ -3725,7 +3764,7 @@ function asignarModalListHTML(idx, search){
   search = search||'';
   const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
   return list.map(s=>{
-      const si = SOCIOS.indexOf(s);
+      const si = s.id ? SOCIOS.findIndex(x=>x.id===s.id) : SOCIOS.indexOf(s);
       const has = s.rs.includes(r.n);
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3759,7 +3798,8 @@ function refreshAsignarModal(idx, search){
   else openAsignarModal(idx, search);
 }
 function asignarRutina(si, rname, idx, search){
-  const s = SOCIOS[si];
+  let s = SOCIOS[si];
+  if(!s) return; // stale idx guard
   if(!s.rs.includes(rname)) s.rs.push(rname);
   if(s.rsRemoved) s.rsRemoved = s.rsRemoved.filter(r=>r!==rname);
   persist();
@@ -3773,6 +3813,7 @@ function setRutinaNota(si, rname, val){
 }
 function quitarRutina(si, rname, idx, search){
   const s = SOCIOS[si];
+  if(!s) return; // stale idx guard
   s.rs = s.rs.filter(r=>r!==rname);
   if(!s.rsRemoved) s.rsRemoved = [];
   if(!s.rsRemoved.includes(rname)) s.rsRemoved.push(rname);
@@ -5472,7 +5513,9 @@ function socioCuenta(){
       if(Array.isArray(remote.deletedSocioIds)){
         remote.deletedSocioIds.forEach(id=>{ if(!deletedSocioIds.includes(id)) deletedSocioIds.push(id); });
         const delSet=new Set(deletedSocioIds);
+        const _pre2b=SOCIOS.length; const _kf2b=SOCIOS.map(s=>!(s.id&&delSet.has(s.id))); const _ir2b={}; let _ki2b=0; _kf2b.forEach((k,i)=>{if(k){_ir2b[i]=_ki2b;_ki2b++;}});
         for(let i=SOCIOS.length-1;i>=0;i--){ if(SOCIOS[i].id && delSet.has(SOCIOS[i].id)) SOCIOS.splice(i,1); }
+        if(_ki2b<_pre2b){ const _nr2b={}; Object.keys(RESERVAS).map(Number).forEach(k=>{ const nk=_ir2b[k]; if(nk!==undefined) _nr2b[nk]=RESERVAS[k]; }); Object.keys(RESERVAS).forEach(k=>delete RESERVAS[k]); Object.assign(RESERVAS,_nr2b); }
       }
       const localByKey={}, localByNormName={};
       SOCIOS.forEach(s=>{ localByKey[socioMergeKey(s)]=s; const nn=normName(s.n); if(nn) localByNormName[nn]=s; });
