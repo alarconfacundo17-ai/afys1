@@ -4784,23 +4784,71 @@ function openHistorialAnualModal(idx, year){
   const s = SOCIOS[idx];
   if(!s) return;
   year = year || new Date().getFullYear();
+  const canEdit = isSuperOwner() || hasPerm('cargarPagos');
   const entrenoMes = m => REGS.some(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
   const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return pagoBelongsTo(p,s) && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
+  const rows = MESES.map((nombre,m)=>{
+    const futureMes = (year > new Date().getFullYear()) || (year === new Date().getFullYear() && m > new Date().getMonth());
+    const tiene_entreno = entrenoMes(m);
+    const tiene_pago = pagoMes(m);
+    const mpKey = `${year}-${String(m+1).padStart(2,'0')}`;
+    const entrenoBtn = canEdit && !futureMes
+      ? `<button class="btn ${tiene_entreno?'btn-outline':'btn-green'} btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleHistorialEntreno(${idx},${year},${m})">${tiene_entreno?'✓ Quitar':'+ Agregar'}</button>`
+      : (tiene_entreno ? '<span class="badge b-ok">✓</span>' : '<span style="color:var(--text2);">—</span>');
+    const pagoBtn = canEdit && !futureMes
+      ? `<button class="btn ${tiene_pago?'btn-outline':'btn-green'} btn-sm" style="font-size:11px;padding:3px 8px;" onclick="toggleHistorialPago(${idx},${year},${m},'${mpKey}')">${tiene_pago?'✓ Quitar':'+ Agregar'}</button>`
+      : (tiene_pago ? '<span class="badge b-ok">✓</span>' : (tiene_entreno ? '<span class="badge b-err">✕</span>' : '<span style="color:var(--text2);">—</span>'));
+    return `<tr><td style="font-weight:500;">${nombre}</td><td>${entrenoBtn}</td><td>${pagoBtn}</td></tr>`;
+  }).join('');
   openModal(`
     <div class="modal-head"><h3>Historial ${year} — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year-1})">‹ ${year-1}</button>
       <b style="font-size:14px;">${year}</b>
       <button class="btn btn-outline btn-sm" onclick="openHistorialAnualModal(${idx},${year+1})">${year+1} ›</button>
     </div>
+    ${canEdit?'<p style="color:var(--text2);font-size:12px;margin-bottom:10px;">Tocá los botones para agregar o quitar entradas y pagos de cada mes.</p>':''}
     <table><thead><tr><th>Mes</th><th>Entrenó</th><th>Pagó</th></tr></thead>
-    <tbody>${MESES.map((nombre,m)=>`<tr>
-      <td>${nombre}</td>
-      <td>${entrenoMes(m)?'<span class="badge b-ok">✓</span>':'-'}</td>
-      <td>${pagoMes(m)?'<span class="badge b-ok">✓</span>':(entrenoMes(m)?'<span class="badge b-err">✕</span>':'-')}</td>
-    </tr>`).join('')}</tbody></table>
+    <tbody>${rows}</tbody></table>
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Listo</button></div>
   `);
+}
+function toggleHistorialEntreno(idx, year, m){
+  const s = SOCIOS[idx];
+  if(!s) return;
+  const fechaISO = `${year}-${String(m+1).padStart(2,'0')}-15T12:00:00.000Z`;
+  const existe = REGS.findIndex(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
+  if(existe>=0){
+    REGS.splice(existe,1);
+    // Actualizar hoy si era de hoy
+    if(localDateISO(REGS[existe]?.f||'')===todayISO()) s.hoy=REGS.some(r=>regBelongsTo(r,s)&&r.f&&localDateISO(r.f)===todayISO());
+  } else {
+    REGS.unshift({sid:s.id, i:s.i, n:s.n, h:'12:00', cl:null, f:fechaISO, manual:true});
+  }
+  REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
+  entradasHoy = REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length;
+  persist();
+  openHistorialAnualModal(idx, year);
+}
+function toggleHistorialPago(idx, year, m, mpKey){
+  const s = SOCIOS[idx];
+  if(!s) return;
+  const fechaISO = `${year}-${String(m+1).padStart(2,'0')}-01`;
+  const existeIdx = PAGOS.findIndex(p=>pagoBelongsTo(p,s) && p.mp===mpKey);
+  if(existeIdx>=0){
+    const pk = PAGOS[existeIdx].sid+'|'+PAGOS[existeIdx].f+'|'+PAGOS[existeIdx].m+'|'+PAGOS[existeIdx].mp;
+    if(!deletedPagoKeys.includes(pk)) deletedPagoKeys.push(pk);
+    PAGOS.splice(existeIdx,1);
+  } else {
+    PAGOS.unshift({sid:s.id, n:s.n, m:'Manual', f:fechaISO, mp:mpKey, med:'Efectivo', nt:'Cargado manualmente'});
+    PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f));
+    // Actualizar vence si este mes es el más reciente pagado
+    const nuevoVence = venceDesdeMp(mpKey);
+    if(!s.vence || nuevoVence > s.vence) { s.vence = nuevoVence; s.es='ok'; }
+  }
+  recalcEstados({notify:false});
+  persist();
+  openHistorialAnualModal(idx, year);
 }
 
 function bindStaffEvents(){}
