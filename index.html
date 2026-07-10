@@ -1553,7 +1553,7 @@ function recrearPerfilSocioPerdido(email, nombre){
   }
   const initialsV = (nombre||email).trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n:nombre||email, email:emailLower, tel:'', cumple:null, es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6), i:initialsV, n:nombre||email, email:emailLower, tel:'', cumple:null, es:'ok', vence:null, rs:[], nt:[], ed:null, pe:null, ob:null, hoy:false, entradaHora:null, activo:true, altaPendiente:true});
   SOCIOS_LOGIN[emailLower] = {idx, pe:'ok', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`Se recuperó automáticamente el perfil de ${nombre||email} (${email}), que se había perdido. Revisá y completá sus datos.`, new:true, altaIdx:idx});
@@ -1640,7 +1640,7 @@ async function submitSignupSocio(){
   const initialsV = n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx = SOCIOS.length;
   const ed = cumple ? calcAge(cumple) : null;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true, dniAccesoRapido:!!dni});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6), i:initialsV, n, email:e, dni, tel:t, cumple, es:'de', vence:null, rs:[], nt:[], ed, pe, ob, hoy:false, entradaHora:null, activo:true, altaPendiente:true, dniAccesoRapido:!!dni});
   SOCIOS_LOGIN[e] = {idx, pe:'de', pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró desde la app. ¿Ya era socio antes de usar la app?`, new:true, altaIdx:idx});
@@ -1844,7 +1844,7 @@ async function qrGateCreateSocio(){
   const initialsV=n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx=SOCIOS.length;
   const ed=cumple?calcAge(cumple):null;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++),i:initialsV,n,email:e,dni,tel:t,cumple,es:'ok',vence:null,rs:[],nt:[],ed,pe,ob,obs,hoy:false,entradaHora:null,activo:true,altaPendiente:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6),i:initialsV,n,email:e,dni,tel:t,cumple,es:'ok',vence:null,rs:[],nt:[],ed,pe,ob,obs,hoy:false,entradaHora:null,activo:true,altaPendiente:true});
   SOCIOS_LOGIN[e]={idx,pe:'ok',pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró escaneando el QR. ¿Ya era socio antes de usar la app?`,new:true,altaIdx:idx});
@@ -2927,7 +2927,7 @@ async function saveSocio(){
 
   try{
     const idx = SOCIOS.length;
-    SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
+    SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
     notifSocio[idx]=[];
     SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
     cacheDni(dni, email);
@@ -3975,6 +3975,7 @@ function saveRutina(){
         if(s.rsNotas && s.rsNotas[r.n]){ s.rsNotas[n] = s.rsNotas[r.n]; delete s.rsNotas[r.n]; }
         if(s.rsNombre && s.rsNombre[r.n]){ s.rsNombre[n] = s.rsNombre[r.n]; delete s.rsNombre[r.n]; }
         if(s.rsOverride && s.rsOverride[r.n]){ s.rsOverride[n] = s.rsOverride[r.n]; delete s.rsOverride[r.n]; }
+        if(Array.isArray(s.rsRemoved)) s.rsRemoved = s.rsRemoved.map(x=>x===r.n?n:x);
       });
     }
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
@@ -4791,7 +4792,8 @@ function openHistorialAnualModal(idx, year, editMode){
   _histEditMode = canEdit && !!editMode;
   const nowYear = new Date().getFullYear(), nowMonth = new Date().getMonth();
   const entrenoMes = m => REGS.some(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
-  const pagoMes = m => PAGOS.some(p=>{ const d=new Date(p.f); return pagoBelongsTo(p,s) && !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
+  // Usar p.mp (mes al que corresponde el pago) en lugar de p.f (fecha de registro)
+  const pagoMes = m => PAGOS.some(p=>{ if(!pagoBelongsTo(p,s)) return false; if(p.mp) return p.mp===`${year}-${String(m+1).padStart(2,'0')}`; const d=new Date(p.f); return !isNaN(d) && d.getFullYear()===year && d.getMonth()===m; });
 
   const rows = MESES.map((nombre,m)=>{
     const futureMes = year > nowYear || (year===nowYear && m > nowMonth);
