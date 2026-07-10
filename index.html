@@ -4108,28 +4108,35 @@ function pageHorarios(){
             }).join('')}
             ${(()=>{
               const sorted = [...turnos].sort((a,b)=>hToMin(a.desde)-hToMin(b.desde));
-              // Para cada evento, calcular cuántos eventos anteriores se solapan con él (= nivel de apilamiento)
-              const depth = new Map();
+              // Para cada evento calcular cuántos anteriores se solapan (= profundidad de apilamiento)
+              const depthMap = new Map();
+              const maxDepthOf = new Map();
               sorted.forEach((t,i)=>{
-                const tStart=hToMin(t.desde), tEnd=hToMin(t.hasta);
-                const prev = sorted.slice(0,i).filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
-                depth.set(t.id, prev.length);
+                const tS=hToMin(t.desde), tE=hToMin(t.hasta);
+                const overlaps = sorted.filter((o,j)=>j!==i && hToMin(o.desde)<tE && hToMin(o.hasta)>tS);
+                depthMap.set(t.id, sorted.slice(0,i).filter(o=>{ const oS=hToMin(o.desde),oE=hToMin(o.hasta); return oS<tE&&oE>tS; }).length);
+                maxDepthOf.set(t.id, overlaps.length); // cuántos otros hay en su grupo
               });
-              // STEP = suficiente para que la línea de texto del evento de abajo quede visible
-              // El texto tiene ~10px de alto (font 8.5px * line-height 1.15 * 2 líneas ≈ 20px)
-              // Un STEP de 20px asegura que cada tarjeta muestre su texto sin tapar el anterior
-              const STEP = 20;
+              const PEEK = 5; // px que asoma cada tarjeta inferior
               return sorted.map(t=>{
-                const d = depth.get(t.id);
+                const d = depthMap.get(t.id);
+                const maxD = maxDepthOf.get(t.id);
+                const isTop = d === (sorted.filter((o,j)=>{ const oS=hToMin(o.desde),oE=hToMin(o.hasta),tS=hToMin(t.desde),tE=hToMin(t.hasta); return oS<tE&&oE>tS; }).length);
                 const st = STAFF.find(s=>s.id===t.staffId) || DUENOS.find(dd=>dd.id===t.staffId);
-                const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH + d*STEP;
-                const h = Math.max(18,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH - d*STEP);
-                const rightOffset = 1 + d*10;
+                const baseTop = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH;
+                const baseH = Math.max(18,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH);
+                // Las tarjetas inferiores asoman PEEK px desde arriba; la superior se pone encima con texto
+                const top = d === 0 ? baseTop : baseTop + d * PEEK;
+                const h = d === 0 ? baseH : Math.max(PEEK, baseH - d * PEEK);
                 const colr = staffColor(t.staffId);
                 const bg = t.clase ? `${colr}cc` : `${colr}22`;
                 const fg = t.clase ? '#fff' : colr;
-                return `<div class="cal-event" style="top:${top}px;height:${h}px;left:1px;right:${rightOffset}px;background:${bg};border-left:3px solid ${colr};color:${fg};z-index:${10+d};${d>0?'box-shadow:0 -2px 6px rgba(0,0,0,.15);':''}" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
-                  ${t.clase?`<b>${esc(t.clase)}</b> <small style="opacity:.85;">${esc(st?st.n:'-')}</small>`:`<b>${esc(st?st.n:'-')}</b>`} <small>${t.desde}–${t.hasta}</small>
+                // Solo la tarjeta con mayor profundidad (la de encima visualmente) muestra texto
+                const grouped = sorted.filter(o=>{ const oS=hToMin(o.desde),oE=hToMin(o.hasta),tS=hToMin(t.desde),tE=hToMin(t.hasta); return oS<tE&&oE>tS; });
+                const topCard = grouped.reduce((best,o)=>depthMap.get(o.id)>depthMap.get(best.id)?o:best, t);
+                const showText = topCard.id === t.id;
+                return `<div class="cal-event" style="top:${top}px;height:${h}px;left:1px;right:1px;background:${bg};border-left:3px solid ${colr};color:${fg};z-index:${10+d};${d>0?'box-shadow:0 -1px 4px rgba(0,0,0,.12);':''}" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
+                  ${showText ? (t.clase?`<b>${esc(t.clase)}</b> <small style="opacity:.85;">${esc(st?st.n:'-')}</small>`:`<b>${esc(st?st.n:'-')}</b>`) + ` <small>${t.desde}–${t.hasta}</small>` : ''}
                 </div>`;
               }).join('');
             })()}
@@ -4703,18 +4710,18 @@ function pagePagos(){
     <div class="metric"><div class="num">${activos}</div><div class="lbl">Activos</div></div>
     <div class="metric"><div class="num">${fmtMonto(totalAnio)}</div><div class="lbl">Año</div></div>
   </div>
-  <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
-  <input id="histSocioSearch" placeholder="🔍 Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
-  <div id="histSociosTableWrap" style="display:none;margin-bottom:16px;" class="card">
-  <table><thead><tr><th>Nombre</th><th></th></tr></thead>
-  <tbody id="histSociosTableBody"></tbody></table>
-  </div>
   ${proximos.length?`
   <div class="section-head"><h3 style="margin:0;">Próximos vencimientos</h3></div>
   <div class="card" style="margin-bottom:16px;">
   <table><thead><tr><th>Nombre</th><th>Vence</th><th>Estado</th></tr></thead>
   <tbody>${proximos.map(({s})=>`<tr><td>${esc(s.n)}</td><td>${fmtFechaCorta(s.vence)}</td><td>${payBadge(s.es)}</td></tr>`).join('')}</tbody></table>
   </div>`:''}
+  <div class="section-head"><h3 style="margin:0;">Historial anual por socio</h3></div>
+  <input id="histSocioSearch" placeholder="🔍 Buscar socio..." oninput="filterHistorialSociosTable(this.value)" style="margin-bottom:10px;">
+  <div id="histSociosTableWrap" style="display:none;margin-bottom:16px;" class="card">
+  <table><thead><tr><th>Nombre</th><th></th></tr></thead>
+  <tbody id="histSociosTableBody"></tbody></table>
+  </div>
   <div class="section-head"><h3 style="margin:0;">Últimos pagos</h3></div>
   <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
     <input id="pagosFiltroSocio" placeholder="Buscar por socio..." oninput="filterUltimosPagos()" style="flex:1;min-width:160px;">
