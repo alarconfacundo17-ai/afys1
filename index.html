@@ -2613,12 +2613,20 @@ function togglePerm(staffId,key,el){
 }
 
 /* ---- SOCIOS ---- */
+function rutinasBadgeHTML(s){
+  const count = Array.isArray(s.rs) ? s.rs.length : 0;
+  if(!count) return `<span style="color:var(--text2);font-size:13px;">—</span>`;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:3px 10px;font-size:13px;font-weight:600;white-space:nowrap;">
+    <i class="ti ti-barbell" style="font-size:13px;"></i>${count}
+  </span>`;
+}
 function socioRowHTML(s, idx){
   const showPay = isSuperOwner() || hasPerm('verPagos');
   return `
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
+      <td>${rutinasBadgeHTML(s)}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
       <td>
         <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
@@ -2638,7 +2646,9 @@ function filterSociosTable(q){
   const tbody = document.getElementById('sociosTableBody');
   if(!tbody) return;
   const list = sociosOrdenados().filter(({s})=>s.n.toLowerCase().includes(q));
-  tbody.innerHTML = list.length ? list.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
+  const showPay = isSuperOwner() || hasPerm('verPagos');
+  const cols = showPay ? 6 : 4;
+  tbody.innerHTML = list.length ? list.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
 }
 function pageSocios(){
   const showPay = isSuperOwner() || hasPerm('verPagos');
@@ -2658,7 +2668,7 @@ function pageSocios(){
     <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th>Estado</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th style="white-space:nowrap;"><i class="ti ti-barbell" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Rutinas</th><th>Estado</th><th></th></tr></thead>
   <tbody id="sociosTableBody">
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
