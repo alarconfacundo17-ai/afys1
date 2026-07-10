@@ -3386,7 +3386,7 @@ function mesPagoLabel(mp){
   const [y,m] = mp.split('-').map(Number);
   return `${MESES[m-1]} ${y}`;
 }
-// Calcula vence = día 10 del mes siguiente al mes pagado (ej: mp='2025-07' → '2025-08-10')
+// Calcula vence = día 11 del mes siguiente al mes pagado (ej: mp='2025-07' → '2025-08-11')
 function venceDesdeMp(mp){
   if(!mp) return addDaysISO(null, 40);
   const [y,m] = mp.split('-').map(Number);
@@ -4869,15 +4869,13 @@ function toggleHistorialEntreno(idx, year, m){
   const existe = REGS.findIndex(r=>regBelongsTo(r,s) && new Date(r.f).getFullYear()===year && new Date(r.f).getMonth()===m);
   if(existe>=0){
     REGS.splice(existe,1);
-    // Actualizar hoy si era de hoy
-    if(localDateISO(REGS[existe]?.f||'')===todayISO()) s.hoy=REGS.some(r=>regBelongsTo(r,s)&&r.f&&localDateISO(r.f)===todayISO());
   } else {
     REGS.unshift({sid:s.id, i:s.i, n:s.n, h:'12:00', cl:null, f:fechaISO, manual:true});
   }
   REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
   entradasHoy = REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length;
   persist();
-  openHistorialAnualModal(idx, year);
+  openHistorialAnualModal(idx, year, _histEditMode);
 }
 function toggleHistorialPago(idx, year, m, mpKey){
   const s = SOCIOS[idx];
@@ -4897,7 +4895,7 @@ function toggleHistorialPago(idx, year, m, mpKey){
   }
   recalcEstados({notify:false});
   persist();
-  openHistorialAnualModal(idx, year);
+  openHistorialAnualModal(idx, year, _histEditMode);
 }
 
 function bindStaffEvents(){}
