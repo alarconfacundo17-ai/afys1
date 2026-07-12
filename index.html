@@ -4122,7 +4122,6 @@ function pageHorarios(){
                 const prev = sorted.slice(0,i).filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
                 depth.set(t.id, prev.length);
               });
-              const ALIAS_W = 14; // px de ancho de la franja del nombre vertical
               return sorted.map(t=>{
                 const d = depth.get(t.id);
                 const offset = d * 5;
@@ -4135,20 +4134,15 @@ function pageHorarios(){
                 const baseStyle = `top:${top}px;height:${h}px;width:calc(100% - ${4+offset}px);border-left:3px solid ${col};z-index:${10+d};${shadow}`;
                 const clickAttr = canEdit ? `onclick="event.stopPropagation();openCalendarEvent(${t.id})"` : '';
                 if(t.clase){
-                  // Clase personalizada: franja izquierda con alias vertical + contenido horizontal a la derecha
-                  return `<div class="cal-event" style="${baseStyle}background:${col}cc;color:#fff;display:flex;gap:0;padding:0;" ${clickAttr}>
-                    <div style="width:${ALIAS_W}px;min-width:${ALIAS_W}px;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.3);overflow:hidden;">
-                      <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:7px;font-weight:700;white-space:nowrap;opacity:.9;letter-spacing:.5px;">${esc(alias)}</span>
-                    </div>
-                    <div style="flex:1;overflow:hidden;padding:1px 2px;display:flex;flex-direction:column;justify-content:center;">
-                      <b style="font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
-                      <small style="font-size:7px;opacity:.85;white-space:nowrap;">${t.desde}–${t.hasta}</small>
-                    </div>
+                  // Clase: nombre horizontal arriba, horario + alias del profe abajo
+                  return `<div class="cal-event" style="${baseStyle}background:${col}cc;color:#fff;padding:2px 3px;display:flex;flex-direction:column;justify-content:center;" ${clickAttr}>
+                    <b style="font-size:8.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
+                    <small style="font-size:7px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desde}–${t.hasta} ${esc(alias).toUpperCase()}</small>
                   </div>`;
                 } else {
-                  // Turno sin clase: todo el bloque con alias en vertical centrado
-                  return `<div class="cal-event" style="${baseStyle}background:${col}22;color:${col};display:flex;align-items:center;justify-content:center;padding:0;" ${clickAttr}>
-                    <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:8px;font-weight:700;white-space:nowrap;letter-spacing:.5px;">${esc(alias)} <span style="font-weight:400;font-size:7px;opacity:.75;">${t.desde}–${t.hasta}</span></span>
+                  // Turno sin clase: horario + nombre en vertical, alineado a la izquierda
+                  return `<div class="cal-event" style="${baseStyle}background:${col}22;color:${col};padding:0 0 0 1px;display:flex;align-items:flex-start;" ${clickAttr}>
+                    <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:8px;font-weight:700;white-space:nowrap;letter-spacing:.4px;line-height:1.1;">${t.desde}–${t.hasta} ${esc(alias).toUpperCase()}</span>
                   </div>`;
                 }
               }).join('');
