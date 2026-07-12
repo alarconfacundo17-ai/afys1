@@ -4122,7 +4122,9 @@ function pageHorarios(){
                 const prev = sorted.slice(0,i).filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
                 depth.set(t.id, prev.length);
               });
-              const GUTTER = 18;
+              const GUTTER = 34;
+              const NAME_W = 20;
+              const HORA_W = GUTTER - NAME_W;
               return sorted.map(t=>{
                 const d = depth.get(t.id);
                 const offset = d * 5;
@@ -4133,16 +4135,22 @@ function pageHorarios(){
                 const col = staffColor(t.staffId);
                 const shadow = d>0 ? `box-shadow:0 -2px 6px rgba(0,0,0,.13);` : '';
                 const clickAttr = canEdit ? `onclick="event.stopPropagation();openCalendarEvent(${t.id})"` : '';
+                const vtStyle = `writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);white-space:nowrap;overflow:hidden;`;
                 if(t.clase){
                   const claseStyle = `top:${top}px;height:${h}px;left:${GUTTER}px;width:calc(100% - ${GUTTER+2+offset}px);border-left:3px solid ${col};z-index:${10+d};${shadow}`;
-                  return `<div class="cal-event" style="${claseStyle}background:${col}cc;color:#fff;padding:2px 3px;display:flex;flex-direction:column;justify-content:center;" ${clickAttr}>
-                    <b style="font-size:8.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
-                    <small style="font-size:7px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desde}–${t.hasta} ${esc(alias).toUpperCase()}</small>
+                  return `<div class="cal-event" style="${claseStyle}background:${col}cc;color:#fff;padding:2px 4px;display:flex;flex-direction:column;justify-content:center;" ${clickAttr}>
+                    <b style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
+                    <small style="font-size:7.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desde}–${t.hasta} ${esc(alias).toUpperCase()}</small>
                   </div>`;
                 } else {
                   const sinClaseStyle = `top:${top}px;height:${h}px;left:1px;width:${GUTTER-2}px;border-left:3px solid ${col};z-index:${10+d};${shadow}`;
-                  return `<div class="cal-event" style="${sinClaseStyle}background:${col}22;color:${col};padding:0;display:flex;align-items:flex-start;overflow:hidden;" ${clickAttr}>
-                    <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);white-space:nowrap;line-height:${GUTTER-2}px;display:flex;flex-direction:column;align-items:center;"><span style="font-size:11px;font-weight:800;letter-spacing:.3px;">${esc(alias).toUpperCase()}</span><span style="font-size:6.5px;font-weight:500;opacity:.85;">${t.desde}</span></span>
+                  return `<div class="cal-event" style="${sinClaseStyle}background:${col}22;color:${col};padding:0;display:flex;flex-direction:row;align-items:stretch;overflow:hidden;" ${clickAttr}>
+                    <div style="width:${NAME_W}px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                      <span style="${vtStyle}font-size:11px;font-weight:800;letter-spacing:.5px;">${esc(alias).toUpperCase()}</span>
+                    </div>
+                    <div style="width:${HORA_W}px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                      <span style="${vtStyle}font-size:6.5px;font-weight:500;opacity:.8;">${t.desde}–${t.hasta}</span>
+                    </div>
                   </div>`;
                 }
               }).join('');
@@ -4220,7 +4228,8 @@ function openTurnoModal(turnoId,presetDia){
   openModal(`
     <div class="modal-head"><h3>${t?'Editar':'Nuevo turno / clase'}</h3><button onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nombre de la clase (opcional, ej: Spinning, Yoga)</label><input id="tn_cl" type="text" placeholder="Dejar vacío si es un turno de trabajo" value="${t&&t.clase?esc(t.clase):''}"></div>
-    <div class="field"><label>Persona a cargo</label><select id="tn_s">${allPersonal.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Persona a cargo</label><select id="tn_s" onchange="(function(){const p=[...STAFF,...DUENOS].find(x=>x.id===$('#tn_s').value);if(p&&$('#tn_alias'))$('#tn_alias').value=staffAlias(p);})()">${allPersonal.map(p=>`<option value="${p.id}" ${(t?t.staffId:null)===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select></div>
+    <div class="field"><label>Apodo en el calendario <span style="font-size:11px;color:var(--text2);">(nombre corto)</span></label><input id="tn_alias" type="text" placeholder="Ej: Manu, Caro..." value="${(()=>{const _st=t?([...STAFF,...DUENOS].find(p=>p.id===t.staffId)||null):null;return _st?esc(staffAlias(_st)):'';})()}"></div>
     <div class="field"><label>Día</label><select id="tn_d">${DIAS_SEMANA.map(d=>`<option ${ (t?t.dia:presetDia)===d?'selected':''}>${d}</option>`).join('')}</select></div>
     <div class="field"><label>Desde</label>${timeSelectHTML('tn_de', t?t.desde:'08:00')}</div>
     <div class="field"><label>Hasta</label>${timeSelectHTML('tn_ha', t?t.hasta:'12:00')}</div>
@@ -4233,6 +4242,11 @@ function openTurnoModal(turnoId,presetDia){
 }
 
 function saveTurno(turnoId){
+  const _aliasVal = $('#tn_alias') ? $('#tn_alias').value.trim() : '';
+  if(_aliasVal){
+    const _stEdit = [...STAFF,...DUENOS].find(p=>p.id===$('#tn_s').value);
+    if(_stEdit) _stEdit.alias = _aliasVal;
+  }
   const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
   if(turnoId && turnoId!=='null'){
     const t = TURNOS.find(x=>x.id===turnoId);
