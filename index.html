@@ -308,7 +308,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .cal-hour{font-size:8.5px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;overflow:hidden;white-space:nowrap;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;min-width:0;overflow:hidden;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-event{position:absolute;left:1px;right:1px;border-radius:3px;padding:0 2px;font-size:8.5px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;white-space:nowrap;text-overflow:ellipsis;}
+.cal-event{position:absolute;left:1px;border-radius:3px;font-size:8.5px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
 </style>
 </head>
 <body>
@@ -2581,6 +2581,7 @@ function openStaffFichaModal(id){
       <div class="field"><label>Domicilio</label><input id="fc_dom" value="${esc(s.dom||'')}" placeholder="Calle 123, Ciudad"></div>
       <div class="field"><label>Edad</label><input id="fc_edad" type="number" min="0" value="${s.edad!=null?s.edad:''}" placeholder="30"></div>
       ${s.role==='profesor'?`<div class="field"><label>Especialidad</label><input id="fc_esp" value="${esc(s.esp||'')}" placeholder="Spinning, Funcional, etc."></div>`:''}
+      <div class="field"><label>Nombre corto en el calendario <span style="font-size:11px;color:var(--text2);">(ej: "Manu", "Caro")</span></label><input id="fc_alias" value="${esc(s.alias||s.n.split(' ')[0])}" placeholder="${esc(s.n.split(' ')[0])}"></div>
       `:`
       ${s.tel?`<div><b>Teléfono:</b> ${esc(s.tel)}</div>`:''}
       ${s.dom?`<div><b>Domicilio:</b> ${esc(s.dom)}</div>`:''}
@@ -2601,6 +2602,8 @@ function saveStaffFicha(id){
   s.dom = $('#fc_dom').value.trim()||null;
   s.edad = $('#fc_edad').value ? parseInt($('#fc_edad').value) : null;
   if(s.role==='profesor') s.esp = $('#fc_esp').value.trim()||null;
+  const aliasVal = $('#fc_alias') ? $('#fc_alias').value.trim() : null;
+  s.alias = aliasVal || s.n.split(' ')[0];
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
@@ -4026,6 +4029,7 @@ function duenoColor(id){
   const d = DUENOS.find(d=>d.id===id);
   return (d && d.color) ? d.color : '#8b5cf6';
 }
+function staffAlias(st){ return st ? (st.alias || st.n.split(' ')[0]) : ''; }
 function staffColor(id){
   const s = STAFF.find(s=>s.id===id);
   if(s && s.color) return s.color;
@@ -4118,19 +4122,35 @@ function pageHorarios(){
                 const prev = sorted.slice(0,i).filter(o=>hToMin(o.desde)<tEnd && hToMin(o.hasta)>tStart);
                 depth.set(t.id, prev.length);
               });
+              const ALIAS_W = 14; // px de ancho de la franja del nombre vertical
               return sorted.map(t=>{
                 const d = depth.get(t.id);
                 const offset = d * 5;
                 const st = STAFF.find(s=>s.id===t.staffId) || DUENOS.find(dd=>dd.id===t.staffId);
+                const alias = staffAlias(st);
                 const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH + offset;
                 const h = Math.max(16,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH - offset);
                 const col = staffColor(t.staffId);
-                const bg = t.clase ? `${col}cc` : `${col}22`;
-                const fg = t.clase ? '#fff' : col;
                 const shadow = d>0 ? `box-shadow:0 -2px 6px rgba(0,0,0,.13);` : '';
-                return `<div class="cal-event" style="top:${top}px;height:${h}px;width:calc(100% - ${4+offset}px);background:${bg};border-left:3px solid ${col};color:${fg};z-index:${10+d};${shadow}" ${canEdit?`onclick="event.stopPropagation();openCalendarEvent(${t.id})"`:''}>
-                  ${t.clase?`<b>${esc(t.clase)}</b> <small style="opacity:.85;">${esc(st?st.n:'-')}</small>`:`<b>${esc(st?st.n:'-')}</b>`} <small>${t.desde}–${t.hasta}</small>
-                </div>`;
+                const baseStyle = `top:${top}px;height:${h}px;width:calc(100% - ${4+offset}px);border-left:3px solid ${col};z-index:${10+d};${shadow}`;
+                const clickAttr = canEdit ? `onclick="event.stopPropagation();openCalendarEvent(${t.id})"` : '';
+                if(t.clase){
+                  // Clase personalizada: franja izquierda con alias vertical + contenido horizontal a la derecha
+                  return `<div class="cal-event" style="${baseStyle}background:${col}cc;color:#fff;display:flex;gap:0;padding:0;" ${clickAttr}>
+                    <div style="width:${ALIAS_W}px;min-width:${ALIAS_W}px;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.3);overflow:hidden;">
+                      <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:7px;font-weight:700;white-space:nowrap;opacity:.9;letter-spacing:.5px;">${esc(alias)}</span>
+                    </div>
+                    <div style="flex:1;overflow:hidden;padding:1px 2px;display:flex;flex-direction:column;justify-content:center;">
+                      <b style="font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
+                      <small style="font-size:7px;opacity:.85;white-space:nowrap;">${t.desde}–${t.hasta}</small>
+                    </div>
+                  </div>`;
+                } else {
+                  // Turno sin clase: todo el bloque con alias en vertical centrado
+                  return `<div class="cal-event" style="${baseStyle}background:${col}22;color:${col};display:flex;align-items:center;justify-content:center;padding:0;" ${clickAttr}>
+                    <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:8px;font-weight:700;white-space:nowrap;letter-spacing:.5px;">${esc(alias)} <span style="font-weight:400;font-size:7px;opacity:.75;">${t.desde}–${t.hasta}</span></span>
+                  </div>`;
+                }
               }).join('');
             })()}
           </div>`;
