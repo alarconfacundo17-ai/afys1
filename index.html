@@ -4133,17 +4133,16 @@ function pageHorarios(){
                 const top = (hToMin(t.desde)-CAL_START*60)/60*CAL_PXH + offset;
                 const h = Math.max(16,(hToMin(t.hasta)-hToMin(t.desde))/60*CAL_PXH - offset);
                 const col = staffColor(t.staffId);
-                const shadow = d>0 ? `box-shadow:0 -2px 6px rgba(0,0,0,.13);` : '';
                 const clickAttr = canEdit ? `onclick="event.stopPropagation();openCalendarEvent(${t.id})"` : '';
                 const vtStyle = `writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);white-space:nowrap;overflow:hidden;`;
                 if(t.clase){
-                  const claseStyle = `top:${top}px;height:${h}px;left:${GUTTER}px;width:calc(100% - ${GUTTER+2+offset}px);border-left:3px solid ${col};z-index:${10+d};${shadow}`;
+                  const claseStyle = `top:${top}px;height:${h}px;left:${GUTTER}px;width:calc(100% - ${GUTTER+4}px);border-left:3px solid ${col};z-index:50;`;
                   return `<div class="cal-event" style="${claseStyle}background:${col}cc;color:#fff;padding:2px 4px;display:flex;flex-direction:column;justify-content:center;" ${clickAttr}>
                     <b style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.clase)}</b>
                     <small style="font-size:7.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.desde}–${t.hasta} ${esc(alias).toUpperCase()}</small>
                   </div>`;
                 } else {
-                  const sinClaseStyle = `top:${top}px;height:${h}px;left:1px;width:calc(100% - ${4+offset}px);border-left:3px solid ${col};z-index:${10+d};${shadow}`;
+                  const sinClaseStyle = `top:${top}px;height:${h}px;left:1px;width:calc(100% - 4px);border-left:3px solid ${col};z-index:${10+d};`;
                   return `<div class="cal-event" style="${sinClaseStyle}background:${col}33;color:${col};padding:0;display:flex;flex-direction:row;align-items:stretch;overflow:hidden;" ${clickAttr}>
                     <div style="width:${NAME_W}px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                       <span style="${vtStyle}font-size:11px;font-weight:800;letter-spacing:.5px;">${esc(alias).toUpperCase()}</span>
