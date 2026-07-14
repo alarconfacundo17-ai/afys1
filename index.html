@@ -5577,7 +5577,7 @@ function openSocioRutinaDetalleModal(rname){
             <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
             <button onclick="toggleEjEdit(${ei})" title="Editar mis datos" style="height:26px;width:26px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-pencil" style="font-size:14px;"></i></button>
           </div>
-          <p style="font-size:14px;font-weight:700;margin:0 0 8px;color:var(--text);">${esc(summaryText)}</p>
+          <p id="ejSum${ei}" style="font-size:14px;font-weight:700;margin:0 0 8px;color:var(--text);">${esc(summaryText)}</p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
@@ -5585,6 +5585,7 @@ function openSocioRutinaDetalleModal(rname){
           </div>
           <div id="ejEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
             ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rn_esc}','${en_esc}',this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
+            <button onclick="guardarEjEdit(${ei},'${rn_esc}','${en_esc}')" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
           </div>
         </div>
       </div>`;
@@ -5596,6 +5597,20 @@ function openSocioRutinaDetalleModal(rname){
 function toggleEjEdit(ei){
   const el = document.getElementById('ejEdit'+ei);
   if(el) el.style.display = el.style.display==='none' ? 'flex' : 'none';
+}
+function guardarEjEdit(ei, rname, ejName){
+  const s = SOCIOS[currentSocioIdx];
+  const r = RUTINAS.find(x=>x.n===rname);
+  const ej = ((s.rsOverride&&s.rsOverride[rname])||r&&r.ejs||[]).find(x=>x.n===ejName) || {};
+  const miSR = (s.rsMiSR&&s.rsMiSR[rname]) || {};
+  const miPeso = (s.rsMiPeso&&s.rsMiPeso[rname]) || {};
+  const _s = (miSR[ejName]&&miSR[ejName].s) ? String(miSR[ejName].s) : String(ej.s||'');
+  const _r = (miSR[ejName]&&miSR[ejName].r) ? String(miSR[ejName].r) : String(ej.r||'');
+  const _p = miPeso[ejName] ? String(miPeso[ejName]) : '';
+  const summaryText = ej.modo==='tiempo' ? ('Tiempo: '+(ej.tiempo||'')) : (_s+'×'+_r+(_p?' | '+_p+' kg':''));
+  const sumEl = document.getElementById('ejSum'+ei);
+  if(sumEl) sumEl.textContent = summaryText;
+  toggleEjEdit(ei);
 }
 function toggleEjercicioHecho(rname, ejName, ei){
   const s = SOCIOS[currentSocioIdx];
