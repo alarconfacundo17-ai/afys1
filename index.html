@@ -5571,7 +5571,7 @@ function openSocioRutinaDetalleModal(rname){
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
             ${e.modo!=='tiempo'?`<div style="display:flex;flex-direction:column;gap:2px;">
               <div style="display:flex;gap:4px;align-items:center;">
-                <select onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="width:52px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);"><option value="">-</option>${[1,2,3,4].map(n=>`<option value="${n}" ${((miSR[e.n]&&miSR[e.n].s)||String(e.s))==String(n)?'selected':''>${n}</option>`).join('')}</select>
+                <select onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="width:52px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">${(()=>{const cur=(miSR[e.n]&&miSR[e.n].s)||String(e.s);return '<option value="">-</option>'+[1,2,3,4].map(n=>'<option value="'+n+'"'+(cur==String(n)?' selected':'')+'>'+n+'</option>').join('');})()}</select>
                 <span style="font-size:13px;color:var(--text2);font-weight:600;">×</span>
                 <input type="text" placeholder="${esc(e.r)}" value="${esc((miSR[e.n]&&miSR[e.n].r)||'')}" oninput="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="width:68px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;">
               </div>
