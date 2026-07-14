@@ -5454,7 +5454,8 @@ function agregarInscripto(idx){
 function quitarInscripto(idx, si){
   const c = CLASES_HOY[idx];
   const k = claseKey(c);
-  if(RESERVAS[si]) delete RESERVAS[si][k];
+  if(!RESERVAS[si]) RESERVAS[si] = {};
+  RESERVAS[si][k] = false;
   persist();
   showToast('Guardado');
   openInscriptosModal(idx);
@@ -5488,7 +5489,7 @@ function toggleReserva(i){
   const c = CLASES_HOY[i];
   const misReservas = socioReservas();
   const k = claseKey(c);
-  if(misReservas[k]) delete misReservas[k];
+  if(misReservas[k]) misReservas[k] = false;
   else misReservas[k] = true;
   persist();
   renderSocio();
