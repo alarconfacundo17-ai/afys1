@@ -963,7 +963,7 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
         if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
-        if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en]) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
+        if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en] || Object.keys(ls.rsMiSR[rn][en]).length===0) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
         if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
         // tomar el vencimiento más tardío (el más actualizado gana)
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
@@ -4355,6 +4355,12 @@ function saveTurno(turnoId){
   closeModal(); renderStaff();
 }
 function deleteTurno(turnoId){
+  const _dt = TURNOS.find(x=>x.id===turnoId);
+  if(_dt && _dt.claseId){
+    if(!deletedClaseIds.includes(_dt.claseId)) deletedClaseIds.push(_dt.claseId);
+    const _cIdx = CLASES_HOY.findIndex(c=>c.cId===_dt.claseId);
+    if(_cIdx>=0) CLASES_HOY.splice(_cIdx,1);
+  }
   if(!deletedTurnoIds.includes(turnoId)) deletedTurnoIds.push(turnoId);
   TURNOS = TURNOS.filter(t=>t.id!==turnoId);
   persist(); closeModal(); renderStaff();
@@ -5623,6 +5629,7 @@ function setMiSREj(si, rname, ejName, field, val){
   if(!s.rsMiSR[rname][ejName]) s.rsMiSR[rname][ejName] = {};
   if(val.trim()) s.rsMiSR[rname][ejName][field] = val.trim();
   else delete s.rsMiSR[rname][ejName][field];
+  if(Object.keys(s.rsMiSR[rname][ejName]).length===0) delete s.rsMiSR[rname][ejName];
   persist();
 }
 function socioCuenta(){
