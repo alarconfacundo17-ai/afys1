@@ -5554,6 +5554,7 @@ function openSocioRutinaDetalleModal(rname){
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
   const tocaHoy = s.rsDias&&s.rsDias[rname]&&s.rsDias[rname].includes(diaHoy);
+  const _inputBase = 'background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;outline:none;color:var(--text);font-weight:700;text-align:center;';
   openModal(`
     <div class="modal-head"><h3 style="font-size:18px;">${esc((s.rsNombre&&s.rsNombre[rname])||rname)}</h3><button onclick="closeModal()">✕</button></div>
     ${tocaHoy?`<p style="font-size:14.5px;font-weight:700;margin:0 0 10px;color:var(--primary);">📅 Hoy te toca esta rutina</p>`:''}
@@ -5565,8 +5566,6 @@ function openSocioRutinaDetalleModal(rname){
       const img = EJ_IMAGES[e.n];
       const miS = (miSR[e.n]&&miSR[e.n].s)||'';
       const miR = (miSR[e.n]&&miSR[e.n].r)||'';
-      const refSR = e.modo==='tiempo' ? (e.tiempo||'') : `${e.s} × ${esc(e.r)}`;
-      const inputBase = `background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;outline:none;color:var(--text);font-weight:700;text-align:center;-moz-appearance:textfield;appearance:textfield;`;
       return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
         <div style="display:flex;gap:10px;padding:12px 12px 10px;align-items:flex-start;">
           ${img?`<img src="${esc(img)}" style="width:56px;height:56px;border-radius:9px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
@@ -5582,9 +5581,9 @@ function openSocioRutinaDetalleModal(rname){
           ${e.modo!=='tiempo'?`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">
             <span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mis series × reps</span>
             <div style="display:flex;gap:5px;align-items:center;margin-top:2px;">
-              <input type="text" inputmode="numeric" placeholder="${e.s}" value="${esc(miS)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="${inputBase}width:40px;font-size:16px;padding:6px 4px;">
+              <input type="text" inputmode="numeric" placeholder="${e.s}" value="${esc(miS)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="${_inputBase}width:40px;font-size:16px;padding:6px 4px;">
               <span style="font-size:14px;color:var(--text2);font-weight:700;">×</span>
-              <input type="text" inputmode="numeric" placeholder="${esc(e.r)}" value="${esc(miR)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="${inputBase}width:50px;font-size:16px;padding:6px 4px;">
+              <input type="text" inputmode="numeric" placeholder="${esc(e.r)}" value="${esc(miR)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="${_inputBase}width:50px;font-size:16px;padding:6px 4px;">
             </div>
           </div>`:`<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid var(--border2);">
             <span style="font-size:12px;font-weight:600;color:var(--text2);">⏱ ${esc(e.tiempo||'')}</span>
@@ -5592,7 +5591,7 @@ function openSocioRutinaDetalleModal(rname){
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">
             <span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mi peso</span>
             <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-              <input type="text" inputmode="decimal" placeholder="— kg" value="${esc(miPeso[e.n]||'')}" onchange="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}',this.value)" style="${inputBase}width:72px;font-size:15px;padding:6px 4px;">
+              <input type="text" inputmode="decimal" placeholder="— kg" value="${esc(miPeso[e.n]||'')}" onchange="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}',this.value)" style="${_inputBase}width:72px;font-size:15px;padding:6px 4px;">
             </div>
           </div>
           <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:10px 12px;">
