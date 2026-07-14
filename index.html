@@ -5563,26 +5563,26 @@ function openSocioRutinaDetalleModal(rname){
     ${(ejs||[]).map((e,ei)=>{
       const done = hechos[e.n]===hoy;
       const img = EJ_IMAGES[e.n];
+      const _s = (miSR[e.n]&&miSR[e.n].s) ? String(miSR[e.n].s) : String(e.s||'');
+      const _r = (miSR[e.n]&&miSR[e.n].r) ? String(miSR[e.n].r) : String(e.r||'');
+      const _p = miPeso[e.n] ? String(miPeso[e.n]) : '';
+      const summaryText = e.modo==='tiempo' ? ('Tiempo: '+(e.tiempo||'')) : (_s+'×'+_r+(_p?' | '+_p+' kg':''));
+      const rn_esc = rname.replace(/'/g,"\\'");
+      const en_esc = e.n.replace(/'/g,"\\'");
+      const selectOpts = '<option value="">-</option>'+[1,2,3,4].map(n=>'<option value="'+n+'"'+(_s==String(n)?' selected':'')+'>'+n+'</option>').join('');
       return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
-          <p style="color:var(--text2);font-size:12.5px;font-weight:500;margin:3px 0 6px;">${e.modo==='tiempo'?`Tiempo: ${esc(e.tiempo||'')}`:`${e.s} series × ${esc(e.r)} reps (referencia del profe)`}</p>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
-            ${e.modo!=='tiempo'?`<div style="display:flex;flex-direction:column;gap:2px;">
-              <div style="display:flex;gap:4px;align-items:center;">
-                <select onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="width:52px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">${(()=>{const cur=(miSR[e.n]&&miSR[e.n].s)||String(e.s);return '<option value="">-</option>'+[1,2,3,4].map(n=>'<option value="'+n+'"'+(cur==String(n)?' selected':'')+'>'+n+'</option>').join('');})()}</select>
-                <span style="font-size:13px;color:var(--text2);font-weight:600;">×</span>
-                <input type="text" placeholder="${esc(e.r)}" value="${esc((miSR[e.n]&&miSR[e.n].r)||'')}" oninput="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="width:68px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;">
-              </div>
-              <span style="font-size:10px;color:var(--text2);text-align:center;">Mis series × reps</span>
-            </div>`:''}            ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;" title="Peso objetivo indicado por tu entrenador">Objetivo: ${esc(e.kg)} kg</span>`:''}
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <input type="text" placeholder="Mi peso (kg)" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}',this.value)" style="width:100px;font-size:14px;padding:7px 9px;">
-              <span style="font-size:10px;color:var(--text2);text-align:center;">Mi peso</span>
-            </div>
+          <p style="font-size:14px;font-weight:700;margin:4px 0 8px;color:var(--text);">${esc(summaryText)}</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
-            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;width:128px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
+            <button onclick="toggleEjEdit(${ei})" title="Editar mis datos" style="height:36px;min-width:36px;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;"><i class="ti ti-pencil" style="font-size:15px;"></i></button>
+            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho('${rn_esc}','${en_esc}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
+          </div>
+          <div id="ejEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
+            ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rn_esc}','${en_esc}',this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
           </div>
         </div>
       </div>`;
@@ -5590,6 +5590,10 @@ function openSocioRutinaDetalleModal(rname){
     </div>
     <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:15.5px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--primary);border-color:var(--primary);" onclick="closeModal();renderSocio();">Cerrar</button></div>
   `,'wide');
+}
+function toggleEjEdit(ei){
+  const el = document.getElementById('ejEdit'+ei);
+  if(el) el.style.display = el.style.display==='none' ? 'flex' : 'none';
 }
 function toggleEjercicioHecho(rname, ejName, ei){
   const s = SOCIOS[currentSocioIdx];
