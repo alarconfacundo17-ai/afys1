@@ -5554,55 +5554,63 @@ function openSocioRutinaDetalleModal(rname){
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
   const tocaHoy = s.rsDias&&s.rsDias[rname]&&s.rsDias[rname].includes(diaHoy);
-  const _inputBase = 'background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;outline:none;color:var(--text);font-weight:700;text-align:center;';
-  openModal(`
-    <div class="modal-head"><h3 style="font-size:18px;">${esc((s.rsNombre&&s.rsNombre[rname])||rname)}</h3><button onclick="closeModal()">✕</button></div>
-    ${tocaHoy?`<p style="font-size:14.5px;font-weight:700;margin:0 0 10px;color:var(--primary);">📅 Hoy te toca esta rutina</p>`:''}
-    ${r.ob?`<p style="font-size:19px;font-weight:700;margin:0 0 12px;">${esc(r.ob)}</p>`:''}
-    ${(s.rsNotas&&s.rsNotas[rname])?`<p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;background:var(--bg2);padding:9px 11px;border-radius:8px;">📝 ${esc(s.rsNotas[rname])}</p>`:''}
-    <div id="modalScrollList" style="max-height:430px;overflow:auto;display:flex;flex-direction:column;gap:12px;">
-    ${ejs.map((e,ei)=>{
-      const done = hechos[e.n]===hoy;
-      const img = EJ_IMAGES[e.n];
-      const miS = (miSR[e.n]&&miSR[e.n].s)||'';
-      const miR = (miSR[e.n]&&miSR[e.n].r)||'';
-      return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
-        <div style="display:flex;gap:10px;padding:12px 12px 10px;align-items:flex-start;">
-          ${img?`<img src="${esc(img)}" style="width:56px;height:56px;border-radius:9px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-              <b style="font-size:15px;font-weight:700;">${ei+1}. ${esc(e.n)}</b>
-              ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video" style="padding:4px 8px;"><i class="ti ti-video" style="color:var(--primary);font-size:15px;"></i></button>`:''}
-            </div>
-            <p style="color:var(--text2);font-size:12px;margin:3px 0 0;">${e.modo==='tiempo'?`⏱ ${esc(e.tiempo||'')}`:`Profe: ${e.s} × ${esc(e.r)}`}${e.kg?` · <span style="color:var(--primary);font-weight:600;">Obj. ${esc(e.kg)} kg</span>`:''}</p>
-          </div>
-        </div>
-        <div style="display:flex;align-items:stretch;border-top:1px solid var(--border2);">
-          ${e.modo!=='tiempo'?`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">
-            <span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mis series × reps</span>
-            <div style="display:flex;gap:5px;align-items:center;margin-top:2px;">
-              <input type="text" inputmode="numeric" placeholder="${e.s}" value="${esc(miS)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="${_inputBase}width:40px;font-size:16px;padding:6px 4px;">
-              <span style="font-size:14px;color:var(--text2);font-weight:700;">×</span>
-              <input type="text" inputmode="numeric" placeholder="${esc(e.r)}" value="${esc(miR)}" onchange="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="${_inputBase}width:50px;font-size:16px;padding:6px 4px;">
-            </div>
-          </div>`:`<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid var(--border2);">
-            <span style="font-size:12px;font-weight:600;color:var(--text2);">⏱ ${esc(e.tiempo||'')}</span>
-          </div>`}
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">
-            <span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mi peso</span>
-            <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-              <input type="text" inputmode="decimal" placeholder="— kg" value="${esc(miPeso[e.n]||'')}" onchange="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}',this.value)" style="${_inputBase}width:72px;font-size:15px;padding:6px 4px;">
-            </div>
-          </div>
-          <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:10px 12px;">
-            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="height:38px;min-width:38px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;font-weight:600;border-radius:10px;" onclick="toggleEjercicioHecho('${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',${ei})"><i class="ti ti-check" style="font-size:17px;"></i><span>${done?'Hecho':'Listo'}</span></button>
-          </div>
-        </div>
-      </div>`;
-    }).join('')}
-    </div>
-    <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:15.5px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--primary);border-color:var(--primary);" onclick="closeModal();renderSocio();">Cerrar</button></div>
-  `,'wide');
+  const _iBase = 'background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;outline:none;color:var(--text);font-weight:700;text-align:center;';
+  const _rn = rname.replace(/'/g,"\\'");
+  let ejsHtml = '';
+  (ejs||[]).forEach(function(e,ei){
+    const done = hechos[e.n]===hoy;
+    const img = EJ_IMAGES[e.n];
+    const miS = (miSR[e.n]&&miSR[e.n].s)||'';
+    const miR = (miSR[e.n]&&miSR[e.n].r)||'';
+    const _en = e.n.replace(/'/g,"\\'");
+    const imgHtml = img ? '<img src="'+esc(img)+'" style="width:56px;height:56px;border-radius:9px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display=\'none\'">' : '';
+    const videoHtml = EJ_VIDEOS[e.n] ? '<button class="btn btn-outline btn-sm" onclick="openVideoModal(\''+jsAttr(e.n)+'\')" title="Ver video" style="padding:4px 8px;"><i class="ti ti-video" style="color:var(--primary);font-size:15px;"></i></button>' : '';
+    const refTxt = e.modo==='tiempo' ? ('&#x23F1; '+esc(e.tiempo||'')) : ('Profe: '+e.s+' &times; '+esc(e.r));
+    const kgBadge = e.kg ? ' &middot; <span style="color:var(--primary);font-weight:600;">Obj. '+esc(e.kg)+' kg</span>' : '';
+    const doneClass = done ? ' ej-row-done' : '';
+    const btnClass = done ? 'btn-primary' : 'btn-outline';
+    const btnLabel = done ? 'Hecho' : 'Listo';
+    let srHtml;
+    if(e.modo!=='tiempo'){
+      srHtml = '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">'
+        +'<span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mis series &times; reps</span>'
+        +'<div style="display:flex;gap:5px;align-items:center;margin-top:2px;">'
+        +'<input type="text" inputmode="numeric" placeholder="'+e.s+'" value="'+esc(miS)+'" onchange="setMiSREj('+currentSocioIdx+',\''+_rn+'\',\''+_en+'\',\'s\',this.value)" style="'+_iBase+'width:40px;font-size:16px;padding:6px 4px;">'
+        +'<span style="font-size:14px;color:var(--text2);font-weight:700;">&times;</span>'
+        +'<input type="text" inputmode="numeric" placeholder="'+esc(e.r)+'" value="'+esc(miR)+'" onchange="setMiSREj('+currentSocioIdx+',\''+_rn+'\',\''+_en+'\',\'r\',this.value)" style="'+_iBase+'width:50px;font-size:16px;padding:6px 4px;">'
+        +'</div></div>';
+    } else {
+      srHtml = '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border-right:1px solid var(--border2);">'
+        +'<span style="font-size:12px;font-weight:600;color:var(--text2);">&#x23F1; '+esc(e.tiempo||'')+'</span></div>';
+    }
+    ejsHtml += '<div id="ejRow'+ei+'" class="ej-row-card'+doneClass+'" style="border:1px solid var(--border2);border-radius:14px;overflow:hidden;">'
+      +'<div style="display:flex;gap:10px;padding:12px 12px 10px;align-items:flex-start;">'
+      +imgHtml
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">'
+      +'<b style="font-size:15px;font-weight:700;">'+(ei+1)+'. '+esc(e.n)+'</b>'
+      +videoHtml+'</div>'
+      +'<p style="color:var(--text2);font-size:12px;margin:3px 0 0;">'+refTxt+kgBadge+'</p>'
+      +'</div></div>'
+      +'<div style="display:flex;align-items:stretch;border-top:1px solid var(--border2);">'
+      +srHtml
+      +'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;gap:3px;border-right:1px solid var(--border2);">'
+      +'<span style="font-size:9.5px;font-weight:600;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;">Mi peso</span>'
+      +'<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">'
+      +'<input type="text" inputmode="decimal" placeholder="&mdash; kg" value="'+esc(miPeso[e.n]||'')+'" onchange="setMiPesoEj('+currentSocioIdx+',\''+_rn+'\',\''+_en+'\',this.value)" style="'+_iBase+'width:72px;font-size:15px;padding:6px 4px;">'
+      +'</div></div>'
+      +'<div style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:10px 12px;">'
+      +'<button id="ejBtn'+ei+'" class="btn btn-sm ej-done-btn '+btnClass+'" style="height:38px;min-width:38px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;font-weight:600;border-radius:10px;" onclick="toggleEjercicioHecho(\''+_rn+'\',\''+_en+'\','+ei+')">'
+      +'<i class="ti ti-check" style="font-size:17px;"></i><span>'+btnLabel+'</span></button>'
+      +'</div></div></div>';
+  });
+  let modalHtml = '<div class="modal-head"><h3 style="font-size:18px;">'+esc((s.rsNombre&&s.rsNombre[rname])||rname)+'</h3><button onclick="closeModal()">✕</button></div>';
+  if(tocaHoy) modalHtml += '<p style="font-size:14.5px;font-weight:700;margin:0 0 10px;color:var(--primary);">&#x1F4C5; Hoy te toca esta rutina</p>';
+  if(r.ob) modalHtml += '<p style="font-size:19px;font-weight:700;margin:0 0 12px;">'+esc(r.ob)+'</p>';
+  if(s.rsNotas&&s.rsNotas[rname]) modalHtml += '<p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;background:var(--bg2);padding:9px 11px;border-radius:8px;">&#x1F4DD; '+esc(s.rsNotas[rname])+'</p>';
+  modalHtml += '<div id="modalScrollList" style="max-height:430px;overflow:auto;display:flex;flex-direction:column;gap:12px;">'+ejsHtml+'</div>';
+  modalHtml += '<div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:15.5px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--primary);border-color:var(--primary);" onclick="closeModal();renderSocio();">Cerrar</button></div>';
+  openModal(modalHtml,'wide');
 }
 function toggleEjercicioHecho(rname, ejName, ei){
   const s = SOCIOS[currentSocioIdx];
