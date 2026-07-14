@@ -5573,12 +5573,14 @@ function openSocioRutinaDetalleModal(rname){
       return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
-          <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
-          <p style="font-size:14px;font-weight:700;margin:4px 0 8px;color:var(--text);">${esc(summaryText)}</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
+            <button onclick="toggleEjEdit(${ei})" title="Editar mis datos" style="height:26px;width:26px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-pencil" style="font-size:14px;"></i></button>
+          </div>
+          <p style="font-size:14px;font-weight:700;margin:0 0 8px;color:var(--text);">${esc(summaryText)}</p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
-            <button onclick="toggleEjEdit(${ei})" title="Editar mis datos" style="height:36px;min-width:36px;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;"><i class="ti ti-pencil" style="font-size:15px;"></i></button>
             <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho('${rn_esc}','${en_esc}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
           </div>
           <div id="ejEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
