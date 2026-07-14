@@ -5640,7 +5640,8 @@ function setMiPesoEj(si, rname, ejName, val){
   const s = SOCIOS[si];
   if(!s.rsMiPeso) s.rsMiPeso = {};
   if(!s.rsMiPeso[rname]) s.rsMiPeso[rname] = {};
-  s.rsMiPeso[rname][ejName] = val;
+  if(val.trim()) s.rsMiPeso[rname][ejName] = val.trim();
+  else delete s.rsMiPeso[rname][ejName];
   persist();
 }
 function setMiSREj(si, rname, ejName, field, val){
