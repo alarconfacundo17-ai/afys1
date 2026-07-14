@@ -5507,6 +5507,7 @@ function openSocioRutinaDetalleModal(rname){
   if(!r) return;
   const ejs = (s.rsOverride&&s.rsOverride[rname]) ? s.rsOverride[rname] : r.ejs;
   const miPeso = (s.rsMiPeso&&s.rsMiPeso[rname]) || {};
+  const miSR = (s.rsMiSR&&s.rsMiSR[rname]) || {};
   const hechos = (s.rsHechos&&s.rsHechos[rname]) || {};
   const hoy = todayISO();
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -5525,11 +5526,18 @@ function openSocioRutinaDetalleModal(rname){
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
         <div style="flex:1;min-width:0;">
           <b style="font-size:16px;font-weight:700;letter-spacing:.2px;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
-          <p style="color:var(--text);font-size:13.5px;font-weight:600;margin:4px 0 8px;">${srDisplay(e)}</p>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;" title="Peso objetivo indicado por tu entrenador">Objetivo: ${esc(e.kg)} kg</span>`:''}
+          <p style="color:var(--text2);font-size:12.5px;font-weight:500;margin:3px 0 6px;">${e.modo==='tiempo'?`Tiempo: ${esc(e.tiempo||'')}`:`${e.s} series × ${esc(e.r)} reps (referencia del profe)`}</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+            ${e.modo!=='tiempo'?`<div style="display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;gap:4px;align-items:center;">
+                <input type="number" min="1" max="20" placeholder="${e.s}" value="${esc((miSR[e.n]&&miSR[e.n].s)||'')}" oninput="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','s',this.value)" style="width:52px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;">
+                <span style="font-size:13px;color:var(--text2);font-weight:600;">×</span>
+                <input type="text" placeholder="${esc(e.r)}" value="${esc((miSR[e.n]&&miSR[e.n].r)||'')}" oninput="setMiSREj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}','r',this.value)" style="width:68px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;">
+              </div>
+              <span style="font-size:10px;color:var(--text2);text-align:center;">Mis series × reps</span>
+            </div>`:''}            ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;" title="Peso objetivo indicado por tu entrenador">Objetivo: ${esc(e.kg)} kg</span>`:''}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <input type="text" placeholder="Mi peso (kg)" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\'")}','${e.n.replace(/'/g,"\\'")}',this.value)" style="width:100px;font-size:14px;padding:7px 9px;">
+              <input type="text" placeholder="Mi peso (kg)" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rname.replace(/'/g,"\\\'")}','${e.n.replace(/'/g,"\\\'")}',this.value)" style="width:100px;font-size:14px;padding:7px 9px;">
               <span style="font-size:10px;color:var(--text2);text-align:center;">Mi peso</span>
             </div>
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
@@ -5571,6 +5579,15 @@ function setMiPesoEj(si, rname, ejName, val){
   if(!s.rsMiPeso) s.rsMiPeso = {};
   if(!s.rsMiPeso[rname]) s.rsMiPeso[rname] = {};
   s.rsMiPeso[rname][ejName] = val;
+  persist();
+}
+function setMiSREj(si, rname, ejName, field, val){
+  const s = SOCIOS[si];
+  if(!s.rsMiSR) s.rsMiSR = {};
+  if(!s.rsMiSR[rname]) s.rsMiSR[rname] = {};
+  if(!s.rsMiSR[rname][ejName]) s.rsMiSR[rname][ejName] = {};
+  if(val.trim()) s.rsMiSR[rname][ejName][field] = val.trim();
+  else delete s.rsMiSR[rname][ejName][field];
   persist();
 }
 function socioCuenta(){
