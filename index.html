@@ -483,6 +483,7 @@ let deletedRutinaNames = []; // nombres de rutinas eliminadas
 let deletedClaseIds = []; // cIds de clases eliminadas
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 let _editingRutinaName = null; // nombre de la rutina siendo editada ahora mismo
+let _rutinaCopied = null; // {rname, ejs, nombre, nota, dias} — clipboard de rutina copiada
 let _editingTurnoId = null;    // id del turno siendo editado ahora mismo
 
 // Caché local de DNI→email para login rápido (solo en este dispositivo)
@@ -3140,6 +3141,7 @@ function openSocioRutinaOpciones(si, rname, search){
       <button class="btn btn-outline" style="${optSt}" onclick="openDiasRutinaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-calendar" style="font-size:18px;"></i>Elegir días</button>
       <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNombreModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-tag" style="font-size:18px;"></i>Nombre personalizado</button>
       <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNotaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-notes" style="font-size:18px;"></i>Nota para el socio</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="copiarRutinaDeSOcio(${si},'${rname.replace(/'/g,"\\'")}')"><i class="ti ti-copy" style="font-size:18px;"></i>Copiar rutina</button>
       <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="quitarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-x" style="font-size:18px;"></i>Quitar rutina</button>
       `:`<button class="btn btn-green" style="${optSt}" onclick="asignarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus" style="font-size:18px;"></i>Asignar esta rutina</button>`}
     </div>
@@ -3252,6 +3254,13 @@ function openSocioRutinasModal(si, search){
   openModal(`
     <div class="modal-head"><h3>Rutinas — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
     ${contadorClasesHTML(si)}
+    ${_rutinaCopied?`<div style="background:var(--primary)11;border:1.5px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:13px;"><i class="ti ti-clipboard" style="margin-right:6px;"></i>Rutina copiada: <b>${esc(_rutinaCopied.rname)}</b></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" onclick="pegarRutinaEnSocio(${si})">Pegar acá</button>
+        <button class="btn btn-outline btn-sm" onclick="_rutinaCopied=null;openSocioRutinasModal(${si})">✕</button>
+      </div>
+    </div>`:''}
     <div id="srm_body">${socioRutinasBodyHTML(si, search||'')}</div>
   `,'wide');
 }
@@ -3291,6 +3300,42 @@ function quitarRutinaSocio(si, rname, search){
   if(s.rsOverride) delete s.rsOverride[rname];
   persist();
   refreshSocioRutinasList(si, search);
+}
+function copiarRutinaDeSOcio(si, rname){
+  const s = SOCIOS[si];
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!s||!r) return;
+  const ejs = (s.rsOverride&&s.rsOverride[rname]) ? JSON.parse(JSON.stringify(s.rsOverride[rname])) : JSON.parse(JSON.stringify(r.ejs));
+  _rutinaCopied = {
+    rname,
+    ejs,
+    nombre: (s.rsNombre&&s.rsNombre[rname])||'',
+    nota: (s.rsNotas&&s.rsNotas[rname])||'',
+    dias: (s.rsDias&&s.rsDias[rname]) ? [...s.rsDias[rname]] : [],
+    t: r.t, ob: r.ob
+  };
+  showToast('Rutina copiada. Abrí otro socio y pegala.');
+  closeModal();
+}
+function pegarRutinaEnSocio(si){
+  const s = SOCIOS[si];
+  if(!s||!_rutinaCopied) return;
+  // Generar nombre único para la nueva rutina
+  let base = _rutinaCopied.rname + ' (copia)';
+  let n = base, i = 2;
+  while(RUTINAS.some(r=>r.n===n)){ n = base+' '+i; i++; }
+  // Crear nueva rutina con los ejercicios copiados (baked in, independiente)
+  RUTINAS.push({n, t:_rutinaCopied.t||'', ob:_rutinaCopied.ob||'', cr:'Tú', ejs: JSON.parse(JSON.stringify(_rutinaCopied.ejs))});
+  // Asignar al socio
+  if(!s.rs.includes(n)) s.rs.push(n);
+  if(s.rsRemoved) s.rsRemoved = s.rsRemoved.filter(r=>r!==n);
+  // Copiar nombre personalizado, nota y días si los tenía
+  if(_rutinaCopied.nombre){ if(!s.rsNombre) s.rsNombre={}; s.rsNombre[n]=_rutinaCopied.nombre; }
+  if(_rutinaCopied.nota){ if(!s.rsNotas) s.rsNotas={}; s.rsNotas[n]=_rutinaCopied.nota; }
+  if(_rutinaCopied.dias&&_rutinaCopied.dias.length){ if(!s.rsDias) s.rsDias={}; s.rsDias[n]=[..._rutinaCopied.dias]; }
+  persist();
+  showToast('Rutina pegada: "'+n+'"');
+  openSocioRutinasModal(si);
 }
 function toggleRutinaDiaSocio(si, rname, dia, search){
   const s = SOCIOS[si];
