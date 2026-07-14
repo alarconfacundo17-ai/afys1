@@ -962,6 +962,8 @@ async function mergeRemoteAntesDeGuardar(){
         }
         if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
+        if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
+        if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en]) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
         if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
         // tomar el vencimiento más tardío (el más actualizado gana)
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
@@ -4311,11 +4313,42 @@ function saveTurno(turnoId){
     if(_stEdit) _stEdit.alias = _aliasVal;
   }
   const data = {staffId:$('#tn_s').value, dia:$('#tn_d').value, desde:timeSelectValue('tn_de'), hasta:timeSelectValue('tn_ha'), clase:$('#tn_cl').value.trim()};
+  let turnoObj;
   if(turnoId && turnoId!=='null'){
-    const t = TURNOS.find(x=>x.id===turnoId);
-    if(t) Object.assign(t,data);
+    turnoObj = TURNOS.find(x=>x.id===turnoId);
+    if(turnoObj) Object.assign(turnoObj, data);
   } else {
-    TURNOS.push({id:turnoSeq++, ...data});
+    turnoObj = {id:turnoSeq++, ...data};
+    TURNOS.push(turnoObj);
+  }
+  // Si tiene clase, sincronizar con CLASES_HOY
+  if(turnoObj && turnoObj.clase){
+    const staffPerson = [...STAFF,...DUENOS].find(p=>p.id===turnoObj.staffId);
+    const dur = hToMin(turnoObj.hasta) - hToMin(turnoObj.desde);
+    if(turnoObj.claseId){
+      // Actualizar entrada existente en CLASES_HOY
+      const c = CLASES_HOY.find(x=>x.cId===turnoObj.claseId);
+      if(c){ Object.assign(c, {n:turnoObj.clase, d:turnoObj.dia, h:turnoObj.desde, dur, ins:staffPerson?staffPerson.n:'Sin asignar', insId:staffPerson?staffPerson.id:null}); }
+      else {
+        // La entrada fue eliminada — recrearla
+        const newC = {n:turnoObj.clase, d:turnoObj.dia, h:turnoObj.desde, dur, ins:staffPerson?staffPerson.n:'Sin asignar', insId:staffPerson?staffPerson.id:null, cu:'0/12', cId:turnoObj.claseId};
+        CLASES_HOY.push(newC);
+      }
+    } else {
+      // Clase nueva sin claseId — crear en CLASES_HOY y vincular
+      const newCId = newClaseId();
+      turnoObj.claseId = newCId;
+      const newC = {n:turnoObj.clase, d:turnoObj.dia, h:turnoObj.desde, dur, ins:staffPerson?staffPerson.n:'Sin asignar', insId:staffPerson?staffPerson.id:null, cu:'0/12', cId:newCId};
+      CLASES_HOY.push(newC);
+    }
+  } else if(turnoObj && !turnoObj.clase && turnoObj.claseId){
+    // Le borraron la clase al turno — eliminar de CLASES_HOY también
+    const cIdx = CLASES_HOY.findIndex(x=>x.cId===turnoObj.claseId);
+    if(cIdx>=0){
+      if(!deletedClaseIds.includes(turnoObj.claseId)) deletedClaseIds.push(turnoObj.claseId);
+      CLASES_HOY.splice(cIdx,1);
+    }
+    delete turnoObj.claseId;
   }
   persist();
   showToast('Guardado');
@@ -4562,6 +4595,7 @@ function deleteEjercicio(g,name){
   SOCIOS.forEach(s=>{
     if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ for(let i=ejs.length-1;i>=0;i--){ if(ejs[i].n===name) ejs.splice(i,1); } });
     if(s.rsMiPeso) Object.values(s.rsMiPeso).forEach(mp=>delete mp[name]);
+    if(s.rsMiSR) Object.values(s.rsMiSR).forEach(sr=>delete sr[name]);
     if(s.rsHechos) Object.values(s.rsHechos).forEach(h=>delete h[name]);
   });
   persist();
@@ -4585,6 +4619,7 @@ function renombrarEjercicio(oldName){
   SOCIOS.forEach(s=>{
     if(s.rsOverride) Object.values(s.rsOverride).forEach(ejs=>{ ejs.forEach(e=>{ if(e.n===oldName) e.n = newName; }); });
     if(s.rsMiPeso) Object.values(s.rsMiPeso).forEach(mp=>{ if(mp[oldName]!==undefined){ mp[newName] = mp[oldName]; delete mp[oldName]; } });
+    if(s.rsMiSR) Object.values(s.rsMiSR).forEach(sr=>{ if(sr[oldName]!==undefined){ sr[newName] = sr[oldName]; delete sr[oldName]; } });
     if(s.rsHechos) Object.values(s.rsHechos).forEach(h=>{ if(h[oldName]!==undefined){ h[newName] = h[oldName]; delete h[oldName]; } });
   });
   persist();
