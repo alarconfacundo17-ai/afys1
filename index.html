@@ -1013,9 +1013,14 @@ async function mergeRemoteAntesDeGuardar(){
 
     if(remote.RESERVAS){
       Object.keys(remote.RESERVAS).forEach(k=>{
-        if(!RESERVAS[k]) RESERVAS[k] = {};
+        const ki = Number(k);
+        const localS = SOCIOS[ki];
+        if(!localS) return; // socio eliminado localmente
+        const remoteS = Array.isArray(remote.SOCIOS) ? remote.SOCIOS[ki] : null;
+        if(remoteS && localS.id && remoteS.id && localS.id !== remoteS.id) return; // índices desplazados
+        if(!RESERVAS[ki]) RESERVAS[ki] = {};
         Object.keys(remote.RESERVAS[k]).forEach(claseK=>{
-          if(remote.RESERVAS[k][claseK] && RESERVAS[k][claseK]===undefined) RESERVAS[k][claseK] = true;
+          if(remote.RESERVAS[k][claseK] && RESERVAS[ki][claseK]===undefined) RESERVAS[ki][claseK] = true;
         });
       });
     }
