@@ -5414,7 +5414,7 @@ function openInscriptosModal(idx){
         <button class="btn btn-outline" onclick="agregarInscripto(${idx})">Agregar</button>
       </div>
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="persist();showToast('Guardado');closeModal();">Guardar y cerrar</button></div>
   `);
 }
 function inscriptosListHTML(idx){
@@ -5448,6 +5448,7 @@ function agregarInscripto(idx){
   if(!RESERVAS[si]) RESERVAS[si] = {};
   RESERVAS[si][k] = true;
   persist();
+  showToast('Guardado');
   openInscriptosModal(idx);
 }
 function quitarInscripto(idx, si){
@@ -5455,6 +5456,7 @@ function quitarInscripto(idx, si){
   const k = claseKey(c);
   if(RESERVAS[si]) delete RESERVAS[si][k];
   persist();
+  showToast('Guardado');
   openInscriptosModal(idx);
 }
 function socioReservas(){ return RESERVAS[currentSocioIdx] || (RESERVAS[currentSocioIdx]={}); }
