@@ -1467,10 +1467,26 @@ async function doLogin(){
 async function doLoginDni(){
   const dni = String($('#loginDni').value).trim();
   if(!dni){ loginError='Ingresá tu DNI.'; renderLogin(); return; }
-  const email = dniCache[dni];
+  let email = dniCache[dni];
   if(!email){
-    // Primera vez en este dispositivo: pedir email+contraseña
-    loginView='loginDniFirstTime'; loginError=''; renderLogin(); return;
+    // Caché local vacío — intentar buscar el email en Supabase directamente
+    loginError=''; loginInfo='Buscando...'; renderLogin();
+    try {
+      const {data: remoteData} = await sb.from('app_state').select('data').eq('id',1).single();
+      if(remoteData && remoteData.data && Array.isArray(remoteData.data.SOCIOS)){
+        const found = remoteData.data.SOCIOS.find(s => String(s.dni)===dni && s.dniAccesoRapido && s.email);
+        if(found){
+          email = (found.email||'').toLowerCase();
+          cacheDni(dni, email);
+          // Poblar caché para todos mientras estamos acá
+          remoteData.data.SOCIOS.forEach(s=>{ if(s.dni && s.dniAccesoRapido && s.email) cacheDni(String(s.dni),(s.email||'').toLowerCase()); });
+        }
+      }
+    } catch(e){ /* si no hay acceso anónimo, ignorar y seguir */ }
+    loginInfo='';
+    if(!email){
+      loginView='loginDniFirstTime'; loginError=''; renderLogin(); return;
+    }
   }
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
   if(error){
@@ -3065,11 +3081,14 @@ async function activarAccesoDni(idx){
 
   if(newAccount){
     errEl.style.color='var(--green)';
-    errEl.innerHTML='<i class="ti ti-shield-check"></i> Cuenta creada y acceso por DNI activado. El socio ya puede entrar solo con su DNI.';
+    errEl.innerHTML='<i class="ti ti-shield-check"></i> Cuenta creada y acceso por DNI activado. El socio ya puede entrar solo con su DNI desde cualquier dispositivo.';
+  } else if(alreadyExists){
+    // Cuenta existía con otra contraseña — verificar si el DNI funciona como contraseña
+    errEl.style.color='var(--yellow,#f59e0b)';
+    errEl.innerHTML='<i class="ti ti-alert-triangle"></i> Esta cuenta fue creada con otro método. El socio deberá ingresar una vez con su email y contraseña para que el acceso por DNI quede activo en todos los dispositivos.';
   } else {
-    // La cuenta ya existía — el DNI queda cacheado en este dispositivo
     errEl.style.color='var(--green)';
-    errEl.innerHTML='<i class="ti ti-shield-check"></i> Acceso por DNI activado en este dispositivo. En otros dispositivos se activa automáticamente cuando el socio inicia sesión.';
+    errEl.innerHTML='<i class="ti ti-shield-check"></i> Acceso por DNI activado. El socio ya puede entrar solo con su DNI desde cualquier dispositivo.';
   }
   btn.disabled=false;
   btn.innerHTML='<i class="ti ti-fingerprint"></i> Actualizar DNI y reactivar acceso';
@@ -5717,6 +5736,8 @@ function socioCuenta(){
     if(Array.isArray(remote.CLASES_HOY)){ if(Array.isArray(remote.deletedClaseIds)){ remote.deletedClaseIds.forEach(id=>{if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id);}); const delC=new Set(deletedClaseIds); for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId&&delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); } } const delC=new Set(deletedClaseIds); const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId||delC.has(c.cId)) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
+    if(typeof remote.turnoSeq==='number' && remote.turnoSeq > turnoSeq) turnoSeq = remote.turnoSeq;
+    if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
     recalcEstados({notify:false}); // _merging removed: allows persist() when es status changes
   }
 
