@@ -5756,6 +5756,10 @@ function socioCuenta(){
         if(Array.isArray(ls.rsRemoved) && ls.rsRemoved.some(r => !remRemoved.has(r))){
           localAheadOfRemote = true; break;
         }
+        // el local tiene un estado activo más reciente que el remoto (otro device pisó la reactivación)
+        if(typeof ls.activo==='boolean' && ls.activo !== rs.activo && (ls.activoTs||0) > (rs.activoTs||0)){
+          localAheadOfRemote = true; break;
+        }
       }
     }
 
