@@ -967,8 +967,8 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.hoy && !ls.hoy){ ls.hoy = true; ls.entradaHora = rs.entradaHora || ls.entradaHora; }
         // tomar el vencimiento más tardío (el más actualizado gana)
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
-        // si el remoto marca inactivo, respetar la baja
-        if(typeof rs.activo==='boolean') ls.activo = rs.activo;
+        // aplicar activo solo si el remoto es más reciente (evita revertir reactivaciones locales)
+        if(typeof rs.activo==='boolean' && (rs.activoTs||0) > (ls.activoTs||0)){ ls.activo = rs.activo; ls.activoTs = rs.activoTs; }
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
         if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido = true; if(ls.email) cacheDni(ls.dni, (ls.email||'').toLowerCase()); }
@@ -2827,7 +2827,7 @@ function openBajaModal(idx){
 }
 function confirmBaja(idx){
   const s = SOCIOS[idx];
-  s.activo = false;
+  s.activo = false; s.activoTs = Date.now();
   if(!Array.isArray(s.nt)) s.nt=[];
   const motivo = $('#bj_m').value;
   const nota = $('#bj_n').value.trim();
@@ -2838,7 +2838,7 @@ function confirmBaja(idx){
 }
 function reactivarSocio(idx){
   const s = SOCIOS[idx];
-  s.activo = true;
+  s.activo = true; s.activoTs = Date.now();
   if(!Array.isArray(s.nt)) s.nt=[];
   s.nt.push(`Reactivado (${new Date().toLocaleDateString('es-AR')})`);
   logMovimiento('reactivacion_socio', `Reactivación de socio: ${s.n}`);
@@ -5811,7 +5811,7 @@ function socioCuenta(){
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
-        if(typeof rs.activo==='boolean') ls.activo=rs.activo;
+        if(typeof rs.activo==='boolean' && (rs.activoTs||0)>=(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
