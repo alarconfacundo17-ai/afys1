@@ -1016,8 +1016,9 @@ async function mergeRemoteAntesDeGuardar(){
       if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _preRemIdxToLocal[ri]=li; });
       Object.keys(remote.RESERVAS).forEach(k=>{
         const ri=Number(k);
-        const ki=_preRemIdxToLocal[ri]!==undefined?_preRemIdxToLocal[ri]:ri;
-        if(!SOCIOS[ki]) return; // socio eliminado localmente
+        if(_preRemIdxToLocal[ri]===undefined) return; // sin mapping seguro, omitir para no corromper datos locales
+        const ki=_preRemIdxToLocal[ri];
+        if(!SOCIOS[ki]) return;
         if(!RESERVAS[ki]) RESERVAS[ki]={};
         Object.keys(remote.RESERVAS[k]).forEach(claseK=>{
           if(remote.RESERVAS[k][claseK]===true&&RESERVAS[ki][claseK]===undefined) RESERVAS[ki][claseK]=true;
@@ -1159,11 +1160,15 @@ async function mergeRemoteAntesDeGuardar(){
     }
 
     if(remote.notifSocio){
-      Object.keys(remote.notifSocio).forEach(idx=>{
-        if(!notifSocio[idx]) notifSocio[idx] = [];
-        const localTxts = new Set(notifSocio[idx].map(n=>n.txt));
-        (remote.notifSocio[idx]||[]).forEach(n=>{
-          if(!localTxts.has(n.txt)){ notifSocio[idx].unshift(n); localTxts.add(n.txt); }
+      const _nRemIdxToLocal={};
+      if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _nRemIdxToLocal[ri]=li; });
+      Object.keys(remote.notifSocio).forEach(remIdx=>{
+        if(_nRemIdxToLocal[Number(remIdx)]===undefined) return;
+        const localIdx = _nRemIdxToLocal[Number(remIdx)];
+        if(!notifSocio[localIdx]) notifSocio[localIdx] = [];
+        const localTxts = new Set(notifSocio[localIdx].map(n=>n.txt));
+        (remote.notifSocio[remIdx]||[]).forEach(n=>{
+          if(!localTxts.has(n.txt)){ notifSocio[localIdx].unshift(n); localTxts.add(n.txt); }
         });
       });
     }
@@ -1291,7 +1296,7 @@ function timeSelectHTML(id, value, onchange, small){
     <select id="${id}_m" style="${selSt}"${oc}>${mins.map(mm=>`<option value="${mm}" ${mm===m?'selected':''}>${mm}</option>`).join('')}</select>
   </div>`;
 }
-function timeSelectValue(id){ return $('#'+id+'_h').value+':'+$('#'+id+'_m').value; }
+function timeSelectValue(id){ const h=$('#'+id+'_h'), m=$('#'+id+'_m'); return (h&&m) ? h.value+':'+m.value : ''; }
 function payBadge(es){
   if(es==='ok') return '<span class="badge b-ok">Al día</span>';
   if(es==='ve') return '<span class="badge b-warn">Por vencer</span>';
@@ -2807,7 +2812,7 @@ function openSocioOpcionesModal(idx){
       ${isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-fingerprint" style="font-size:20px;color:${s.dniAccesoRapido?'var(--green)':'var(--text2)'};"></i>Acceso por DNI${s.dniAccesoRapido?' <span style=\'font-size:11px;color:var(--green);\'>● Activo</span>':''}</button>`:''}
       ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
       ${(canEdit||currentRole==='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
-      ${(currentRole==='profesor'||canEdit)?`<button class="btn btn-outline" style="${optSt}" onclick="marcarEntradaManualSocio(${idx})"><i class="ti ti-login" style="font-size:20px;color:var(--green);"></i>Marcar entrada</button>`:''}
+      ${(currentRole==='profesor'||canEdit)?`<button class="btn btn-outline" style="${optSt}" onclick="marcarEntradaManualSocio('${s.id}')"><i class="ti ti-login" style="font-size:20px;color:var(--green);"></i>Marcar entrada</button>`:''}
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
         :`<button class="btn btn-outline" style="${optSt}" onclick="openBajaModal(${idx})"><i class="ti ti-user-off" style="font-size:20px;color:var(--orange,#d97706);"></i>Dar de baja</button>`):''}
@@ -3039,21 +3044,25 @@ function openEditSocioModal(idx){
     </div>
   `);
 }
-function marcarEntradaManualSocio(idx){
-  const s = SOCIOS[idx];
+function marcarEntradaManualSocio(socioId){
+  const idx = SOCIOS.findIndex(s=>s.id===socioId);
+  const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-  const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO() && !r.cl);
+  const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO());
   if(yaEntroHoy){
+    const sn_esc = s.n.replace(/'/g,"\\'");
     openModal(`
       <div class="modal-head"><h3>Entrada ya registrada</h3><button onclick="closeModal()">✕</button></div>
-      <p style="color:var(--text2);font-size:14px;margin-bottom:14px;">${esc(s.n)} ya tiene una entrada general registrada hoy.</p>
-      <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="closeModal();confirmarEntradaManual(${idx})">Registrar igual</button></div>
+      <p style="color:var(--text2);font-size:14px;margin-bottom:14px;">${esc(s.n)} ya tiene una entrada registrada hoy.</p>
+      <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="closeModal();confirmarEntradaManual('${s.id}')">Registrar igual</button></div>
     `);
     return;
   }
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
+  notifSocio[idx] = notifSocio[idx]||[];
+  notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. Entrada general`, new:true});
   notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
@@ -3061,12 +3070,15 @@ function marcarEntradaManualSocio(idx){
   showToast(`Entrada de ${s.n} registrada ✓`);
   if(staffPage==='socios') renderStaff();
 }
-function confirmarEntradaManual(idx){
-  const s = SOCIOS[idx];
+function confirmarEntradaManual(socioId){
+  const idx = SOCIOS.findIndex(s=>s.id===socioId);
+  const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
+  notifSocio[idx] = notifSocio[idx]||[];
+  notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. Entrada general`, new:true});
   notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
@@ -3092,7 +3104,7 @@ function openSocioAsistenciaStaffModal(idx){
       <h3>Historial</h3>
       ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(localDateISO(r.f)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="marcarEntradaManualSocio(${idx})"><i class="ti ti-login"></i> Marcar entrada</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="marcarEntradaManualSocio('${s.id}')"><i class="ti ti-login"></i> Marcar entrada</button></div>
   `);
 }
 function saveEditSocio(idx){
@@ -5878,7 +5890,7 @@ function socioCuenta(){
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
-        if(typeof rs.activo==='boolean' && (rs.activoTs||0)>=(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
+        if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
@@ -5894,7 +5906,7 @@ function socioCuenta(){
     if(remote.RESERVAS){
       const _remIdxToLocal={};
       if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _remIdxToLocal[ri]=li; });
-      Object.keys(remote.RESERVAS).forEach(k=>{ const ri=Number(k); const li=_remIdxToLocal[ri]!==undefined?_remIdxToLocal[ri]:ri; if(!RESERVAS[li]) RESERVAS[li]={}; const remR=remote.RESERVAS[k]; Object.keys(remR).forEach(ck=>{ if(remR[ck]===true&&RESERVAS[li][ck]===undefined) RESERVAS[li][ck]=true; if(remR[ck]===false&&RESERVAS[li][ck]===true) RESERVAS[li][ck]=false; }); });
+      Object.keys(remote.RESERVAS).forEach(k=>{ const ri=Number(k); if(_remIdxToLocal[ri]===undefined) return; const li=_remIdxToLocal[ri]; if(!RESERVAS[li]) RESERVAS[li]={}; const remR=remote.RESERVAS[k]; Object.keys(remR).forEach(ck=>{ if(remR[ck]===true&&RESERVAS[li][ck]===undefined) RESERVAS[li][ck]=true; if(remR[ck]===false&&RESERVAS[li][ck]===true) RESERVAS[li][ck]=false; }); });
     }
     if(Array.isArray(remote.REGS)){ const _rk=r=>r.sid+'|'+(r.f?localDateISO(r.f):r.f); const lk=new Set(REGS.map(_rk)); remote.REGS.forEach(r=>{ const k=_rk(r); if(!lk.has(k)){ REGS.push(r); lk.add(k); } }); REGS.sort((a,b)=>new Date(b.f)-new Date(a.f)); entradasHoy=REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length; }
     if(Array.isArray(remote.PAGOS)){ const delPK=new Set(deletedPagoKeys); const lk=new Set(PAGOS.map(p=>p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)); remote.PAGOS.forEach(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; if(!delPK.has(k)&&!lk.has(k)){ PAGOS.push(p); lk.add(k); } }); PAGOS.sort((a,b)=>new Date(b.f)-new Date(a.f)); }
@@ -5946,7 +5958,7 @@ function socioCuenta(){
     if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
     if(Array.isArray(remote.CLASES_HOY)){ if(Array.isArray(remote.deletedClaseIds)){ remote.deletedClaseIds.forEach(id=>{if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id);}); const delC=new Set(deletedClaseIds); for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId&&delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); } } const delC=new Set(deletedClaseIds); const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId||delC.has(c.cId)) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
-    if(remote.notifSocio){ Object.keys(remote.notifSocio).forEach(idx=>{ if(!notifSocio[idx]) notifSocio[idx]=[]; const lk=new Set(notifSocio[idx].map(n=>n.txt)); (remote.notifSocio[idx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[idx].unshift(n); lk.add(n.txt); } }); }); }
+    if(remote.notifSocio){ const _n2remap={}; if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _n2remap[ri]=li; }); Object.keys(remote.notifSocio).forEach(remIdx=>{ if(_n2remap[Number(remIdx)]===undefined) return; const li=_n2remap[Number(remIdx)]; if(!notifSocio[li]) notifSocio[li]=[]; const lk=new Set(notifSocio[li].map(n=>n.txt)); (remote.notifSocio[remIdx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[li].unshift(n); lk.add(n.txt); } }); }); }
     if(typeof remote.turnoSeq==='number' && remote.turnoSeq > turnoSeq) turnoSeq = remote.turnoSeq;
     if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
     recalcEstados({notify:false}); // _merging removed: allows persist() when es status changes
