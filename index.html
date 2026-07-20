@@ -1872,7 +1872,7 @@ async function qrGateCreateSocio(){
   const initialsV=n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const idx=SOCIOS.length;
   const ed=cumple?calcAge(cumple):null;
-  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6),i:initialsV,n,email:e,dni,tel:t,cumple,es:'ok',vence:null,rs:[],nt:[],ed,pe,ob,obs,hoy:false,entradaHora:null,activo:true,altaPendiente:true});
+  SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6),i:initialsV,n,email:e,dni,tel:t,cumple,es:'ok',vence:null,rs:[],nt:[],ed,pe,ob,obs,hoy:false,entradaHora:null,activo:true,altaPendiente:true,dniAccesoRapido:!!dni});
   SOCIOS_LOGIN[e]={idx,pe:'ok',pm:'Sin plan asignado todavía'};
   notifSocio[idx]=[];
   notifStaff.unshift({txt:`${n} se registró escaneando el QR. ¿Ya era socio antes de usar la app?`,new:true,altaIdx:idx});
@@ -2806,7 +2806,8 @@ function openSocioOpcionesModal(idx){
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
       ${isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-fingerprint" style="font-size:20px;color:${s.dniAccesoRapido?'var(--green)':'var(--text2)'};"></i>Acceso por DNI${s.dniAccesoRapido?' <span style=\'font-size:11px;color:var(--green);\'>● Activo</span>':''}</button>`:''}
       ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
-      ${(canEdit && currentRole!=='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
+      ${(canEdit||currentRole==='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
+      ${(currentRole==='profesor'||canEdit)?`<button class="btn btn-outline" style="${optSt}" onclick="marcarEntradaManualSocio(${idx})"><i class="ti ti-login" style="font-size:20px;color:var(--green);"></i>Marcar entrada</button>`:''}
       ${canRemove?(s.activo===false
         ?`<button class="btn btn-outline" style="${optSt}" onclick="reactivarSocio(${idx})"><i class="ti ti-rotate" style="font-size:20px;color:var(--primary);"></i>Reactivar socio</button>`
         :`<button class="btn btn-outline" style="${optSt}" onclick="openBajaModal(${idx})"><i class="ti ti-user-off" style="font-size:20px;color:var(--orange,#d97706);"></i>Dar de baja</button>`):''}
@@ -2904,17 +2905,30 @@ function hasPermSocios(){
 function openSocioModal(){
   openModal(`
     <div class="modal-head"><h3>Nuevo socio</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nombre y apellido *</label><input id="ns_n" placeholder="Nombre completo"></div>
-    <div class="field"><label>Email *</label><input id="ns_email" type="email" placeholder="nombre@gmail.com"></div>
-    <div class="field"><label>DNI *</label><input id="ns_dni" type="number" placeholder="Sin puntos, mínimo 6 dígitos"></div>
-    <div class="field"><label>Teléfono</label><input id="ns_tel" type="tel" placeholder="11 1234-5678"></div>
-    <div class="field"><label>Fecha de nacimiento</label><input id="ns_cumple" type="date" oninput="onNsCumpleInput()"></div>
-    <div class="field"><label>Edad</label><input id="ns_ed" type="number"></div>
-    <div class="field"><label>Peso (kg, opcional)</label><input id="ns_pe" type="number"></div>
-    <div class="field"><label>Objetivo de entrenamiento</label><input id="ns_ob" placeholder="Bajar peso, ganar músculo, etc."></div>
-    <div class="field"><label>Observaciones (opcional)</label><textarea id="ns_obs" rows="2" placeholder="Lesiones, condiciones médicas, alguna aclaración para el gimnasio..."></textarea></div>
-    <div id="ns_error" style="color:var(--red);font-size:12.5px;display:none;"></div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button id="ns_btn" class="btn btn-primary" onclick="saveSocio()">Guardar</button></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.05em;margin-bottom:8px;">DATOS PERSONALES</div>
+    <div class="field"><label>Nombre y apellido <span style="color:var(--red);">*</span></label><input id="ns_n" placeholder="Nombre completo" autocomplete="off"></div>
+    <div class="field"><label>Email <span style="color:var(--red);">*</span></label><input id="ns_email" type="email" placeholder="nombre@gmail.com" autocomplete="off"></div>
+    <div class="field"><label>DNI <span style="color:var(--red);">*</span></label><input id="ns_dni" type="number" placeholder="Sin puntos, mínimo 6 dígitos"></div>
+    <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--text2);margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;">
+      <i class="ti ti-info-circle" style="font-size:15px;margin-top:1px;flex-shrink:0;"></i>
+      <span>El socio podrá iniciar sesión con su email y su DNI como contraseña. Lo podés cambiar después desde su perfil.</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field" style="margin-bottom:0;"><label>Teléfono</label><input id="ns_tel" type="tel" placeholder="11 1234-5678"></div>
+      <div class="field" style="margin-bottom:0;"><label>Fecha de nacimiento</label><input id="ns_cumple" type="date" oninput="onNsCumpleInput()"></div>
+    </div>
+    <div style="height:10px;"></div>
+    <div style="border-top:1px solid var(--border);margin:4px 0 12px;"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.05em;margin-bottom:8px;">FICHA FÍSICA</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field" style="margin-bottom:0;"><label>Edad</label><input id="ns_ed" type="number" placeholder="Años"></div>
+      <div class="field" style="margin-bottom:0;"><label>Peso (kg)</label><input id="ns_pe" type="number" placeholder="Ej: 75"></div>
+    </div>
+    <div style="height:10px;"></div>
+    <div class="field"><label>Objetivo</label><input id="ns_ob" placeholder="Bajar peso, ganar músculo, etc."></div>
+    <div class="field"><label>Observaciones</label><textarea id="ns_obs" rows="2" placeholder="Lesiones, condiciones médicas, aclaraciones..."></textarea></div>
+    <div id="ns_error" style="color:var(--red);font-size:12.5px;display:none;margin-bottom:6px;"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button><button id="ns_btn" class="btn btn-primary" onclick="saveSocio()"><i class="ti ti-user-plus"></i> Crear socio</button></div>
   `);
 }
 function onNsCumpleInput(){
@@ -2962,14 +2976,29 @@ async function saveSocio(){
 
   try{
     const idx = SOCIOS.length;
-    SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true});
+    SOCIOS.push({id:'soc'+Date.now()+'_'+(socioSeq++)+'_'+Math.random().toString(36).slice(2,6), i:initials(n), n, email, dni, tel:tel||null, cumple, es:'ok', vence:addDaysISO(null,30), rs:[], nt:[], ed, pe, ob, obs, hoy:false, entradaHora:null, activo:true, dniAccesoRapido:!!dni});
     notifSocio[idx]=[];
     SOCIOS_LOGIN[email] = {idx, pe:'ok', pm:'Sin pagos registrados todavía'};
     cacheDni(dni, email);
     logMovimiento('alta_socio', `Alta de socio: ${n} (${email})`);
     persist();
-    showToast('Socio creado. Ya puede entrar con su DNI.');
     closeModal(); renderStaff();
+    openModal(`
+      <div class="modal-head"><h3 style="color:var(--green);">✅ Socio creado</h3><button onclick="closeModal()">✕</button></div>
+      <p style="margin-bottom:14px;color:var(--text2);font-size:14px;">La cuenta quedó lista. El socio puede iniciar sesión con:</p>
+      <div style="background:var(--bg2);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;color:var(--text2);">Email</span>
+          <span style="font-weight:600;font-size:14px;">${esc(email)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;color:var(--text2);">Contraseña</span>
+          <span style="font-weight:600;font-size:14px;">DNI: ${esc(dni)}</span>
+        </div>
+      </div>
+      <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;">También puede entrar escaneando el QR del gimnasio con su DNI.</p>
+      <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>
+    `);
   }catch(err){
     errEl.textContent='Error al guardar. Intentá de nuevo.';
     errEl.style.display='block';
@@ -3010,6 +3039,40 @@ function openEditSocioModal(idx){
     </div>
   `);
 }
+function marcarEntradaManualSocio(idx){
+  const s = SOCIOS[idx];
+  if(!s) return;
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO() && !r.cl);
+  if(yaEntroHoy){
+    openModal(`
+      <div class="modal-head"><h3>Entrada ya registrada</h3><button onclick="closeModal()">✕</button></div>
+      <p style="color:var(--text2);font-size:14px;margin-bottom:14px;">${esc(s.n)} ya tiene una entrada general registrada hoy.</p>
+      <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="closeModal();confirmarEntradaManual(${idx})">Registrar igual</button></div>
+    `);
+    return;
+  }
+  s.hoy = true; s.entradaHora = hora; entradasHoy++;
+  REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
+  notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
+  logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
+  persist();
+  closeModal();
+  showToast(`Entrada de ${s.n} registrada ✓`);
+  if(staffPage==='socios') renderStaff();
+}
+function confirmarEntradaManual(idx){
+  const s = SOCIOS[idx];
+  if(!s) return;
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  s.hoy = true; s.entradaHora = hora; entradasHoy++;
+  REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
+  notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
+  logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
+  persist();
+  showToast(`Entrada de ${s.n} registrada ✓`);
+  if(staffPage==='socios') renderStaff();
+}
 function openSocioAsistenciaStaffModal(idx){
   const s = SOCIOS[idx];
   const misRegs = REGS.filter(r=>regBelongsTo(r,s));
@@ -3029,7 +3092,7 @@ function openSocioAsistenciaStaffModal(idx){
       <h3>Historial</h3>
       ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(localDateISO(r.f)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="marcarEntradaManualSocio(${idx})"><i class="ti ti-login"></i> Marcar entrada</button></div>
   `);
 }
 function saveEditSocio(idx){
