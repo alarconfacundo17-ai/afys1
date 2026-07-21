@@ -4065,8 +4065,13 @@ function srDisplay(e){
 }
 function ejRowHTML(i, e, showKg, draggable, miPesoAlumno){
   const g = ejGrupo(e.n);
-  return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;" ${draggable?`ondragover="event.preventDefault()" ondrop="dragReorder(currentEjsArr,dragSrcIdx,${i},currentEjsRenderFn)"`:''}>
-    ${draggable?`<span draggable="true" ondragstart="dragSrcIdx=${i}" style="cursor:grab;color:var(--text2);" title="Arrastrar para reordenar"><i class="ti ti-grip-vertical"></i></span>`:''}
+  const _isFirst = i===0, _isLast = i===currentEjsArr.length-1;
+  const _btnBase = 'background:none;border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer;color:var(--text2);touch-action:manipulation;';
+  return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+    ${draggable?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
+      <button style="${_btnBase}opacity:${_isFirst?0.25:1};" ${_isFirst?'disabled':''} onclick="moveEjRow(${i},-1)" title="Subir">▲</button>
+      <button style="${_btnBase}opacity:${_isLast?0.25:1};" ${_isLast?'disabled':''} onclick="moveEjRow(${i},1)" title="Bajar">▼</button>
+    </div>`:''}
     <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:13px;">${i+1}</span>
     <span id="rtEjBadge${i}" class="badge" style="flex:0 0 auto;${g?`background:${EJC[g]}22;color:${EJC[g]}`:'visibility:hidden;'}">${g?esc(g):''}</span>
     <div class="ej-picker" style="flex:2;">
@@ -4126,6 +4131,14 @@ function dragReorder(arr, from, to, renderFn){
   persist();
   if(arr===currentEjsArr) renderEjsRows();
   else renderFn();
+}
+function moveEjRow(i, dir){
+  const ni = i + dir;
+  if(ni < 0 || ni >= currentEjsArr.length) return;
+  const [item] = currentEjsArr.splice(i, 1);
+  currentEjsArr.splice(ni, 0, item);
+  persist();
+  renderEjsRows();
 }
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
