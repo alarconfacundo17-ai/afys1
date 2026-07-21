@@ -1502,6 +1502,11 @@ async function doLoginDni(){
       loginView='loginDniFirstTime'; loginError=''; renderLogin(); return;
     }
   }
+  // Bloquear login por DNI para dueños y staff
+  const isStaffOrOwner = (DUENO_EMAIL && email===DUENO_EMAIL) || CO_DUENOS.includes(email) || !!STAFF.find(s=>(s.email||'').toLowerCase()===email);
+  if(isStaffOrOwner){
+    loginView='login'; loginError='El acceso por DNI es solo para socios. Iniciá sesión con tu email y contraseña.'; renderLogin(); return;
+  }
   const {error} = await sb.auth.signInWithPassword({email, password: dni});
   if(error){
     // El DNI está en el caché pero la contraseña no coincide (ej: la cuenta
