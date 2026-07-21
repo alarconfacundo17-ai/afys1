@@ -4065,13 +4065,8 @@ function srDisplay(e){
 }
 function ejRowHTML(i, e, showKg, draggable, miPesoAlumno){
   const g = ejGrupo(e.n);
-  const _isFirst = i===0, _isLast = i===currentEjsArr.length-1;
-  const _btnBase = 'background:none;border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer;color:var(--text2);touch-action:manipulation;';
-  return `<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
-    ${draggable?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
-      <button style="${_btnBase}opacity:${_isFirst?0.25:1};" ${_isFirst?'disabled':''} onclick="moveEjRow(${i},-1)" title="Subir">▲</button>
-      <button style="${_btnBase}opacity:${_isLast?0.25:1};" ${_isLast?'disabled':''} onclick="moveEjRow(${i},1)" title="Bajar">▼</button>
-    </div>`:''}
+  return `<div data-ejrow="${i}" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;transition:opacity .15s;" ${draggable?`ondragover="ejDragOver(event,${i})" ondrop="ejDrop(event,${i})"`:''}>
+    ${draggable?`<span draggable="true" ondragstart="ejDragStart(event,${i})" ontouchstart="ejTouchStart(event,${i})" style="cursor:grab;color:var(--text2);touch-action:none;user-select:none;-webkit-user-select:none;padding:4px 2px;" title="Arrastrá para reordenar"><i class="ti ti-grip-vertical" style="font-size:20px;pointer-events:none;"></i></span>`:''}
     <span style="flex:0 0 22px;text-align:center;color:var(--text2);font-size:13px;">${i+1}</span>
     <span id="rtEjBadge${i}" class="badge" style="flex:0 0 auto;${g?`background:${EJC[g]}22;color:${EJC[g]}`:'visibility:hidden;'}">${g?esc(g):''}</span>
     <div class="ej-picker" style="flex:2;">
@@ -4132,13 +4127,37 @@ function dragReorder(arr, from, to, renderFn){
   if(arr===currentEjsArr) renderEjsRows();
   else renderFn();
 }
-function moveEjRow(i, dir){
-  const ni = i + dir;
-  if(ni < 0 || ni >= currentEjsArr.length) return;
-  const [item] = currentEjsArr.splice(i, 1);
-  currentEjsArr.splice(ni, 0, item);
-  persist();
-  renderEjsRows();
+// Desktop drag handlers para ejercicios
+function ejDragStart(e, i){ dragSrcIdx = i; e.dataTransfer.effectAllowed='move'; }
+function ejDragOver(e, i){ e.preventDefault(); e.dataTransfer.dropEffect='move'; const c=document.getElementById('rtEjs'); if(c){ [...c.children].forEach((r,ri)=>r.style.borderTop=ri===i&&i!==dragSrcIdx?'2px solid var(--primary)':''); } }
+function ejDrop(e, i){ e.preventDefault(); [...(document.getElementById('rtEjs')?.children||[])].forEach(r=>r.style.borderTop=''); dragReorder(currentEjsArr,dragSrcIdx,i,currentEjsRenderFn); }
+// Touch drag handlers para ejercicios (mobile)
+let _ejTouch = null;
+function ejTouchStart(e, i){
+  const container = document.getElementById('rtEjs');
+  if(!container) return;
+  _ejTouch = { idx:i, startY:e.touches[0].clientY, targetIdx:i, container, rows:[...container.children] };
+  container.children[i] && (container.children[i].style.opacity='0.45');
+  document.addEventListener('touchmove', _ejTouchMove, {passive:false});
+  document.addEventListener('touchend', _ejTouchEnd, {once:true});
+  e.stopPropagation();
+}
+function _ejTouchMove(e){
+  if(!_ejTouch) return;
+  e.preventDefault();
+  const y = e.touches[0].clientY;
+  let target = _ejTouch.idx;
+  _ejTouch.rows.forEach((row,ri)=>{ const r=row.getBoundingClientRect(); if(y>=r.top&&y<=r.bottom) target=ri; });
+  _ejTouch.targetIdx = target;
+  _ejTouch.rows.forEach((row,ri)=>{ row.style.borderTop = (ri===target&&target!==_ejTouch.idx)?'2px solid var(--primary)':''; });
+}
+function _ejTouchEnd(){
+  if(!_ejTouch) return;
+  document.removeEventListener('touchmove', _ejTouchMove);
+  const {idx, targetIdx, rows, container} = _ejTouch;
+  _ejTouch = null;
+  rows.forEach(r=>{ r.style.opacity=''; r.style.borderTop=''; });
+  if(targetIdx !== idx){ const [item]=currentEjsArr.splice(idx,1); currentEjsArr.splice(targetIdx,0,item); persist(); renderEjsRows(); }
 }
 function saveRutina(){
   const n = $('#rt_n').value.trim()||'Nueva rutina';
