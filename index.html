@@ -1503,7 +1503,7 @@ async function doLoginDni(){
     }
   }
   // Bloquear login por DNI para dueños y staff
-  const isStaffOrOwner = (DUENO_EMAIL && email===DUENO_EMAIL) || CO_DUENOS.includes(email) || !!STAFF.find(s=>(s.email||'').toLowerCase()===email);
+  const isStaffOrOwner = (DUENO_EMAIL && email===DUENO_EMAIL) || CO_DUENOS.includes(email) || !!STAFF.find(s=>(s.email||'').toLowerCase()===email) || !!DUENOS.find(d=>(d.email||'').toLowerCase()===email);
   if(isStaffOrOwner){
     loginView='login'; loginError='El acceso por DNI es solo para socios. Iniciá sesión con tu email y contraseña.'; renderLogin(); return;
   }
