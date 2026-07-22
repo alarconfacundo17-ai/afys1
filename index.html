@@ -195,6 +195,9 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-row-done{background:rgba(5,150,105,.07) !important;border-color:rgba(5,150,105,.3) !important;}
 [data-theme="dark"] .ej-row-done{background:rgba(52,211,153,.09) !important;border-color:rgba(52,211,153,.25) !important;}
 .page-fade{animation:fadeInUp .22s ease;}
+.rutinas-badge-btn{display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;white-space:nowrap;border:none;cursor:pointer;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;}
+.rutinas-badge-btn:hover{box-shadow:0 2px 10px var(--primary)44;transform:scale(1.06);}
+.rutinas-badge-btn:active{transform:scale(.97);box-shadow:none;}
 .btn{transition:opacity .15s ease,transform .12s ease,background-color .2s ease,border-color .2s ease,color .2s ease;}
 .btn:active{transform:scale(.96);}
 .bn-item{transition:color .2s ease;}
@@ -2716,7 +2719,7 @@ function rutinasBadgeHTML(s, idx){
   if(!count) return `<span style="color:var(--text2);font-size:13px;">—</span>`;
   const canOpen = (isSuperOwner()||hasPerm('asignarRutinas')||currentRole==='profesor'||currentRole==='dueno') && idx!=null;
   if(canOpen){
-    return `<button onclick="openRutinasBadgeModal(${idx})" title="Ver rutinas asignadas" style="display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:4px 11px;font-size:13px;font-weight:600;white-space:nowrap;border:none;cursor:pointer;transition:box-shadow .18s,transform .13s;" onmouseenter="this.style.boxShadow='0 2px 10px var(--primary)33';this.style.transform='scale(1.06)'" onmouseleave="this.style.boxShadow='';this.style.transform=''">
+    return `<button onclick="openRutinasBadgeModal(${idx})" title="Ver rutinas asignadas" class="rutinas-badge-btn">
       <i class="ti ti-barbell" style="font-size:13px;"></i>${count}
     </button>`;
   }
@@ -2741,36 +2744,32 @@ function openRutinasBadgeModal(si){
     const hoy = todayISO();
     const doneCount = ejs.filter(e=>hechos[e.n]===hoy).length;
     const resc = r.n.replace(/'/g,"\\'");
-    return `<div style="border:1.5px solid ${esHoy?'var(--primary)':'var(--border2)'};border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s;background:${esHoy?'var(--primary-light)':'var(--card)'};margin-bottom:2px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    return `<div style="border:1.5px solid ${esHoy?'var(--primary)':'var(--border2)'};border-radius:14px;padding:14px 15px;display:flex;flex-direction:column;gap:10px;background:${esHoy?'var(--primary-light)':'var(--card)'};">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;min-width:0;">
           ${esHoy?`<span class="badge" style="background:var(--primary);color:#fff;margin-bottom:5px;display:inline-block;font-size:11px;">HOY LE TOCA</span>`:''}
-          <div style="font-size:16px;font-weight:700;margin-bottom:2px;">${esc(nombre)}</div>
-          ${r.ob?`<div style="color:var(--text2);font-size:13px;">${esc(r.ob)}</div>`:''}
-          ${nota?`<div style="color:var(--text2);font-size:12.5px;margin-top:2px;"><i class="ti ti-notes" style="font-size:12px;"></i> ${esc(nota)}</div>`:''}
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">${dias.length?dias.map(d=>`<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;background:${d===diaHoy?'var(--primary)':'var(--bg2)'};color:${d===diaHoy?'#fff':'var(--text2)'};">${d.slice(0,3).toUpperCase()}</span>`).join(''):'<span style="font-size:11.5px;color:var(--text2);">Sin días asignados</span>'}</div>
+          <div style="font-size:16px;font-weight:700;line-height:1.3;word-break:break-word;">${esc(nombre)}</div>
+          ${r.ob?`<div style="color:var(--text2);font-size:13px;margin-top:2px;">${esc(r.ob)}</div>`:''}
+          ${nota?`<div style="color:var(--text2);font-size:12.5px;margin-top:3px;"><i class="ti ti-notes" style="font-size:12px;"></i> ${esc(nota)}</div>`:''}
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end;">
-          <span style="font-size:12px;font-weight:600;color:var(--text2);">${doneCount}/${ejs.length} hoy</span>
-          <div style="display:flex;gap:6px;">
-            <button title="Ver como el socio" onclick="verRutinaComoSocio(${si},'${resc}')" style="display:flex;align-items:center;gap:5px;height:34px;padding:0 13px;background:var(--bg2);color:var(--text);border:1.5px solid var(--border2);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseenter="this.style.background='var(--primary)';this.style.color='#fff';this.style.borderColor='var(--primary)'" onmouseleave="this.style.background='var(--bg2)';this.style.color='var(--text)';this.style.borderColor='var(--border2)'"><i class="ti ti-eye" style="font-size:15px;"></i> Ver</button>
-          </div>
-        </div>
+        <span style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;flex-shrink:0;margin-top:2px;">${doneCount}/${ejs.length} hoy</span>
       </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">${dias.length?dias.map(d=>`<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;background:${d===diaHoy?'var(--primary)':'var(--bg2)'};color:${d===diaHoy?'#fff':'var(--text2)'};">${d.slice(0,3).toUpperCase()}</span>`).join(''):'<span style="font-size:12px;color:var(--text2);">Sin días asignados</span>'}</div>
+      <button class="btn btn-primary" onclick="verRutinaComoSocio(${si},'${resc}')" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:11px;"><i class="ti ti-eye" style="font-size:17px;"></i> Ver rutina</button>
     </div>`;
   }).join('') : emptyState('ti-barbell-off','No tiene rutinas asignadas');
   openModal(`
     <div class="modal-head" style="margin-bottom:4px;">
       <div>
         <h3 style="margin:0;font-size:18px;">${esc(s.n)}</h3>
-        <p style="margin:2px 0 0;font-size:13px;color:var(--text2);">Rutinas asignadas${rutinas.length?` · <b style="color:var(--primary);">${rutinas.length}</b>`:'·  ninguna'}</p>
+        <p style="margin:2px 0 0;font-size:13px;color:var(--text2);">Rutinas asignadas${rutinas.length?` · <b style="color:var(--primary);">${rutinas.length}</b>`:' · ninguna'}</p>
       </div>
       <button onclick="closeModal()">✕</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;max-height:480px;overflow:auto;padding-right:2px;">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;max-height:62vh;overflow-y:auto;overflow-x:hidden;padding-right:2px;-webkit-overflow-scrolling:touch;">
       ${rows}
     </div>
-    ${canEdit?`<div class="modal-actions" style="margin-top:14px;"><button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px;" onclick="closeModal();openSocioRutinasModal(${si})"><i class="ti ti-barbell"></i> Administrar rutinas</button></div>`:''}
+    ${canEdit?`<div class="modal-actions" style="margin-top:14px;"><button class="btn btn-outline" style="width:100%;justify-content:center;gap:8px;" onclick="closeModal();openSocioRutinasModal(${si})"><i class="ti ti-barbell"></i> Administrar rutinas</button></div>`:''}
   `,'wide');
 }
 function verRutinaComoSocio(si, rname){
