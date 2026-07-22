@@ -2712,7 +2712,7 @@ function togglePerm(staffId,key,el){
 
 /* ---- SOCIOS ---- */
 function rutinasBadgeHTML(s, idx){
-  const count = Array.isArray(s.rs) ? s.rs.length : 0;
+  const count = Array.isArray(s.rs) ? s.rs.filter(n=>RUTINAS.some(r=>r.n===n)).length : 0;
   if(!count) return `<span style="color:var(--text2);font-size:13px;">—</span>`;
   const canOpen = (isSuperOwner()||hasPerm('asignarRutinas')||currentRole==='profesor'||currentRole==='dueno') && idx!=null;
   if(canOpen){
@@ -2754,7 +2754,6 @@ function openRutinasBadgeModal(si){
           <span style="font-size:12px;font-weight:600;color:var(--text2);">${doneCount}/${ejs.length} hoy</span>
           <div style="display:flex;gap:6px;">
             <button title="Ver como el socio" onclick="verRutinaComoSocio(${si},'${resc}')" style="display:flex;align-items:center;gap:5px;height:34px;padding:0 13px;background:var(--bg2);color:var(--text);border:1.5px solid var(--border2);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseenter="this.style.background='var(--primary)';this.style.color='#fff';this.style.borderColor='var(--primary)'" onmouseleave="this.style.background='var(--bg2)';this.style.color='var(--text)';this.style.borderColor='var(--border2)'"><i class="ti ti-eye" style="font-size:15px;"></i> Ver</button>
-            ${canEdit?`<button title="Editar rutinas" onclick="closeModal();openSocioRutinasModal(${si})" style="display:flex;align-items:center;gap:5px;height:34px;padding:0 13px;background:var(--bg2);color:var(--text);border:1.5px solid var(--border2);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;" onmouseenter="this.style.background='var(--primary)';this.style.color='#fff';this.style.borderColor='var(--primary)'" onmouseleave="this.style.background='var(--bg2)';this.style.color='var(--text)';this.style.borderColor='var(--border2)'"><i class="ti ti-pencil" style="font-size:15px;"></i> Editar</button>`:''}
           </div>
         </div>
       </div>
