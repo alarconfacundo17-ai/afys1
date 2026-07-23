@@ -2421,8 +2421,33 @@ function pagePanel(){
       </div>`:emptyState('ti-calendar-off','No tenés turnos cargados todavía')}
     </div>`;
   }
+  const resumenDia = (currentRole==='dueno'||isSuperOwner()) ? (()=>{
+    const hoy = todayISO();
+    const sociosHoy = SOCIOS.filter(s=>REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoy));
+    const pagosVencidos = SOCIOS.filter(s=>s.activo!==false&&s.es==='de');
+    return `<div class="card" style="margin-bottom:18px;">
+      <h3 style="margin-bottom:14px;">Resumen del día</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button onclick="openResumenHoyModal()" style="flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:var(--primary-light);border:1.5px solid var(--primary)33;border-radius:14px;padding:16px 18px;cursor:pointer;transition:box-shadow .17s;" onmouseenter="this.style.boxShadow='0 2px 12px var(--primary)22'" onmouseleave="this.style.boxShadow=''">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="ti ti-door-enter" style="font-size:22px;color:var(--primary);"></i>
+            <span style="font-size:28px;font-weight:800;color:var(--primary);">${sociosHoy.length}</span>
+          </div>
+          <span style="font-size:13px;font-weight:600;color:var(--primary);opacity:.85;">Socios entraron hoy</span>
+        </button>
+        <button onclick="staffPage='socios';renderStaff();setTimeout(()=>{ const el=document.getElementById('socioSearchInput'); if(el){el.value='';filterSociosTable('');} },50);" style="flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:${pagosVencidos.length?'rgba(239,68,68,.07)':'var(--bg2)'};border:1.5px solid ${pagosVencidos.length?'rgba(239,68,68,.25)':'var(--border2)'};border-radius:14px;padding:16px 18px;cursor:pointer;transition:box-shadow .17s;" onmouseenter="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="ti ti-credit-card-off" style="font-size:22px;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};"></i>
+            <span style="font-size:28px;font-weight:800;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};">${pagosVencidos.length}</span>
+          </div>
+          <span style="font-size:13px;font-weight:600;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};">Pagos vencidos</span>
+        </button>
+      </div>
+    </div>`;
+  })() : '';
   return `
   ${profesorIntro}
+  ${resumenDia}
   <div class="grid-metrics">${metrics}</div>
   ${currentRole!=='profesor'?`
   <div class="card" style="margin-bottom:18px;">
@@ -2440,6 +2465,34 @@ function pagePanel(){
   </div>`;
   })():''}
   `;
+}
+
+function openResumenHoyModal(){
+  const hoy = todayISO();
+  const entradas = REGS.filter(r=>r.f&&localDateISO(r.f)===hoy);
+  const vistos = new Set();
+  const rows = entradas.filter(r=>{ if(vistos.has(r.sid||r.n)){return false;} vistos.add(r.sid||r.n); return true; });
+  openModal(`
+    <div class="modal-head"><h3>Socios hoy — ${rows.length}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="max-height:68vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:8px;-webkit-overflow-scrolling:touch;">
+      ${rows.length ? rows.map(r=>{
+        const s = r.sid ? SOCIOS.find(x=>x.id===r.sid) : null;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:var(--bg2);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${esc(initials(r.n))}</div>
+            <div>
+              <div style="font-weight:600;font-size:14.5px;">${esc(r.n)}</div>
+              ${r.cl?`<div style="font-size:12px;color:var(--text2);">${esc(r.cl)}</div>`:'<div style="font-size:12px;color:var(--text2);">Entrada general</div>'}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text2);">${r.h}</span>
+            ${s?`<button class="btn btn-outline btn-sm" onclick="closeModal();openSocioOpcionesModal(${SOCIOS.indexOf(s)})" style="padding:5px 9px;"><i class="ti ti-dots-vertical" style="font-size:15px;"></i></button>`:''}
+          </div>
+        </div>`;
+      }).join('') : emptyState('ti-door-enter','Nadie entró todavía hoy')}
+    </div>
+  `,'wide');
 }
 
 /* ---- CUENTAS Y PERMISOS ---- */
@@ -2782,17 +2835,41 @@ function verRutinaComoSocio(si, rname){
 }
 function socioRowHTML(s, idx){
   const showPay = isSuperOwner() || hasPerm('verPagos');
+  const canEntrada = (currentRole==='profesor'||currentRole==='dueno'||isSuperOwner()) && s.activo!==false;
+  const yaHoy = canEntrada && REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO());
   return `
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
       ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
       <td>${rutinasBadgeHTML(s,idx)}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
-      <td>
+      <td style="white-space:nowrap;">
+        ${canEntrada?`<button class="btn btn-outline" style="padding:8px 10px;margin-right:4px;${yaHoy?'color:var(--green);border-color:var(--green);':''}" title="${yaHoy?'Ya entró hoy':'Marcar entrada'}" onclick="${yaHoy?`marcarEntradaManualSocio('${s.id}')`:`entradaRapida('${s.id}')`}"><i class="ti ti-${yaHoy?'check':'login'}" style="font-size:17px;"></i></button>`:''}
         <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
       </td>
     </tr>
   `;
+}
+function entradaRapida(socioId){
+  const idx = SOCIOS.findIndex(s=>s.id===socioId);
+  const s = idx>=0 ? SOCIOS[idx] : null;
+  if(!s) return;
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  s.hoy = true; s.entradaHora = hora; entradasHoy++;
+  REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
+  notifSocio[idx] = notifSocio[idx]||[];
+  notifSocio[idx].unshift({txt:`Tu entrada fue registrada a las ${hora}. Entrada general`, new:true});
+  notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
+  logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
+  persist();
+  showToast(`Entrada de ${s.n} registrada ✓`);
+  const tbody = document.getElementById('sociosTableBody');
+  if(tbody){
+    const rows = sociosOrdenados();
+    const showPay = isSuperOwner()||hasPerm('verPagos');
+    const cols = showPay ? 6 : 4;
+    tbody.innerHTML = rows.length ? rows.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`;
+  }
 }
 function sociosOrdenados(){
   const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
@@ -5781,8 +5858,35 @@ function openSocioRutinaDetalleModal(rname){
       </div>`;
     }).join('')}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:15.5px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--primary);border-color:var(--primary);" onclick="closeModal();renderSocio();">Cerrar</button></div>
+    <div id="completarEntrenamientoBar" style="padding:14px 0 0;">
+      ${(()=>{
+        const todosHechos = (ejs||[]).length>0 && (ejs||[]).every(e=>(s.rsHechos&&s.rsHechos[rname]&&s.rsHechos[rname][e.n])===hoy);
+        const rn_esc = rname.replace(/'/g,"\\'");
+        return todosHechos
+          ? `<button class="btn btn-outline" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--green);border-color:var(--green);" onclick="completarEntrenamiento('${rn_esc}')"><i class="ti ti-check" style="font-size:18px;"></i> Entrenamiento completado</button>`
+          : `<button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;" onclick="completarEntrenamiento('${rn_esc}')"><i class="ti ti-player-play" style="font-size:18px;"></i> Completar entrenamiento</button>`;
+      })()}
+    </div>
+    <div class="modal-actions" style="margin-top:10px;"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:14px;padding:10px 0;border-radius:12px;" onclick="closeModal();renderSocio();">Cerrar</button></div>
   `,'wide');
+}
+function completarEntrenamiento(rname){
+  const s = SOCIOS[currentSocioIdx];
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r||!s) return;
+  const ejs = (s.rsOverride&&s.rsOverride[rname]) ? s.rsOverride[rname] : r.ejs;
+  const hoy = todayISO();
+  if(!s.rsHechos) s.rsHechos = {};
+  if(!s.rsHechos[rname]) s.rsHechos[rname] = {};
+  const todosHechos = ejs.length>0 && ejs.every(e=>s.rsHechos[rname][e.n]===hoy);
+  if(todosHechos){
+    ejs.forEach(e=>delete s.rsHechos[rname][e.n]);
+  } else {
+    ejs.forEach(e=>{ s.rsHechos[rname][e.n]=hoy; });
+    s.ultimoEntreno = {r:rname, f:hoy};
+  }
+  persist();
+  openSocioRutinaDetalleModal(rname);
 }
 function toggleEjEdit(ei){
   const el = document.getElementById('ejEdit'+ei);
