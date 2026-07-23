@@ -1107,8 +1107,11 @@ async function mergeRemoteAntesDeGuardar(){
       RUTINAS.forEach(r=>{ localByName[r.n]=r; });
       remote.RUTINAS.forEach(r=>{
         if(!r.n || delR.has(r.n)) return;
-        if(localByName[r.n]){ if(!_editingRutinaName || _editingRutinaName!==r.n) Object.assign(localByName[r.n], r); }
-        else { RUTINAS.push(r); localByName[r.n]=r; }
+        if(localByName[r.n]){
+          if(!_editingRutinaName || _editingRutinaName!==r.n){
+            if((r.ts||0) >= (localByName[r.n].ts||0)) Object.assign(localByName[r.n], r);
+          }
+        } else { RUTINAS.push(r); localByName[r.n]=r; }
       });
     }
 
@@ -4244,7 +4247,7 @@ function saveRutina(){
         if(Array.isArray(s.rsRemoved)) s.rsRemoved = s.rsRemoved.map(x=>x===r.n?n:x);
       });
     }
-    r.n=n; r.t=t; r.ob=ob; r.ejs=ejs;
+    r.n=n; r.t=t; r.ob=ob; r.ejs=ejs; r.ts=Date.now();
   } else {
     if(RUTINAS.some(r=>r.n===n)){ showToast('Ya existe una rutina con ese nombre.','error'); return; }
     RUTINAS.push({n, t, ob, cr:'Tú', ejs});
@@ -5939,6 +5942,16 @@ function socioCuenta(){
       }
     }
 
+    // Detectar si local tiene rutinas más nuevas que el remoto
+    if(!localAheadOfRemote && Array.isArray(data.RUTINAS)){
+      const remByName = {};
+      data.RUTINAS.forEach(r=>{ remByName[r.n]=r; });
+      for(const lr of RUTINAS){
+        const rr = remByName[lr.n];
+        if(rr && (lr.ts||0) > (rr.ts||0)){ localAheadOfRemote = true; break; }
+      }
+    }
+
     await mergeRemoteIntoLocal(data);
     if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
 
@@ -6020,7 +6033,7 @@ function socioCuenta(){
       const delR=new Set(deletedRutinaNames);
       if(Array.isArray(remote.deletedRutinaNames)){ remote.deletedRutinaNames.forEach(n=>{if(!deletedRutinaNames.includes(n)){deletedRutinaNames.push(n); delR.add(n);}}); RUTINAS.splice(0,RUTINAS.length,...RUTINAS.filter(r=>!delR.has(r.n))); }
       const lkR={}; RUTINAS.forEach(r=>{lkR[r.n]=r;});
-      remote.RUTINAS.forEach(r=>{ if(!r.n||delR.has(r.n)) return; if(lkR[r.n]){if(!_editingRutinaName||_editingRutinaName!==r.n) Object.assign(lkR[r.n],r);} else {RUTINAS.push(r); lkR[r.n]=r;} });
+      remote.RUTINAS.forEach(r=>{ if(!r.n||delR.has(r.n)) return; if(lkR[r.n]){ if(!_editingRutinaName||_editingRutinaName!==r.n){ if((r.ts||0)>=(lkR[r.n].ts||0)) Object.assign(lkR[r.n],r); } } else {RUTINAS.push(r); lkR[r.n]=r;} });
     }
     if(Array.isArray(remote.deletedPagoKeys)){ remote.deletedPagoKeys.forEach(k=>{if(!deletedPagoKeys.includes(k)) deletedPagoKeys.push(k);}); const delPK=new Set(deletedPagoKeys); PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !delPK.has(k); })); }
     if(Array.isArray(remote.DUENOS)){ const lk=new Set(DUENOS.map(d=>d.email)); remote.DUENOS.forEach(d=>{ if(d.email&&!lk.has(d.email)){ DUENOS.push(d); lk.add(d.email); } }); }
