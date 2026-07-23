@@ -213,10 +213,11 @@ h3{font-size:15px;margin-bottom:10px;}
 .field{margin-bottom:12px;}
 .field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:999;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:999;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;max-width:calc(100vw - 32px);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
 .toast i{color:var(--green);font-size:19px;}
 .toast.toast-error i{color:var(--red);}
+.toast-undo{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:7px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;margin-left:6px;}
 
 /* toggle */
 .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:13.5px;}
@@ -887,7 +888,7 @@ function migrateProfesorDefaultPermsV2(){
 
 let persistTimer = null;
 let toastTimer = null;
-function showToast(msg, type, duration){
+function showToast(msg, type, duration, undoFn){
   let t = document.getElementById('appToast');
   if(!t){
     t = document.createElement('div');
@@ -896,12 +897,29 @@ function showToast(msg, type, duration){
     document.body.appendChild(t);
   }
   const icon = type==='error' ? 'ti-alert-circle' : type==='info' ? 'ti-cake' : 'ti-circle-check';
-  t.innerHTML = `<i class="ti ${icon}"></i>${esc(msg)}`;
+  t.innerHTML = `<i class="ti ${icon}"></i><span style="flex:1;">${esc(msg)}</span>${undoFn?`<button class="toast-undo" onclick="(${undoFn})();document.getElementById('appToast').classList.remove('show');">Deshacer</button>`:''}`;
   t.classList.toggle('toast-error', type==='error');
   clearTimeout(toastTimer);
   t.classList.add('show');
-  const ms = duration || (type==='error'?4000:2000);
+  const ms = duration || (undoFn?5000:type==='error'?4000:2000);
   toastTimer = setTimeout(()=>t.classList.remove('show'), ms);
+}
+function deshacerEntrada(socioId){
+  const idx = SOCIOS.findIndex(s=>s.id===socioId);
+  const s = idx>=0 ? SOCIOS[idx] : null;
+  if(!s) return;
+  const hoy = todayISO();
+  const regIdx = REGS.findIndex(r=>r.sid===s.id && r.f && localDateISO(r.f)===hoy);
+  if(regIdx<0){ showToast('No se encontró la entrada para deshacer','error'); return; }
+  REGS.splice(regIdx,1);
+  if(notifSocio[idx]&&notifSocio[idx].length) notifSocio[idx].shift();
+  notifStaff.shift();
+  s.hoy = REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoy);
+  if(!s.hoy) { s.entradaHora=undefined; entradasHoy=Math.max(0,entradasHoy-1); }
+  persist();
+  showToast(`Entrada de ${s.n} eliminada`);
+  const tbody = document.getElementById('sociosTableBody');
+  if(tbody){ const rows=sociosOrdenados(); const showPay=isSuperOwner()||hasPerm('verPagos'); const cols=showPay?6:4; tbody.innerHTML=rows.length?rows.map(({s,idx})=>socioRowHTML(s,idx)).join(''):`<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`; }
 }
 function socioMergeKey(s){ return s.id || (s.email||'').trim().toLowerCase() || s.n; }
 function mergeRsHechos(local, remote){
@@ -2370,8 +2388,9 @@ function ingresosUltimosMeses(n){
 }
 function pagePanel(){
   const activos = SOCIOS.filter(s=>s.activo).length;
-  const vencidos = SOCIOS.filter(s=>s.es==='de').length;
-  const asistenciasHoy = REGS.filter(r=>r.f && localDateISO(r.f)===todayISO()).length;
+  const hoyISO = todayISO();
+  const vencidos = SOCIOS.filter(s=>s.activo!==false&&s.es==='de').length;
+  const asistenciasHoy = SOCIOS.filter(s=>REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoyISO)).length;
   const verAsistencias = isSuperOwner() || hasPerm('verAsistenciasHoy');
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
@@ -2422,8 +2441,6 @@ function pagePanel(){
     </div>`;
   }
   const resumenDia = (currentRole==='dueno'||isSuperOwner()) ? (()=>{
-    const hoy = todayISO();
-    const sociosHoy = SOCIOS.filter(s=>REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoy));
     const pagosVencidos = SOCIOS.filter(s=>s.activo!==false&&s.es==='de');
     return `<div class="card" style="margin-bottom:18px;">
       <h3 style="margin-bottom:14px;">Resumen del día</h3>
@@ -2431,16 +2448,16 @@ function pagePanel(){
         <button onclick="openResumenHoyModal()" style="flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:var(--primary-light);border:1.5px solid var(--primary)33;border-radius:14px;padding:16px 18px;cursor:pointer;transition:box-shadow .17s;" onmouseenter="this.style.boxShadow='0 2px 12px var(--primary)22'" onmouseleave="this.style.boxShadow=''">
           <div style="display:flex;align-items:center;gap:8px;">
             <i class="ti ti-door-enter" style="font-size:22px;color:var(--primary);"></i>
-            <span style="font-size:28px;font-weight:800;color:var(--primary);">${sociosHoy.length}</span>
+            <span style="font-size:28px;font-weight:800;color:var(--primary);">${asistenciasHoy}</span>
           </div>
           <span style="font-size:13px;font-weight:600;color:var(--primary);opacity:.85;">Socios entraron hoy</span>
         </button>
-        <button onclick="staffPage='socios';renderStaff();setTimeout(()=>{ const el=document.getElementById('socioSearchInput'); if(el){el.value='';filterSociosTable('');} },50);" style="flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:${pagosVencidos.length?'rgba(239,68,68,.07)':'var(--bg2)'};border:1.5px solid ${pagosVencidos.length?'rgba(239,68,68,.25)':'var(--border2)'};border-radius:14px;padding:16px 18px;cursor:pointer;transition:box-shadow .17s;" onmouseenter="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+        <button onclick="staffPage='socios';renderStaff();setTimeout(()=>{ const el=document.getElementById('socioSearchInput'); if(el){el.value='';filterSociosTable('');} },50);" style="flex:1;min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:${vencidos?'rgba(239,68,68,.07)':'var(--bg2)'};border:1.5px solid ${vencidos?'rgba(239,68,68,.25)':'var(--border2)'};border-radius:14px;padding:16px 18px;cursor:pointer;transition:box-shadow .17s;" onmouseenter="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
           <div style="display:flex;align-items:center;gap:8px;">
-            <i class="ti ti-credit-card-off" style="font-size:22px;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};"></i>
-            <span style="font-size:28px;font-weight:800;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};">${pagosVencidos.length}</span>
+            <i class="ti ti-credit-card-off" style="font-size:22px;color:${vencidos?'var(--red)':'var(--text2)'};"></i>
+            <span style="font-size:28px;font-weight:800;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};">${vencidos}</span>
           </div>
-          <span style="font-size:13px;font-weight:600;color:${pagosVencidos.length?'var(--red)':'var(--text2)'};">Pagos vencidos</span>
+          <span style="font-size:13px;font-weight:600;color:${vencidos?'var(--red)':'var(--text2)'};">Pagos vencidos</span>
         </button>
       </div>
     </div>`;
@@ -2854,7 +2871,7 @@ function entradaRapida(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
   notifSocio[idx] = notifSocio[idx]||[];
@@ -2862,7 +2879,8 @@ function entradaRapida(socioId){
   notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
-  showToast(`Entrada de ${s.n} registrada ✓`);
+  const _sid = s.id;
+  showToast(`Entrada de ${s.n} registrada ✓`, null, null, `function(){deshacerEntrada('${s.id}')}`);
   const tbody = document.getElementById('sociosTableBody');
   if(tbody){
     const rows = sociosOrdenados();
@@ -3192,7 +3210,7 @@ function marcarEntradaManualSocio(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
   const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO());
   if(yaEntroHoy){
     const sn_esc = s.n.replace(/'/g,"\\'");
@@ -3211,14 +3229,14 @@ function marcarEntradaManualSocio(socioId){
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
   closeModal();
-  showToast(`Entrada de ${s.n} registrada ✓`);
+  showToast(`Entrada de ${s.n} registrada ✓`, null, null, `function(){deshacerEntrada('${s.id}')}`);
   if(staffPage==='socios') renderStaff();
 }
 function confirmarEntradaManual(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
   notifSocio[idx] = notifSocio[idx]||[];
@@ -3226,7 +3244,7 @@ function confirmarEntradaManual(socioId){
   notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
-  showToast(`Entrada de ${s.n} registrada ✓`);
+  showToast(`Entrada de ${s.n} registrada ✓`, null, null, `function(){deshacerEntrada('${s.id}')}`);
   if(staffPage==='socios') renderStaff();
 }
 function openSocioAsistenciaStaffModal(idx){
@@ -5171,7 +5189,7 @@ function movimientosTablaHTML(){
 function fmtFechaHora(iso){
   const d = new Date(iso);
   if(isNaN(d)) return '-';
-  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
 function filterMovimientosTipo(v){ movFiltroTipo = v; renderMovimientosTabla(); }
 function filterMovimientosQ(v){ movFiltroQ = v; renderMovimientosTabla(); }
