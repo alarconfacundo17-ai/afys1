@@ -3966,7 +3966,9 @@ function duplicarRutina(idx){
   const copia = {n, t:r.t, ob:r.ob, cr:'Tú', ejs:r.ejs.map(e=>({...e}))};
   RUTINAS.push(copia);
   persist();
-  openRutinaModal(RUTINAS.length-1);
+  // Buscar por nombre después del merge para que el índice sea correcto
+  const newIdx = RUTINAS.findIndex(x=>x.n===n);
+  openRutinaModal(newIdx>=0 ? newIdx : RUTINAS.length-1);
 }
 function deleteRutina(idx){
   const r = RUTINAS[idx];
