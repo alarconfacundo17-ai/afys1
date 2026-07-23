@@ -4156,7 +4156,7 @@ function addEjRow(){
 function removeEjRow(i){ currentEjsArr.splice(i,1); renderEjsRows(); }
 const RUTINA_TIPOS = ['Fuerza','Adaptación','Cardio','Movilidad','Full body','Personal'];
 function renderRutinaModalBody(){
-  const r = editRutinaIdx!==null ? RUTINAS[editRutinaIdx] : null;
+  const r = editRutinaIdx!==null ? ((_editingRutinaName ? RUTINAS.find(x=>x.n===_editingRutinaName) : null) || RUTINAS[editRutinaIdx]) : null;
   const isOtroTipo = !!(r && r.t && !RUTINA_TIPOS.includes(r.t));
   openModal(`
     <div class="modal-sticky-top">
@@ -4223,9 +4223,12 @@ function saveRutina(){
   let t = $('#rt_t').value;
   if(t==='Otro') t = $('#rt_t_otro_val').value.trim()||'Otro';
   const ob = $('#rt_ob').value;
-  const ejs = newRutinaEjs.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,v:''});
+  const ejs = currentEjsArr.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,v:''});
   if(editRutinaIdx!==null){
-    const r = RUTINAS[editRutinaIdx];
+    // Buscar por nombre para evitar índice desactualizado si el merge remoto reordenó RUTINAS
+    const stableIdx = _editingRutinaName ? RUTINAS.findIndex(r=>r.n===_editingRutinaName) : editRutinaIdx;
+    const r = RUTINAS[stableIdx>=0 ? stableIdx : editRutinaIdx];
+    if(!r){ showToast('No se encontró la rutina. Intentá de nuevo.','error'); return; }
     if(r.n!==n){
       // tombstonear el nombre viejo para que el merge remoto no lo reimporte
       if(!deletedRutinaNames.includes(r.n)) deletedRutinaNames.push(r.n);
