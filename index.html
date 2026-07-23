@@ -2871,6 +2871,22 @@ function entradaRapida(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
+  openModal(`
+    <div style="text-align:center;padding:10px 0 4px;">
+      <div style="width:54px;height:54px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin:0 auto 14px;">${esc(initials(s.n))}</div>
+      <h3 style="margin:0 0 6px;font-size:19px;">¿Vino ${esc(s.n)} hoy?</h3>
+      <p style="color:var(--text2);font-size:14px;margin:0 0 22px;">Se va a registrar la entrada al gimnasio.</p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" style="flex:1;justify-content:center;font-size:15px;padding:13px 0;" onclick="closeModal()">No</button>
+        <button class="btn btn-primary" style="flex:1;justify-content:center;font-size:15px;padding:13px 0;" onclick="closeModal();_confirmarEntradaRapida('${socioId}')">Sí, vino</button>
+      </div>
+    </div>
+  `);
+}
+function _confirmarEntradaRapida(socioId){
+  const idx = SOCIOS.findIndex(s=>s.id===socioId);
+  const s = idx>=0 ? SOCIOS[idx] : null;
+  if(!s) return;
   const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
