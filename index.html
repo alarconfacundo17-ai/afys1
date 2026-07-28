@@ -6041,7 +6041,7 @@ function openEliteEntrenamientoDiaModal(id, ds){
     const icon = cumplida?'ti-circle-check-filled':isFuture?'ti-calendar':'ti-circle-x';
     // Solo mostrar X si fue asignada via planFechas (no planSemanal legacy)
     const esPlanFecha = !!(d.planFechas||{})[ds];
-    const removeBtn = esPlanFecha ? `<button onclick="quitarPlanFecha('${id}','${ds}')" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.6;line-height:1;flex-shrink:0;" title="Quitar rutina de este día"><i class="ti ti-x" style="font-size:16px;pointer-events:none;"></i></button>` : '';
+    const removeBtn = esPlanFecha ? `<button data-qpf-id="${esc(id)}" data-qpf-ds="${esc(ds)}" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.6;line-height:1;flex-shrink:0;" title="Quitar rutina de este día"><i class="ti ti-x" style="font-size:16px;pointer-events:none;"></i></button>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border2);">
       <i class="ti ${icon}" style="font-size:20px;color:${color};flex-shrink:0;"></i>
       <div style="flex:1;">
@@ -6087,6 +6087,12 @@ function openEliteEntrenamientoDiaModal(id, ds){
     ${preHTML}${postHTML}
     ${!hasAny ? `<div style="text-align:center;padding:32px 0;color:var(--text2);"><i class="ti ti-calendar-off" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i><p style="margin:0;font-size:13px;">Sin información para este día.</p></div>` : ''}
   </div>`);
+  // Listener delegado para botón quitar planFecha (evita problemas de escaping en onclick)
+  document.querySelectorAll('[data-qpf-id]').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      quitarPlanFecha(this.dataset.qpfId, this.dataset.qpfDs);
+    });
+  });
 }
 
 function openElitePlanCalendarioModal(id, ym){
