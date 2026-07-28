@@ -5773,127 +5773,143 @@ function openEliteEntrenamientosModal(id){
   const d = eliteById(id);
   if(!d) return;
   const rh = d.rsHechos||{};
+  const pse = d.pse||[];
+
+  // Recolectar todas las fechas con actividad
   const dateSet = new Set();
   for(const rname of Object.keys(rh)){
     for(const val of Object.values(rh[rname])){
       if(val && typeof val==='string' && val.length===10) dateSet.add(val);
     }
   }
+  pse.forEach(p=>{ if(p.f) dateSet.add(p.f); });
+
   if(!dateSet.size){
-    openModal(`<div class="modal-head"><h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos</h3><button onclick="closeModal()">✕</button></div>
+    openModal(`<div class="modal-head"><h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3><button onclick="closeModal()">✕</button></div>
       <div style="padding:40px 16px;text-align:center;color:var(--text2);"><i class="ti ti-calendar-off" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3;"></i><p style="margin:0;font-size:14px;">Sin entrenamientos registrados aún.</p></div>`);
     return;
   }
+
+  // Agrupar por semana
   const weekMap = {};
   for(const ds of dateSet){
     const wk = _weekMonday(ds);
     if(!weekMap[wk]) weekMap[wk] = [];
     weekMap[wk].push(ds);
   }
-  const DIAS_C = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  function fmtShort(ds){
+
+  const DIAS_L = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  function fmtDate(ds){
     const dt = new Date(ds+'T12:00:00');
-    return `${dt.getDate()}/${dt.getMonth()+1}`;
+    return `${dt.getDate()} ${MESES_C[dt.getMonth()]}`;
   }
+
+  function pseResumen(pseObj){
+    if(!pseObj) return '';
+    const parts = [];
+    if(typeof pseObj.energia==='number' && Array.isArray(PSE_PRE[0].opts))
+      parts.push(`Energía: <b>${PSE_PRE[0].opts[pseObj.energia]||pseObj.energia+1}</b>`);
+    if(typeof pseObj.sueno==='number' && Array.isArray(PSE_PRE[1].opts))
+      parts.push(`Sueño: <b>${PSE_PRE[1].opts[pseObj.sueno]||pseObj.sueno+1}</b>`);
+    if(pseObj.dolor!==undefined && pseObj.dolor!==null && pseObj.dolor!=='')
+      parts.push(`Dolor: <b>${typeof pseObj.dolor==='number'?(PSE_PRE[2].opts[pseObj.dolor]||pseObj.dolor+1):esc(String(pseObj.dolor))}</b>`);
+    if(pseObj.nota_pre) parts.push(`Nota: <b>${esc(pseObj.nota_pre)}</b>`);
+    return parts.join(' · ');
+  }
+
+  function psePostResumen(pseObj){
+    if(!pseObj) return '';
+    const parts = [];
+    if(typeof pseObj.rpe==='number') parts.push(`RPE: <b>${pseObj.rpe}/10</b>`);
+    if(typeof pseObj.carga==='number' && Array.isArray(PSE_POST[1].opts))
+      parts.push(`Carga: <b>${PSE_POST[1].opts[pseObj.carga]||pseObj.carga+1}</b>`);
+    if(typeof pseObj.satisfaccion==='number' && Array.isArray(PSE_POST[3].opts))
+      parts.push(`Conformidad: <b>${PSE_POST[3].opts[pseObj.satisfaccion]||pseObj.satisfaccion+1}</b>`);
+    if(pseObj.nota_post) parts.push(`Nota: <b>${esc(pseObj.nota_post)}</b>`);
+    return parts.join(' · ');
+  }
+
   const weeks = Object.keys(weekMap).sort().reverse();
+
   const weeksHTML = weeks.map(wkMon=>{
     const wkEnd = new Date(wkMon+'T12:00:00');
     wkEnd.setDate(wkEnd.getDate()+6);
     const wkEndStr = wkEnd.toISOString().slice(0,10);
     const dias = weekMap[wkMon].sort();
+
     const daysHTML = dias.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
-      const diaLabel = DIAS_C[dt.getDay()];
-      const rutsDone = (d.rs||[]).filter(rname=>{
+      const diaLabel = DIAS_L[dt.getDay()];
+
+      // Rutinas con actividad ese día
+      const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
         const ejs = r ? r.ejs||[] : [];
         const rhR = rh[rname]||{};
-        return ejs.some(e=>rhR[e.n]===ds);
-      });
-      const hasPse = (d.pse||[]).some(p=>p.f===ds);
-      return `<button onclick="openEliteSemanaDiaModal('${id}','${ds}')" style="all:unset;display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border2);cursor:pointer;width:100%;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
-        <div style="width:38px;text-align:center;flex-shrink:0;">
-          <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">${diaLabel}</div>
-          <div style="font-size:20px;font-weight:800;line-height:1.1;">${dt.getDate()}</div>
+        const done = ejs.filter(e=>rhR[e.n]===ds).length;
+        if(!done) return null;
+        const total = ejs.length;
+        const completo = done===total && total>0;
+        return {rname, done, total, completo};
+      }).filter(Boolean);
+
+      // PSE de ese día
+      const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
+      const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
+
+      const rutHTML = rutDia.length
+        ? rutDia.map(rt=>`
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <div style="width:22px;height:22px;border-radius:6px;background:${rt.completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ti ${rt.completo?'ti-check':'ti-barbell'}" style="font-size:11px;color:${rt.completo?'var(--green)':'var(--primary)'};"></i>
+            </div>
+            <div style="min-width:0;">
+              <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rt.rname)}</div>
+              <div style="font-size:11px;color:var(--text2);">${rt.done}/${rt.total} ejercicios${rt.completo?' · <span style="color:var(--green);">completa</span>':''}</div>
+            </div>
+          </div>`).join('')
+        : `<div style="font-size:12px;color:var(--text2);font-style:italic;">Sin rutina</div>`;
+
+      const preHTML = psePre ? `
+        <div style="margin-top:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--primary);">
+          <div style="font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">PSE antes</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.5;">${pseResumen(psePre)||'<span style="color:var(--text2);">Sin datos</span>'}</div>
+        </div>` : '';
+
+      const postHTML = psePost ? `
+        <div style="margin-top:6px;padding:7px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--green);">
+          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">PSE después${psePost.rname?` · ${esc(psePost.rname)}`:''}</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.5;">${psePostResumen(psePost)||'<span style="color:var(--text2);">Sin datos</span>'}</div>
+        </div>` : '';
+
+      return `<div style="padding:12px 14px;border-bottom:1px solid var(--border2);">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+          <span style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;min-width:26px;">${diaLabel}</span>
+          <span style="font-size:13px;font-weight:700;">${fmtDate(ds)}</span>
         </div>
-        <div style="flex:1;min-width:0;">
-          ${rutsDone.length ? rutsDone.map(r=>`<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r)}</div>`).join('') : '<div style="font-size:12px;color:var(--text2);">Actividad parcial</div>'}
-          ${hasPse?'<div style="font-size:11px;color:var(--primary);margin-top:1px;"><i class="ti ti-heart-rate-monitor" style="font-size:10px;"></i> PSE registrada</div>':''}
-        </div>
-        <i class="ti ti-chevron-right" style="color:var(--text2);font-size:14px;flex-shrink:0;"></i>
-      </button>`;
+        ${rutHTML}
+        ${preHTML}
+        ${postHTML}
+      </div>`;
     }).join('');
-    return `<div style="margin-bottom:10px;border:1px solid var(--border2);border-radius:12px;overflow:hidden;">
-      <div style="padding:8px 14px;background:var(--bg2);font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">
-        Semana del ${fmtShort(wkMon)} al ${fmtShort(wkEndStr)}
+
+    return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
+      <div style="padding:9px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Semana</span>
+        <span style="font-size:12px;font-weight:700;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
       </div>
       ${daysHTML}
     </div>`;
   }).join('');
+
   openModal(`<div class="modal-head">
     <h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3>
     <button onclick="closeModal()">✕</button>
   </div>
-  <div style="padding:0 16px 20px;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch;">
+  <div style="padding:0 16px 20px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
     ${weeksHTML}
-  </div>`);
-}
-
-function openEliteSemanaDiaModal(id, fecha){
-  const d = eliteById(id);
-  if(!d) return;
-  const rh = d.rsHechos||{};
-  const dt = new Date(fecha+'T12:00:00');
-  const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
-
-  const rutRows = (d.rs||[]).map(rname=>{
-    const r = RUTINAS.find(x=>x.n===rname);
-    const ejs = r ? r.ejs||[] : [];
-    const rhR = rh[rname]||{};
-    const done = ejs.filter(e=>rhR[e.n]===fecha).length;
-    if(!done) return '';
-    const total = ejs.length;
-    const completo = done===total && total>0;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);">
-      <div style="width:30px;height:30px;border-radius:8px;background:${completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:14px;color:${completo?'var(--green)':'var(--primary)'};"></i>
-      </div>
-      <div>
-        <div style="font-size:13px;font-weight:600;">${esc(rname)}</div>
-        <div style="font-size:11px;color:var(--text2);">${done}/${total} ejercicios${completo?' · completa':' · parcial'}</div>
-      </div>
-    </div>`;
-  }).filter(Boolean).join('');
-
-  const pseDia = (d.pse||[]).filter(p=>p.f===fecha);
-  const pseHTML = pseDia.length ? `
-    <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">PSE</div>
-    ${pseDia.map(p=>{
-      const tipo = p.tipo==='pre'?'Antes de entrenar':'Después de entrenar';
-      const preguntas = p.tipo==='pre' ? PSE_PRE : PSE_POST;
-      const rows = preguntas.map(q=>{
-        const val = p[q.id];
-        if(val===undefined||val===null||val==='') return '';
-        const display = (q.type==='scale'||q.type==='choice') && Array.isArray(q.opts) && typeof val==='number'
-          ? `${val+1} — ${q.opts[val]||val}` : String(val);
-        return `<div style="font-size:12px;margin-bottom:4px;"><span style="color:var(--text2);">${esc(q.label)}: </span><strong>${esc(display)}</strong></div>`;
-      }).filter(Boolean).join('');
-      return `<div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
-        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--primary);">${tipo}${p.rname?` · ${esc(p.rname)}`:''}</div>
-        ${rows||'<span style="font-size:12px;color:var(--text2);">Sin datos.</span>'}
-      </div>`;
-    }).join('')}` : `<p style="font-size:13px;color:var(--text2);margin-top:16px;">Sin PSE registrada para este día.</p>`;
-
-  openModal(`<div class="modal-head">
-    <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
-    <button onclick="closeModal()">✕</button>
-  </div>
-  <div style="padding:0 16px 20px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
-    <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;">Rutinas</div>
-    ${rutRows||'<p style="font-size:13px;color:var(--text2);margin:0;">Sin rutinas registradas.</p>'}
-    ${pseHTML}
   </div>`);
 }
 
