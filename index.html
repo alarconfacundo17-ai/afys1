@@ -5450,9 +5450,24 @@ function guardarEliteDeportista(id){
 }
 
 /* ---- Modal: ficha completa del deportista (staff) ---- */
+function refreshEliteDeportistaModal(id){
+  const box = document.querySelector('.modal-box');
+  if(!box){ openEliteDeportistaModal(id); return; }
+  box.style.transition = 'opacity .12s';
+  box.style.opacity = '0';
+  setTimeout(()=>{
+    box.innerHTML = _eliteDeportistaModalHTML(id);
+    box.style.opacity = '1';
+  }, 120);
+}
+
 function openEliteDeportistaModal(id){
+  openModal(_eliteDeportistaModalHTML(id));
+}
+
+function _eliteDeportistaModalHTML(id){
   const d = eliteById(id);
-  if(!d) return;
+  if(!d) return '';
   const link = eliteLoginLink(d);
   const todayStr = todayISO();
 
@@ -5500,7 +5515,7 @@ function openEliteDeportistaModal(id){
 
   const pseCount = Array.isArray(d.pse) ? d.pse.length : 0;
 
-  openModal(`
+  return `
     <div class="modal-head">
       <h3 style="font-size:16px;">${eliteAvatarSVG(d.n,28)} <span style="margin-left:8px;">${esc(d.n)}</span></h3>
       <button onclick="closeModal()">✕</button>
@@ -5548,7 +5563,7 @@ function openEliteDeportistaModal(id){
         <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar datos</button>
         <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
       </div>
-    </div>`);
+    </div>`;
 }
 
 function eliteForzarCompletada(id, rname){
@@ -5563,7 +5578,7 @@ function eliteForzarCompletada(id, rname){
   if(!d.ultimoEntreno||d.ultimoEntreno.f<todayStr) d.ultimoEntreno={r:rname,f:todayStr};
   persist();
   showToast('Rutina marcada como completada hoy','ok');
-  openEliteDeportistaModal(id);
+  refreshEliteDeportistaModal(id);
 }
 
 function openElitePseFechasModal(id){
@@ -5727,7 +5742,7 @@ function asignarRutinaElite(id){
   if(!d.rsHechos) d.rsHechos = {};
   if(!d.rsHechos[sel.value]) d.rsHechos[sel.value] = {};
   persist();
-  openEliteDeportistaModal(id);
+  refreshEliteDeportistaModal(id);
 }
 
 function quitarRutinaElite(id, rname){
@@ -5735,7 +5750,7 @@ function quitarRutinaElite(id, rname){
   if(!d) return;
   d.rs = (d.rs||[]).filter(n=>n!==rname);
   persist();
-  openEliteDeportistaModal(id);
+  refreshEliteDeportistaModal(id);
 }
 
 function toggleActivoElite(id){
@@ -5777,7 +5792,7 @@ function guardarCompetenciaElite(id){
   if(!Array.isArray(d.competencias)) d.competencias = [];
   d.competencias.push({n, f, lugar:($('#compLugar')||{}).value?.trim()||'', resultado:($('#compResultado')||{}).value?.trim()||''});
   persist();
-  openEliteDeportistaModal(id);
+  refreshEliteDeportistaModal(id);
   showToast('Competencia guardada','ok');
 }
 
@@ -5786,7 +5801,7 @@ function eliminarCompetenciaElite(id, ci){
   if(!d||!Array.isArray(d.competencias)) return;
   d.competencias.splice(ci,1);
   persist();
-  openEliteDeportistaModal(id);
+  refreshEliteDeportistaModal(id);
 }
 
 /* ============ PANEL ELITE (deportista) ============ */
