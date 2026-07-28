@@ -1003,7 +1003,9 @@ async function mergeRemoteAntesDeGuardar(){
         if(Array.isArray(rs.rsRemoved) && rs.rsRemoved.length){
           if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved = [];
           const lrr = new Set(ls.rsRemoved);
-          rs.rsRemoved.forEach(n=>{ if(!lrr.has(n)){ ls.rsRemoved.push(n); lrr.add(n); } });
+          const localRsSet = new Set(ls.rs || []);
+          // no importar tombstone si el local ya tiene la rutina asignada (la asignación local gana)
+          rs.rsRemoved.forEach(n=>{ if(!lrr.has(n) && !localRsSet.has(n)){ ls.rsRemoved.push(n); lrr.add(n); } });
           // aplicar tombstone: quitar del rs local
           const removed = new Set(ls.rsRemoved);
           ls.rs = ls.rs.filter(r=>!removed.has(r));
@@ -6145,7 +6147,7 @@ function socioCuenta(){
         if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
-        if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
+        if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); const lrsSet=new Set(ls.rs||[]); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)&&!lrsSet.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
         if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const localRemoved=new Set(ls.rsRemoved||[]); const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
       });
       // Rebuild SOCIOS_LOGIN idx after merge (array positions may have shifted)
