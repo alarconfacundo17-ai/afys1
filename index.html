@@ -1752,11 +1752,14 @@ function openDemoChooserModal(){
     <div class="modal-head"><h3>Modo demo</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:12.5px;margin-bottom:14px;">Vas a ver la app exactamente como la ve esa cuenta. Nada de lo que hagas en modo demo se guarda.</p>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div>
+      <div style="position:relative;">
         <p style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Ver como Socio</p>
-        ${sociosOrd.length?`<input id="demo_socio_q" type="text" placeholder="Buscar socio..." autocomplete="off" style="margin-bottom:6px;font-size:13px;padding:8px 12px;width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);" oninput="filterDemoSociosSelect(this.value)">
-        <select id="demo_socio_sel" style="margin-bottom:6px;">${sociosOrd.map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('')}</select>
-        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', Number($('#demo_socio_sel').value))">Entrar</button>`
+        ${sociosOrd.length?`<div style="position:relative;">
+          <input id="demo_socio_q" type="text" placeholder="Buscar socio..." autocomplete="off" style="font-size:13px;padding:8px 12px;width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);" oninput="filterDemoSociosDropdown(this.value)" onfocus="filterDemoSociosDropdown(this.value)">
+          <div id="demo_socio_drop" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+        </div>
+        <div id="demo_socio_selected" style="font-size:13px;color:var(--text2);margin:6px 0;min-height:20px;"></div>
+        <button class="btn btn-primary btn-sm" onclick="enterDemo('socio', window._demoSocioIdx??sociosOrd[0]?.i??0)">Entrar</button>`
         :`<p style="color:var(--text2);font-size:13px;">No hay socios cargados todavía.</p>`}
       </div>
       <div>
@@ -1781,13 +1784,25 @@ function openDemoChooserModal(){
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button></div>
   `);
 }
-function filterDemoSociosSelect(q){
-  const sel = $('#demo_socio_sel'); if(!sel) return;
+function filterDemoSociosDropdown(q){
+  const drop = $('#demo_socio_drop'); if(!drop) return;
   const norm = q.trim().toLowerCase();
   const sorted = SOCIOS.map((s,i)=>({s,i})).sort((a,b)=>a.s.n.localeCompare(b.s.n,'es'));
   const filtered = norm ? sorted.filter(({s})=>s.n.toLowerCase().includes(norm)) : sorted;
-  sel.innerHTML = filtered.map(({s,i})=>`<option value="${i}">${esc(s.n)}</option>`).join('');
+  if(!filtered.length){ drop.style.display='none'; return; }
+  drop.style.display='block';
+  drop.innerHTML = filtered.slice(0,30).map(({s,i})=>`<div onclick="selectDemoSocioItem(${i},'${esc(s.n).replace(/'/g,"\\'")}')" style="padding:9px 13px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border2);">${esc(s.n)}</div>`).join('');
+  // hover effect
+  drop.querySelectorAll('div').forEach(el=>{ el.onmouseenter=()=>el.style.background='var(--primary-light)'; el.onmouseleave=()=>el.style.background=''; });
 }
+function selectDemoSocioItem(idx, name){
+  window._demoSocioIdx = idx;
+  const inp = $('#demo_socio_q'); if(inp) inp.value = name;
+  const drop = $('#demo_socio_drop'); if(drop) drop.style.display='none';
+  const sel = $('#demo_socio_selected'); if(sel){ sel.textContent=''; }
+}
+// cerrar dropdown al hacer click afuera
+document.addEventListener('click', e=>{ const drop=$('#demo_socio_drop'); if(drop&&!drop.contains(e.target)&&e.target.id!=='demo_socio_q') drop.style.display='none'; });
 function enterDemo(role, idOrIdx){
   demoPrev = {role: currentRole, staffId: currentStaffId, socioIdx: currentSocioIdx, eliteId: currentEliteId};
   demoMode = true;
