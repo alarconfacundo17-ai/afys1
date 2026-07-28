@@ -5992,12 +5992,8 @@ function openEliteEntrenamientoDiaModal(id, ds){
   const isFuture = ds > todayStr;
   const isToday = ds === todayStr;
 
-  const planSemanal = d.planSemanal||{};
   const planFechaRname = (d.planFechas||{})[ds];
-  const planRnames = planFechaRname ? [planFechaRname] : Object.keys(planSemanal).filter(rname=>{
-    const dias = planSemanal[rname];
-    return Array.isArray(dias) && dias.includes(dt.getDay());
-  });
+  const planRnames = planFechaRname ? [planFechaRname] : [];
 
   const rutDia = (d.rs||[]).map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
