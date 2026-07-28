@@ -6380,36 +6380,46 @@ function elitePageInicio(d){
       </div>
     </div>
 
-    ${rutinas.length?`
-    <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Mis rutinas</div>
-    ${rutinas.map((rname,ri)=>{
-      const r = RUTINAS.find(x=>x.n===rname);
-      const rh = d.rsHechos?.[rname]||{};
-      const ejsList = r?r.ejs:[];
+    ${(()=>{
+      const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const dt = new Date(todayStr+'T12:00:00');
+      const fechaLabel = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
+      const rutinaHoy = (d.planFechas||{})[todayStr];
+      const r = rutinaHoy ? RUTINAS.find(x=>x.n===rutinaHoy) : null;
+      const rh = rutinaHoy ? (d.rsHechos?.[rutinaHoy]||{}) : {};
+      const ejsList = r ? r.ejs||[] : [];
       const ejsTotal = ejsList.length;
       const ejsHechos = ejsList.filter(e=>rh[e.n]===todayStr).length;
       const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
-      const completo = ejsHechos===ejsTotal&&ejsTotal>0;
-      return `<div class="card" style="padding:16px;margin-bottom:10px;cursor:pointer;border-radius:14px;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;animation-delay:${ri*0.04}s;" onclick="eliteAbrirRutina('${escQ(rname)}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(59,130,201,.18)'" onmouseleave="this.style.boxShadow=''">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejsTotal?'10px':'0'};">
-          <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:18px;color:${completo?'var(--green)':'var(--primary)'};"></i>
+      const completo = ejsTotal>0 && ejsHechos===ejsTotal;
+
+      return `
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">${fechaLabel}</div>
+      ${rutinaHoy ? `
+      <div class="card" style="padding:16px;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteAbrirRutina('${escQ(rutinaHoy)}')">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejsTotal?'12px':'0'};">
+          <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':'var(--primary)'};"></i>
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-            <div style="font-size:12px;color:var(--text2);">${esc(r?.t||'')} · ${ejsTotal} ejercicios</div>
+            <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Rutina de hoy</div>
+            <div style="font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rutinaHoy)}</div>
+            ${ejsTotal ? `<div style="font-size:12px;color:var(--text2);">${ejsTotal} ejercicios</div>` : ''}
           </div>
-          ${completo?`<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓ Completo</span>`:`<i class="ti ti-chevron-right" style="color:var(--text2);font-size:16px;flex-shrink:0;"></i>`}
+          ${completo ? `<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓ Completo</span>` : `<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>`}
         </div>
-        ${ejsTotal?`<div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
+        ${ejsTotal ? `
+        <div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
           <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;transition:width .5s cubic-bezier(.22,1,.36,1);"></div>
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados hoy</div>`:''}
-      </div>`;
-    }).join('')}`:`<div class="card" style="text-align:center;padding:36px 20px;color:var(--text2);border-radius:14px;">
-      <i class="ti ti-barbell" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
-      <p style="margin:0;font-size:14px;">Todavía no tenés rutinas asignadas.</p>
-    </div>`}
+        <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados</div>` : ''}
+      </div>` : `
+      <div class="card" style="text-align:center;padding:32px 20px;color:var(--text2);border-radius:14px;">
+        <i class="ti ti-calendar-off" style="font-size:34px;display:block;margin-bottom:10px;opacity:.3;"></i>
+        <p style="margin:0;font-size:14px;">No hay rutina asignada para hoy.</p>
+      </div>`}`;
+    })()}
   </div>`;
 }
 
