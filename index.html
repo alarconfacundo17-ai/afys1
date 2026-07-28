@@ -1473,6 +1473,17 @@ function renderLogin(){
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='forgot';loginError='';loginInfo='';renderLogin();">¿Olvidaste tu contraseña?</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">← Volver</button>
     `;
+  } else if(loginView==='eliteLogin'){
+    box.innerHTML = `
+      <img src="logo.png" alt="AFYS" class="login-logo">
+      <p class="sub" style="margin-bottom:8px;">Ingresá tu DNI para acceder a tu panel de deportista.</p>
+      <label>Número de DNI</label>
+      <input id="eliteDniLogin" type="number" placeholder="Ej: 38456123" style="font-size:18px;letter-spacing:1px;text-align:center;padding:14px;" onkeydown="if(event.key==='Enter')tryEliteLogin($('#eliteDniLogin').value)" autofocus>
+      <div id="eliteLoginErr" style="color:var(--red);font-size:12.5px;margin-top:6px;display:none;"></div>
+      ${loginError?`<p style="color:var(--red);font-size:12.5px;margin-top:6px;">${esc(loginError)}</p>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="tryEliteLogin($('#eliteDniLogin').value)"><i class="ti ti-login"></i> Ingresar</button>
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" onclick="loginView='login';loginError='';renderLogin();">← Volver</button>
+    `;
   } else if(loginView==='loginDniFirstTime'){
     box.innerHTML = `
       <img src="logo.png" alt="AFYS" class="login-logo">
@@ -1495,6 +1506,9 @@ function renderLogin(){
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="doLoginDni()">Ingresar</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;" onclick="loginView='signupSocio';loginError='';renderLogin();">Registrar cuenta nueva</button>
       <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:12px;opacity:0.65;" onclick="loginView='loginEmail';loginError='';renderLogin();">Ingresar con email y contraseña</button>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border2);text-align:center;">
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;gap:7px;" onclick="loginView='eliteLogin';loginError='';renderLogin();"><i class="ti ti-barbell" style="font-size:15px;"></i> Soy deportista del equipo</button>
+      </div>
     `;
   }
 }
