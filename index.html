@@ -5824,26 +5824,25 @@ function openEliteEntrenamientosModal(id){
 
   function pseResumen(pseObj){
     if(!pseObj) return '';
+    const r = pseObj.r || {};
     const parts = [];
-    if(typeof pseObj.energia==='number' && Array.isArray(PSE_PRE[0].opts))
-      parts.push(`Energía: <b>${PSE_PRE[0].opts[pseObj.energia]||pseObj.energia+1}</b>`);
-    if(typeof pseObj.sueno==='number' && Array.isArray(PSE_PRE[1].opts))
-      parts.push(`Sueño: <b>${PSE_PRE[1].opts[pseObj.sueno]||pseObj.sueno+1}</b>`);
-    if(pseObj.dolor!==undefined && pseObj.dolor!==null && pseObj.dolor!=='')
-      parts.push(`Dolor: <b>${typeof pseObj.dolor==='number'?(PSE_PRE[2].opts[pseObj.dolor]||pseObj.dolor+1):esc(String(pseObj.dolor))}</b>`);
-    if(pseObj.nota_pre) parts.push(`Nota: <b>${esc(pseObj.nota_pre)}</b>`);
+    if(r.energia!=null && r.energia!=='') parts.push(`Energía: <b>${esc(String(r.energia))}</b>`);
+    if(r.sueno!=null && r.sueno!=='') parts.push(`Sueño: <b>${esc(String(r.sueno))}</b>`);
+    if(r.dolor!=null && r.dolor!=='') parts.push(`Dolor: <b>${esc(String(r.dolor))}</b>`);
+    if(r.animo!=null && r.animo!=='') parts.push(`Ánimo: <b>${esc(String(r.animo))}</b>`);
+    if(r.nota_pre) parts.push(`Nota: <b>${esc(r.nota_pre)}</b>`);
     return parts.join(' · ');
   }
 
   function psePostResumen(pseObj){
     if(!pseObj) return '';
+    const r = pseObj.r || {};
     const parts = [];
-    if(typeof pseObj.rpe==='number') parts.push(`RPE: <b>${pseObj.rpe}/10</b>`);
-    if(typeof pseObj.carga==='number' && Array.isArray(PSE_POST[1].opts))
-      parts.push(`Carga: <b>${PSE_POST[1].opts[pseObj.carga]||pseObj.carga+1}</b>`);
-    if(typeof pseObj.satisfaccion==='number' && Array.isArray(PSE_POST[3].opts))
-      parts.push(`Conformidad: <b>${PSE_POST[3].opts[pseObj.satisfaccion]||pseObj.satisfaccion+1}</b>`);
-    if(pseObj.nota_post) parts.push(`Nota: <b>${esc(pseObj.nota_post)}</b>`);
+    if(r.rpe!=null && r.rpe!=='') parts.push(`RPE: <b>${esc(String(r.rpe))}/10</b>`);
+    if(r.carga!=null && r.carga!=='') parts.push(`Carga: <b>${esc(String(r.carga))}</b>`);
+    if(r.recuperacion!=null && r.recuperacion!=='') parts.push(`Recuperación: <b>${esc(String(r.recuperacion))}</b>`);
+    if(r.satisfaccion!=null && r.satisfaccion!=='') parts.push(`Conformidad: <b>${esc(String(r.satisfaccion))}</b>`);
+    if(r.nota_post) parts.push(`Nota: <b>${esc(r.nota_post)}</b>`);
     return parts.join(' · ');
   }
 
