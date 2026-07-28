@@ -5463,12 +5463,19 @@ function openEliteDeportistaModal(id){
   const rutinaRows = rutinasAsignadas.map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
     if(!r) return '';
-    const hoy = d.rsHechos?.[rname] && Object.values(d.rsHechos[rname]).some(f=>f===todayStr);
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2);">
-      <span style="flex:1;font-size:13px;font-weight:600;">${esc(rname)}</span>
-      <span style="font-size:11px;color:var(--text2);">${esc(r.t||'')}</span>
-      ${hoy?`<span style="background:var(--green);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;">Hecho hoy</span>`:''}
-      <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x"></i></button>
+    const rh = d.rsHechos?.[rname]||{};
+    const ejs = r.ejs||[];
+    const hechosHoy = Object.values(rh).filter(f=>f===todayStr).length;
+    const totalEjs = ejs.length;
+    const completo = totalEjs>0 && hechosHoy===totalEjs;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border2);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="flex:1;font-size:13px;font-weight:600;">${esc(rname)}</span>
+        <span style="font-size:11px;color:var(--text2);">${esc(r.t||'')}</span>
+        ${hechosHoy>0?`<span style="background:${completo?'var(--green)':'var(--primary-light)'};color:${completo?'#fff':'var(--primary)'};border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;">${completo?'✓ Completa':''+hechosHoy+'/'+totalEjs}</span>`:''}
+        <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x"></i></button>
+      </div>
+      ${!completo&&totalEjs>0?`<button class="btn btn-outline btn-sm" style="margin-top:5px;font-size:11px;color:var(--green);border-color:var(--green);" onclick="eliteForzarCompletada('${id}','${escQ(rname)}')"><i class="ti ti-check"></i> Marcar completa hoy</button>`:''}
     </div>`;
   }).join('');
 
@@ -5566,6 +5573,21 @@ function openEliteDeportistaModal(id){
         <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
       </div>
     </div>`);
+}
+
+function eliteForzarCompletada(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+  const todayStr = todayISO();
+  if(!d.rsHechos) d.rsHechos = {};
+  if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
+  (r.ejs||[]).forEach(e=>{ d.rsHechos[rname][e.n]=todayStr; });
+  if(!d.ultimoEntreno||d.ultimoEntreno.f<todayStr) d.ultimoEntreno={r:rname,f:todayStr};
+  persist();
+  showToast('Rutina marcada como completada hoy','ok');
+  openEliteDeportistaModal(id);
 }
 
 function openEliteFullPseModal(id){
@@ -7066,6 +7088,23 @@ function socioCuenta(){
       for(const lr of RUTINAS){
         const rr = remByName[lr.n];
         if(rr && (lr.ts||0) > (rr.ts||0)){ localAheadOfRemote = true; break; }
+      }
+    }
+
+    // Detectar si un deportista elite local tiene más ejercicios completados hoy que el remoto
+    if(!localAheadOfRemote && Array.isArray(data.ELITE_DEPORTISTAS)){
+      const todayStr = todayISO();
+      const remEliteById = {};
+      data.ELITE_DEPORTISTAS.forEach(rd=>{ remEliteById[rd.id]=rd; });
+      for(const ld of ELITE_DEPORTISTAS){
+        const rd = remEliteById[ld.id];
+        if(!rd||!ld.rsHechos) continue;
+        for(const rname of Object.keys(ld.rsHechos)){
+          const localHoy = Object.values(ld.rsHechos[rname]||{}).filter(f=>f===todayStr).length;
+          const remHoy = rd.rsHechos ? Object.values(rd.rsHechos[rname]||{}).filter(f=>f===todayStr).length : 0;
+          if(localHoy > remHoy){ localAheadOfRemote = true; break; }
+        }
+        if(localAheadOfRemote) break;
       }
     }
 
