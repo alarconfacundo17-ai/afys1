@@ -195,9 +195,15 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-row-done{background:rgba(5,150,105,.07) !important;border-color:rgba(5,150,105,.3) !important;}
 [data-theme="dark"] .ej-row-done{background:rgba(52,211,153,.09) !important;border-color:rgba(52,211,153,.25) !important;}
 .page-fade{animation:fadeInUp .22s ease;}
-.elite-nav-item{all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:10px;cursor:pointer;flex:1;text-align:center;transition:color .15s;}
-.elite-nav-item i{font-size:22px;}
+.elite-nav-item{all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:10px;cursor:pointer;flex:1;text-align:center;transition:color .2s,transform .15s;-webkit-tap-highlight-color:transparent;}
+.elite-nav-item i{font-size:22px;transition:transform .2s;}
 .elite-nav-item.active{color:var(--primary);}
+.elite-nav-item.active i{transform:scale(1.15);}
+.elite-nav-item:active{transform:scale(.92);}
+@keyframes eliteFadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.elite-fade{animation:eliteFadeIn .28s ease both;}
+@keyframes eliteSlideUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+.elite-slide{animation:eliteSlideUp .32s cubic-bezier(.22,1,.36,1) both;}
 .rutinas-badge-btn{display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;white-space:nowrap;border:none;cursor:pointer;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;}
 .rutinas-badge-btn:hover{box-shadow:0 2px 10px var(--primary)44;transform:scale(1.06);}
 .rutinas-badge-btn:active{transform:scale(.97);box-shadow:none;}
@@ -1273,8 +1279,10 @@ function toggleDarkMode(){
   const icon = `<i class="ti ti-${darkMode?'sun':'moon'}" style="font-size:18px;"></i>`;
   const btn1 = document.getElementById('darkModeBtn');
   const btn2 = document.getElementById('darkModeBtnSocio');
+  const btn3 = document.getElementById('darkModeBtnElite');
   if(btn1) btn1.innerHTML = icon;
   if(btn2) btn2.innerHTML = icon;
+  if(btn3) btn3.innerHTML = icon;
 }
 
 function downloadCSV(filename, headers, csvRows){
@@ -5270,6 +5278,8 @@ function renderMovimientosTabla(){
 function eliteById(id){ return ELITE_DEPORTISTAS.find(d=>d.id===id)||null; }
 function eliteByDni(dni){ return ELITE_DEPORTISTAS.find(d=>String(d.dni)===String(dni))||null; }
 function eliteLoginLink(d){ return `${APP_URL}?elite=${encodeURIComponent(d.dni)}`; }
+// esc() + escapar comillas simples para uso en onclick="func('valor')"
+function escQ(s){ return esc(s).replace(/'/g,"&#39;"); }
 
 function eliteAvatarSVG(name, size=40){
   const initials = (name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
@@ -5307,24 +5317,24 @@ function pageElite(){
   const activos = ELITE_DEPORTISTAS.filter(d=>d.activo!==false).length;
   const todayStr = todayISO();
 
-  const rows = ELITE_DEPORTISTAS.filter(d=>d.activo!==false).map(d=>{
+  const rows = ELITE_DEPORTISTAS.filter(d=>d.activo!==false).map((d,di)=>{
     const disciplina = esc(d.disciplina||'—');
     const rutinas = Array.isArray(d.rs) ? d.rs.filter(n=>RUTINAS.some(r=>r.n===n)).length : 0;
-    const ultimoEntreno = d.ultimoEntreno ? `<span style="color:var(--text2);font-size:12px;">${esc(d.ultimoEntreno.f)}</span>` : `<span style="color:var(--text2);font-size:12px;">—</span>`;
+    const ultimoEntreno = d.ultimoEntreno ? esc(d.ultimoEntreno.f) : '—';
     const proxComp = Array.isArray(d.competencias) ? d.competencias.filter(c=>c.f>=todayStr).sort((a,b)=>a.f.localeCompare(b.f))[0] : null;
-    const compBadge = proxComp ? `<span style="background:rgba(251,191,36,.15);color:#d97706;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600;">${esc(proxComp.f)} · ${esc(proxComp.n)}</span>` : '';
-    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="openEliteDeportistaModal('${esc(d.id)}')">
-      ${eliteAvatarSVG(d.n, 42)}
+    const compBadge = proxComp ? `<span style="background:rgba(251,191,36,.15);color:#d97706;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600;"><i class="ti ti-medal" style="font-size:10px;"></i> ${esc(proxComp.f)} · ${esc(proxComp.n)}</span>` : '';
+    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:8px;cursor:pointer;border-radius:14px;transition:box-shadow .18s,transform .13s;animation:eliteFadeIn .25s ease both;animation-delay:${di*0.04}s;" onclick="openEliteDeportistaModal('${esc(d.id)}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(59,130,201,.15)'" onmouseleave="this.style.boxShadow=''">
+      ${eliteAvatarSVG(d.n, 44)}
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${esc(d.n)}</div>
         <div style="font-size:12px;color:var(--text2);">${disciplina}${d.tel?` · ${esc(d.tel)}`:''}</div>
-        ${compBadge?`<div style="margin-top:4px;">${compBadge}</div>`:''}
+        ${compBadge?`<div style="margin-top:5px;">${compBadge}</div>`:''}
       </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:12px;color:var(--text2);">Rutinas: <strong>${rutinas}</strong></div>
-        <div style="font-size:12px;color:var(--text2);">Último: ${ultimoEntreno}</div>
+      <div style="text-align:right;flex-shrink:0;margin-right:4px;">
+        <div style="font-size:12px;color:var(--text2);">${rutinas} rutina${rutinas!==1?'s':''}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;">${ultimoEntreno}</div>
       </div>
-      <i class="ti ti-chevron-right" style="color:var(--text2);font-size:16px;"></i>
+      <i class="ti ti-chevron-right" style="color:var(--text2);font-size:15px;flex-shrink:0;"></i>
     </div>`;
   }).join('');
 
@@ -5404,10 +5414,10 @@ function guardarEliteDeportista(id){
     const d = eliteById(id);
     if(!d) return;
     d.n = n; d.dni = dni;
-    d.disciplina = $('#eliteDisciplina').value.trim();
-    d.tel = $('#eliteTel').value.trim();
-    d.email = $('#eliteEmail').value.trim();
-    d.ob = $('#eliteOb').value.trim();
+    d.disciplina = ($('#eliteDisciplina')||{}).value?.trim()||'';
+    d.tel = ($('#eliteTel')||{}).value?.trim()||'';
+    d.email = ($('#eliteEmail')||{}).value?.trim()||'';
+    d.ob = ($('#eliteOb')||{}).value?.trim()||'';
     showToast('Deportista actualizado', 'ok');
   } else {
     const newId = 'elite_' + Date.now() + '_' + (eliteSeq++);
@@ -5448,7 +5458,7 @@ function openEliteDeportistaModal(id){
       <span style="flex:1;font-size:13px;font-weight:600;">${esc(rname)}</span>
       <span style="font-size:11px;color:var(--text2);">${esc(r.t||'')}</span>
       ${hoy?`<span style="background:var(--green);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;">Hecho hoy</span>`:''}
-      <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${esc(rname)}')"><i class="ti ti-x"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x"></i></button>
     </div>`;
   }).join('');
 
@@ -5616,13 +5626,15 @@ function eliminarCompetenciaElite(id, ci){
 /* ============ PANEL ELITE (deportista) ============ */
 function renderElitePanel(){
   const d = eliteById(currentEliteId);
-  if(!d){ $('#elite').classList.add('hidden'); $('#login').classList.remove('hidden'); renderLogin(); return; }
+  if(!d){ currentEliteId=null; localStorage.removeItem('afys_elite_id'); $('#elite').classList.add('hidden'); $('#login').classList.remove('hidden'); renderEliteLogin(); return; }
   const c = $('#eliteContent');
   if(!c) return;
-  if(elitePage==='inicio') c.innerHTML = elitePageInicio(d);
-  else if(elitePage==='rutinas') c.innerHTML = elitePageRutinas(d);
-  else if(elitePage==='competencias') c.innerHTML = elitePageCompetencias(d);
-  else if(elitePage==='pse') c.innerHTML = elitePagePseHistorial(d);
+  let html = '';
+  if(elitePage==='inicio') html = elitePageInicio(d);
+  else if(elitePage==='rutinas') html = elitePageRutinas(d);
+  else if(elitePage==='competencias') html = elitePageCompetencias(d);
+  else if(elitePage==='pse') html = elitePagePseHistorial(d);
+  c.innerHTML = `<div class="elite-slide">${html}</div>`;
   // nav activo
   $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
 }
@@ -5635,85 +5647,108 @@ function elitePageInicio(d){
     const rh = d.rsHechos?.[rname]||{};
     return Object.values(rh).some(f=>f===todayStr);
   });
+  const diasEntreno = new Set((d.pse||[]).filter(p=>p.tipo==='post').map(p=>p.f)).size;
 
   return `
-  <div style="padding:0 4px;">
-    <div class="welcome-banner" style="margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        ${eliteAvatarSVG(d.n,48)}
+  <div>
+    <div class="welcome-banner" style="margin-bottom:16px;border-radius:16px;padding:18px 16px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        ${eliteAvatarSVG(d.n,52)}
         <div>
-          <div style="font-size:18px;font-weight:800;">¡Hola, ${esc(d.n.split(' ')[0])}!</div>
-          <div style="font-size:13px;color:var(--text2);">${esc(d.disciplina||'Deportista elite')}</div>
+          <div style="font-size:20px;font-weight:800;line-height:1.2;">¡Hola, ${esc(d.n.split(' ')[0])}!</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;">${esc(d.disciplina||'Deportista elite')}</div>
         </div>
       </div>
     </div>
 
-    ${proxComp?`<div style="background:rgba(251,191,36,.12);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
-      <i class="ti ti-medal" style="font-size:24px;color:#d97706;flex-shrink:0;"></i>
+    ${proxComp?`<div style="background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.06));border:1px solid rgba(251,191,36,.3);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;">
+      <div style="background:rgba(251,191,36,.2);border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-medal" style="font-size:22px;color:#d97706;"></i>
+      </div>
       <div>
-        <div style="font-size:12px;color:#d97706;font-weight:700;">Próxima competencia</div>
+        <div style="font-size:11px;color:#d97706;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Próxima competencia</div>
         <div style="font-size:14px;font-weight:700;">${esc(proxComp.n)}</div>
         <div style="font-size:12px;color:var(--text2);">${esc(proxComp.f)}${proxComp.lugar?' · '+esc(proxComp.lugar):''}</div>
       </div>
     </div>`:''}
 
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <div class="metric" style="flex:1;text-align:center;">
-        <div class="num">${rutinas.length}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+      <div class="metric" style="text-align:center;border-radius:14px;">
+        <div class="num" style="font-size:24px;">${rutinas.length}</div>
         <div class="lbl">Rutinas</div>
       </div>
-      <div class="metric" style="flex:1;text-align:center;">
-        <div class="num">${hechosHoy.length}</div>
+      <div class="metric" style="text-align:center;border-radius:14px;">
+        <div class="num" style="font-size:24px;color:${hechosHoy.length>0?'var(--green)':'var(--text)'};">${hechosHoy.length}</div>
         <div class="lbl">Hechos hoy</div>
       </div>
-      ${d.ultimoEntreno?`<div class="metric" style="flex:1;text-align:center;"><div class="num" style="font-size:14px;">${esc(d.ultimoEntreno.f)}</div><div class="lbl">Último entreno</div></div>`:''}
+      <div class="metric" style="text-align:center;border-radius:14px;">
+        <div class="num" style="font-size:24px;">${diasEntreno}</div>
+        <div class="lbl">Días entreno</div>
+      </div>
     </div>
 
     ${rutinas.length?`
-    <div style="font-weight:700;font-size:14px;margin-bottom:10px;">Mis rutinas</div>
-    ${rutinas.map(rname=>{
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Mis rutinas</div>
+    ${rutinas.map((rname,ri)=>{
       const r = RUTINAS.find(x=>x.n===rname);
       const rh = d.rsHechos?.[rname]||{};
       const ejsTotal = (r?r.ejs:[]).length;
       const ejsHechos = Object.values(rh).filter(f=>f===todayStr).length;
       const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
-      return `<div class="card" style="padding:14px;margin-bottom:10px;cursor:pointer;" onclick="eliteAbrirRutina('${esc(rname)}')">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${ejsTotal?'8px':'0'};">
-          <div style="flex:1;">
-            <div style="font-weight:700;font-size:14px;">${esc(rname)}</div>
+      const completo = ejsHechos===ejsTotal&&ejsTotal>0;
+      return `<div class="card" style="padding:16px;margin-bottom:10px;cursor:pointer;border-radius:14px;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;animation-delay:${ri*0.04}s;" onclick="eliteAbrirRutina('${escQ(rname)}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(59,130,201,.18)'" onmouseleave="this.style.boxShadow=''">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejsTotal?'10px':'0'};">
+          <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:18px;color:${completo?'var(--green)':'var(--primary)'};"></i>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
             <div style="font-size:12px;color:var(--text2);">${esc(r?.t||'')} · ${ejsTotal} ejercicios</div>
           </div>
-          ${ejsHechos===ejsTotal&&ejsTotal>0?`<span style="background:rgba(5,150,105,.15);color:var(--green);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700;">✓ Completo</span>`:`<i class="ti ti-chevron-right" style="color:var(--text2);"></i>`}
+          ${completo?`<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓ Completo</span>`:`<i class="ti ti-chevron-right" style="color:var(--text2);font-size:16px;flex-shrink:0;"></i>`}
         </div>
-        ${ejsTotal?`<div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
-          <div style="background:var(--primary);height:100%;width:${pct}%;border-radius:4px;transition:width .3s;"></div>
+        ${ejsTotal?`<div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
+          <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;transition:width .5s cubic-bezier(.22,1,.36,1);"></div>
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px;">${ejsHechos}/${ejsTotal} completados hoy</div>`:''}
+        <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados hoy</div>`:''}
       </div>`;
-    }).join('')}`:'<div class="card" style="text-align:center;padding:30px;color:var(--text2);">Todavía no tenés rutinas asignadas.</div>'}
+    }).join('')}`:`<div class="card" style="text-align:center;padding:36px 20px;color:var(--text2);border-radius:14px;">
+      <i class="ti ti-barbell" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
+      <p style="margin:0;font-size:14px;">Todavía no tenés rutinas asignadas.</p>
+    </div>`}
   </div>`;
 }
 
 function elitePageRutinas(d){
   const rutinas = (d.rs||[]).filter(n=>RUTINAS.some(r=>r.n===n));
-  if(!rutinas.length) return `<div class="card" style="text-align:center;padding:40px;color:var(--text2);">No tenés rutinas asignadas todavía.</div>`;
+  if(!rutinas.length) return `<div class="card" style="text-align:center;padding:40px 20px;color:var(--text2);border-radius:14px;">
+    <i class="ti ti-barbell" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
+    <p style="margin:0;font-size:14px;">No tenés rutinas asignadas todavía.</p>
+  </div>`;
+  const todayStr = todayISO();
   return rutinas.map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
-    const todayStr = todayISO();
     const rh = d.rsHechos?.[rname]||{};
     const ejs = (r?r.ejs:[]);
-    return `<div class="card" style="padding:14px;margin-bottom:12px;">
-      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">${esc(rname)}</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">${esc(r?.t||'')} · ${ejs.length} ejercicios</div>
+    const ejsHechos = Object.values(rh).filter(f=>f===todayStr).length;
+    const completo = ejs.length>0 && ejsHechos===ejs.length;
+    return `<div class="card" style="padding:16px;margin-bottom:12px;border-radius:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:15px;">${esc(rname)}</div>
+          <div style="font-size:12px;color:var(--text2);">${esc(r?.t||'')} · ${ejs.length} ejercicios</div>
+        </div>
+        ${completo?`<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">✓ Completo</span>`:''}
+      </div>
       ${ejs.map(e=>{
         const hecho = rh[e.n]===todayStr;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);">
-          <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:18px;color:${hecho?'var(--green)':'var(--text2)'};flex-shrink:0;"></i>
-          <span style="flex:1;font-size:13px;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</span>
-          <span style="font-size:12px;color:var(--text2);">${e.s}×${e.r||e.s}</span>
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);">
+          <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:20px;color:${hecho?'var(--green)':'var(--border)'};flex-shrink:0;transition:color .2s;"></i>
+          <span style="flex:1;font-size:13.5px;font-weight:500;${hecho?'text-decoration:line-through;color:var(--text2);':''};transition:color .2s;">${esc(e.n)}</span>
+          <span style="font-size:12px;color:var(--text2);flex-shrink:0;">${e.s} × ${e.r||'—'}</span>
         </div>`;
       }).join('')}
-      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="eliteAbrirRutina('${esc(rname)}')">Ver rutina completa</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px;border-radius:10px;" onclick="eliteAbrirRutina('${escQ(rname)}')"><i class="ti ti-player-play"></i> Iniciar entrenamiento</button>
     </div>`;
   }).join('');
 }
@@ -5784,11 +5819,11 @@ function openEliteRutinaDetalleModal(rname){
 
   const ejRows = ejs.map(e=>{
     const hecho = rh[e.n]===todayStr;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border2);cursor:pointer;" onclick="eliteToggleEjercicio('${esc(rname)}','${esc(e.n)}')">
-      <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--text2)'};flex-shrink:0;"></i>
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteToggleEjercicio('${escQ(rname)}','${escQ(e.n)}')">
+      <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--border)'};flex-shrink:0;transition:color .2s,transform .15s;${hecho?'transform:scale(1.1);':''}"></i>
       <div style="flex:1;">
-        <div style="font-size:13.5px;font-weight:600;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
-        <div style="font-size:12px;color:var(--text2);">${e.s} series × ${e.r||''}</div>
+        <div style="font-size:14px;font-weight:600;transition:color .2s;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
+        <div style="font-size:12px;color:var(--text2);">${e.s} series × ${e.r||'—'}</div>
       </div>
     </div>`;
   }).join('');
@@ -5801,8 +5836,8 @@ function openEliteRutinaDetalleModal(rname){
     <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · ${ejs.length} ejercicios${r.ob?` · ${esc(r.ob)}`:''}</div>
       ${ejRows}
-      <button class="btn ${todosHechos?'btn-outline':'btn-primary'}" style="width:100%;margin-top:16px;" onclick="eliteCompletarEntrenamiento('${esc(rname)}')">
-        <i class="ti ${todosHechos?'ti-x':'ti-check'}"></i> ${todosHechos?'Desmarcar todo':'Completar entrenamiento'}
+      <button class="btn ${todosHechos?'btn-outline':'btn-primary'}" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
+        <i class="ti ${todosHechos?'ti-x':'ti-check'}"></i> ${todosHechos?'Desmarcar todo':'¡Completé el entrenamiento!'}
       </button>
     </div>`);
 }
@@ -5951,15 +5986,18 @@ function tryEliteLogin(dni){
 function renderEliteLogin(prefillDni){
   const el = $('#login');
   el.classList.remove('hidden');
-  el.innerHTML = `<div class="login-box" style="max-width:380px;">
-    <div style="text-align:center;margin-bottom:20px;">
-      <div style="font-size:32px;margin-bottom:8px;">🏆</div>
-      <h2 style="font-size:22px;font-weight:800;margin:0 0 4px;">AFYS Elite</h2>
-      <p style="font-size:13px;color:var(--text2);margin:0;">Ingresá tu número de DNI para acceder</p>
+  el.innerHTML = `<div class="login-box" style="max-width:380px;animation:eliteFadeIn .3s ease both;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="background:linear-gradient(135deg,var(--primary),#5a4fcf);border-radius:20px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(59,130,201,.35);">
+        <i class="ti ti-trophy" style="font-size:34px;color:#fff;"></i>
+      </div>
+      <h2 style="font-size:24px;font-weight:800;margin:0 0 6px;">AFYS Elite</h2>
+      <p style="font-size:14px;color:var(--text2);margin:0;">Ingresá tu número de DNI para acceder</p>
     </div>
-    <div id="eliteLoginErr" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
-    <input id="eliteDniLogin" type="number" placeholder="Número de DNI" style="width:100%;margin-bottom:12px;" value="${esc(prefillDni||'')}" onkeydown="if(event.key==='Enter')tryEliteLogin($('#eliteDniLogin').value)">
-    <button class="btn btn-primary" style="width:100%;" onclick="tryEliteLogin($('#eliteDniLogin').value)">Ingresar</button>
+    <div id="eliteLoginErr" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;background:rgba(220,38,38,.08);border-radius:8px;padding:8px 12px;"></div>
+    <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Número de DNI</label>
+    <input id="eliteDniLogin" type="number" placeholder="Ej: 38456123" style="width:100%;margin-bottom:14px;font-size:18px;letter-spacing:1px;text-align:center;padding:14px;" value="${esc(prefillDni||'')}" onkeydown="if(event.key==='Enter')tryEliteLogin($('#eliteDniLogin').value)" autofocus>
+    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;border-radius:12px;" onclick="tryEliteLogin($('#eliteDniLogin').value)"><i class="ti ti-login"></i> Ingresar</button>
   </div>`;
 }
 
@@ -5970,19 +6008,22 @@ function renderEliteShell(){
   const div = document.createElement('div');
   div.id = 'elite';
   div.className = 'hidden';
+  div.style.cssText = 'display:flex;flex-direction:column;min-height:100vh;background:var(--bg2);';
   div.innerHTML = `
-    <div class="socio-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:18px;">🏆</span>
-        <span style="font-weight:800;font-size:16px;">AFYS Elite</span>
+    <div class="socio-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="background:linear-gradient(135deg,var(--primary),#5a4fcf);border-radius:10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(59,130,201,.4);">
+          <i class="ti ti-trophy" style="font-size:17px;color:#fff;"></i>
+        </div>
+        <span style="font-weight:800;font-size:16px;letter-spacing:-.3px;">AFYS <span style="color:var(--primary);">Elite</span></span>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button id="darkModeBtnElite" onclick="toggleDarkMode()" style="all:unset;cursor:pointer;padding:6px;border-radius:8px;"><i class="ti ti-moon" style="font-size:18px;"></i></button>
-        <button onclick="eliteSalir()" style="all:unset;cursor:pointer;padding:6px;border-radius:8px;color:var(--text2);"><i class="ti ti-logout" style="font-size:18px;"></i></button>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button id="darkModeBtnElite" onclick="toggleDarkMode()" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:background .15s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''"><i class="ti ti-moon" style="font-size:18px;"></i></button>
+        <button onclick="eliteSalir()" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:background .15s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''"><i class="ti ti-logout" style="font-size:18px;"></i></button>
       </div>
     </div>
-    <div id="eliteContent" style="padding:16px;max-width:600px;margin:0 auto;padding-bottom:80px;"></div>
-    <div class="bottom-nav" style="display:flex;justify-content:space-around;align-items:center;">
+    <div id="eliteContent" style="flex:1;padding:16px;max-width:600px;width:100%;margin:0 auto;box-sizing:border-box;padding-bottom:88px;"></div>
+    <div class="bottom-nav" style="display:flex;justify-content:space-around;align-items:center;padding:0 8px;">
       <button class="elite-nav-item" data-page="inicio" onclick="eliteNav('inicio')"><i class="ti ti-home"></i><span>Inicio</span></button>
       <button class="elite-nav-item" data-page="rutinas" onclick="eliteNav('rutinas')"><i class="ti ti-barbell"></i><span>Rutinas</span></button>
       <button class="elite-nav-item" data-page="competencias" onclick="eliteNav('competencias')"><i class="ti ti-medal"></i><span>Competencias</span></button>
@@ -6867,7 +6908,7 @@ function socioCuenta(){
   }
   recalcEstados({notify:true});
   $('#loadingOverlay').remove();
-  if(localStorage.getItem('afys_dark')==='1'){ darkMode=true; document.documentElement.setAttribute('data-theme','dark'); const icon='<i class="ti ti-sun" style="font-size:18px;"></i>'; const btn=document.getElementById('darkModeBtn'); if(btn) btn.innerHTML=icon; const btn2=document.getElementById('darkModeBtnSocio'); if(btn2) btn2.innerHTML=icon; }
+  if(localStorage.getItem('afys_dark')==='1'){ darkMode=true; document.documentElement.setAttribute('data-theme','dark'); const icon='<i class="ti ti-sun" style="font-size:18px;"></i>'; const btn=document.getElementById('darkModeBtn'); if(btn) btn.innerHTML=icon; const btn2=document.getElementById('darkModeBtnSocio'); if(btn2) btn2.innerHTML=icon; const btn3=document.getElementById('darkModeBtnElite'); if(btn3) btn3.innerHTML=icon; }
 
   const urlParams = new URLSearchParams(window.location.search);
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
