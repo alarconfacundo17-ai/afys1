@@ -195,6 +195,9 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-row-done{background:rgba(5,150,105,.07) !important;border-color:rgba(5,150,105,.3) !important;}
 [data-theme="dark"] .ej-row-done{background:rgba(52,211,153,.09) !important;border-color:rgba(52,211,153,.25) !important;}
 .page-fade{animation:fadeInUp .22s ease;}
+.elite-nav-item{all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:10px;cursor:pointer;flex:1;text-align:center;transition:color .15s;}
+.elite-nav-item i{font-size:22px;}
+.elite-nav-item.active{color:var(--primary);}
 .rutinas-badge-btn{display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;white-space:nowrap;border:none;cursor:pointer;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;}
 .rutinas-badge-btn:hover{box-shadow:0 2px 10px var(--primary)44;transform:scale(1.06);}
 .rutinas-badge-btn:active{transform:scale(.97);box-shadow:none;}
@@ -485,6 +488,14 @@ let deletedTurnoIds = []; // IDs de turnos eliminados, para que el merge remoto 
 let deletedPagoKeys = []; // claves "sid|f|m|mp" de pagos eliminados
 let deletedRutinaNames = []; // nombres de rutinas eliminadas
 let deletedClaseIds = []; // cIds de clases eliminadas
+let deletedEliteIds = []; // IDs de deportistas elite eliminados
+
+/* ============ ELITE DATA ============ */
+const ELITE_DEPORTISTAS = [];
+let eliteSeq = 1;
+// estado de sesión elite
+let currentEliteId = null; // ID del deportista elite logueado
+let elitePage = 'inicio'; // página actual del panel elite
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 let _editingRutinaName = null; // nombre de la rutina siendo editada ahora mismo
 let _rutinaCopied = null; // {rname, ejs, nombre, nota, dias} — clipboard de rutina copiada
@@ -600,6 +611,7 @@ function snapshotState(){
   return {
     SOCIOS, RUTINAS, CLASES_HOY, PAGOS, REGS, SOCIOS_LOGIN, EJD, EJC, EJ_VIDEOS, EJ_IMAGES,
     STAFF, DUENOS, CO_DUENOS, GYM_HOURS, TURNOS, turnoSeq, notifStaff, notifSocio, movimientosLog, entradasHoy, collapsedGroups, DUENO_EMAIL, PENDING_INVITES, RESERVAS, socioSeq, gymHoursOk, deletedSocioIds, deletedTurnoIds, deletedPagoKeys, deletedRutinaNames, deletedClaseIds,
+    ELITE_DEPORTISTAS, eliteSeq, deletedEliteIds,
   };
 }
 
@@ -636,6 +648,9 @@ function applyState(s){
   if(Array.isArray(s.deletedPagoKeys)) deletedPagoKeys = s.deletedPagoKeys;
   if(Array.isArray(s.deletedRutinaNames)) deletedRutinaNames = s.deletedRutinaNames;
   if(Array.isArray(s.deletedClaseIds)) deletedClaseIds = s.deletedClaseIds;
+  if(Array.isArray(s.ELITE_DEPORTISTAS)) fillArray(ELITE_DEPORTISTAS, s.ELITE_DEPORTISTAS);
+  if(typeof s.eliteSeq==='number') eliteSeq = s.eliteSeq;
+  if(Array.isArray(s.deletedEliteIds)) deletedEliteIds = s.deletedEliteIds;
   // Filtrar pagos eliminados (los tombstones se cargan arriba)
   if(deletedPagoKeys.length){ const _delPK=new Set(deletedPagoKeys); PAGOS.splice(0,PAGOS.length,...PAGOS.filter(p=>{ const k=p.sid+'|'+p.f+'|'+p.m+'|'+p.mp; return !_delPK.has(k); })); }
   // migración: agregar afystotoras2@gmail.com como co-dueño si no está
@@ -1167,6 +1182,8 @@ async function mergeRemoteAntesDeGuardar(){
 
     if(typeof remote.turnoSeq==='number' && remote.turnoSeq > turnoSeq) turnoSeq = remote.turnoSeq;
     if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
+    if(typeof remote.eliteSeq==='number' && remote.eliteSeq > eliteSeq) eliteSeq = remote.eliteSeq;
+    mergeEliteRemote(remote.ELITE_DEPORTISTAS, remote.deletedEliteIds);
 
     if(Array.isArray(remote.CLASES_HOY)){
       if(Array.isArray(remote.deletedClaseIds)){
@@ -2297,6 +2314,7 @@ function staffMenu(){
   items.push({id:'qr', icon:'ti-qrcode', label:'QR y Asistencia'});
   items.push({id:'pagos', icon:'ti-cash', label:'Pagos'});
   if(isDueno()) items.push({id:'movimientos', icon:'ti-history', label:'Movimientos'});
+  if(isDueno()) items.push({id:'elite', icon:'ti-trophy', label:'AFYS Elite'});
   if(isDueno()) items.push({id:'demo', icon:'ti-eye', label:'Modo demo'});
   return items;
 }
@@ -2349,7 +2367,7 @@ function staffBlocked(){
 function renderStaff(){
   // Notificación de cumpleaños de socios (una vez por sesión, con delay para que no bloquee el render)
   if(!_cumpleStaffNotified) setTimeout(checkCumpleaniosStaff, 1200);
-  const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos',movimientos:'Movimientos'};
+  const titles={panel:'Panel',cuentas:'Cuentas y permisos',socios: currentRole==='profesor'?'Alumnos':'Socios',clases:'Clases',rutinas:'Rutinas',ejercicios:'Ejercicios',horarios:'Horarios',qr:'QR y Asistencia',pagos:'Pagos',movimientos:'Movimientos',elite:'AFYS Elite'};
   $('#staffTitle').textContent = titles[staffPage]||'Panel';
   const c = $('#staffContent');
   if(staffBlocked()){
@@ -2369,6 +2387,7 @@ function renderStaff(){
   else if(staffPage==='qr') { c.innerHTML = pageQR(); mountQRCodes(); }
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
   else if(staffPage==='movimientos') c.innerHTML = pageMovimientos();
+  else if(staffPage==='elite') { c.innerHTML = pageElite(); bindEliteEvents(); }
   bindStaffEvents();
 }
 
@@ -5215,6 +5234,795 @@ function renderMovimientosTabla(){
   const body = document.getElementById('movimientosTableBody');
   if(body) body.innerHTML = movimientosTablaHTML();
 }
+/* ============================================================
+   AFYS ELITE — módulo de deportistas de alto rendimiento
+   ============================================================ */
+
+/* ---- helpers ---- */
+function eliteById(id){ return ELITE_DEPORTISTAS.find(d=>d.id===id)||null; }
+function eliteByDni(dni){ return ELITE_DEPORTISTAS.find(d=>String(d.dni)===String(dni))||null; }
+function eliteLoginLink(d){ return `${APP_URL}?elite=${encodeURIComponent(d.dni)}`; }
+
+function eliteAvatarSVG(name, size=40){
+  const initials = (name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+  const hue = [...(name||'')].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="border-radius:50%;flex-shrink:0;">
+    <rect width="${size}" height="${size}" rx="${size/2}" fill="hsl(${hue},60%,50%)"/>
+    <text x="${size/2}" y="${size/2+5}" text-anchor="middle" fill="#fff" font-size="${size*0.38}" font-family="sans-serif" font-weight="700">${esc(initials)}</text>
+  </svg>`;
+}
+
+/* ---- PSE preguntas ---- */
+const PSE_PRE = [
+  {id:'energia', label:'¿Cómo te sentís de energía hoy?', type:'scale', opts:['Muy bajo','Bajo','Normal','Bueno','Excelente']},
+  {id:'sueno', label:'¿Cómo dormiste anoche?', type:'scale', opts:['Muy mal','Mal','Regular','Bien','Muy bien']},
+  {id:'dolor', label:'¿Tenés algún dolor o molestia?', type:'choice', opts:['Sin molestias','Molestia leve','Molestia moderada','Dolor importante']},
+  {id:'animo', label:'¿Cómo está tu ánimo?', type:'scale', opts:['Muy bajo','Bajo','Normal','Bueno','Excelente']},
+  {id:'nota_pre', label:'¿Algo más que quieras comentar antes de entrenar?', type:'text'},
+];
+const PSE_POST = [
+  {id:'rpe', label:'¿Qué tan duro fue el entrenamiento? (RPE 1-10)', type:'rpe'},
+  {id:'carga', label:'¿Cómo sentiste la carga?', type:'choice', opts:['Muy liviana','Liviana','Adecuada','Pesada','Muy pesada']},
+  {id:'recuperacion', label:'¿Cómo te recuperaste durante el entreno?', type:'scale', opts:['Muy mal','Mal','Regular','Bien','Excelente']},
+  {id:'satisfaccion', label:'¿Quedaste conforme con el entrenamiento?', type:'scale', opts:['Nada','Poco','Regular','Bastante','Muy conforme']},
+  {id:'nota_post', label:'Comentarios o sensaciones post-entrenamiento:', type:'text'},
+];
+
+/* ---- state temporal PSE ---- */
+let _pseTemp = {}; // respuestas en progreso
+let _pseMode = null; // 'pre' | 'post'
+let _pseRutinaName = null;
+
+/* ============ PAGE ELITE (staff) ============ */
+function pageElite(){
+  const total = ELITE_DEPORTISTAS.length;
+  const activos = ELITE_DEPORTISTAS.filter(d=>d.activo!==false).length;
+  const todayStr = todayISO();
+
+  const rows = ELITE_DEPORTISTAS.filter(d=>d.activo!==false).map(d=>{
+    const disciplina = esc(d.disciplina||'—');
+    const rutinas = Array.isArray(d.rs) ? d.rs.filter(n=>RUTINAS.some(r=>r.n===n)).length : 0;
+    const ultimoEntreno = d.ultimoEntreno ? `<span style="color:var(--text2);font-size:12px;">${esc(d.ultimoEntreno.f)}</span>` : `<span style="color:var(--text2);font-size:12px;">—</span>`;
+    const proxComp = Array.isArray(d.competencias) ? d.competencias.filter(c=>c.f>=todayStr).sort((a,b)=>a.f.localeCompare(b.f))[0] : null;
+    const compBadge = proxComp ? `<span style="background:rgba(251,191,36,.15);color:#d97706;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600;">${esc(proxComp.f)} · ${esc(proxComp.n)}</span>` : '';
+    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="openEliteDeportistaModal('${esc(d.id)}')">
+      ${eliteAvatarSVG(d.n, 42)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${esc(d.n)}</div>
+        <div style="font-size:12px;color:var(--text2);">${disciplina}${d.tel?` · ${esc(d.tel)}`:''}</div>
+        ${compBadge?`<div style="margin-top:4px;">${compBadge}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:12px;color:var(--text2);">Rutinas: <strong>${rutinas}</strong></div>
+        <div style="font-size:12px;color:var(--text2);">Último: ${ultimoEntreno}</div>
+      </div>
+      <i class="ti ti-chevron-right" style="color:var(--text2);font-size:16px;"></i>
+    </div>`;
+  }).join('');
+
+  const inactivos = ELITE_DEPORTISTAS.filter(d=>d.activo===false);
+  const inactivosSection = inactivos.length ? `
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer;font-size:13px;color:var(--text2);font-weight:600;">Inactivos (${inactivos.length})</summary>
+      <div style="margin-top:8px;">
+      ${inactivos.map(d=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px;opacity:.6;cursor:pointer;" onclick="openEliteDeportistaModal('${esc(d.id)}')">
+        ${eliteAvatarSVG(d.n,36)}
+        <div style="flex:1;"><div style="font-weight:600;font-size:13px;">${esc(d.n)}</div><div style="font-size:12px;color:var(--text2);">${esc(d.disciplina||'—')}</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--text2);font-size:14px;"></i>
+      </div>`).join('')}
+      </div>
+    </details>` : '';
+
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <h2 style="margin:0 0 4px;">AFYS Elite</h2>
+      <p style="margin:0;font-size:13px;color:var(--text2);">Deportistas de alto rendimiento — ${activos} activos</p>
+    </div>
+    <button class="btn btn-primary" onclick="openEliteNuevoModal()"><i class="ti ti-plus"></i> Nuevo deportista</button>
+  </div>
+  ${total===0 ? `<div class="card" style="text-align:center;padding:40px 20px;color:var(--text2);">
+    <i class="ti ti-trophy" style="font-size:48px;display:block;margin-bottom:12px;color:var(--primary);opacity:.4;"></i>
+    <p style="font-size:15px;font-weight:600;margin:0 0 6px;">Todavía no hay deportistas elite</p>
+    <p style="font-size:13px;margin:0 0 16px;">Creá el primero y enviále el link de acceso personalizado.</p>
+    <button class="btn btn-primary" onclick="openEliteNuevoModal()"><i class="ti ti-plus"></i> Crear deportista</button>
+  </div>` : rows + inactivosSection}`;
+}
+
+function bindEliteEvents(){}
+
+/* ---- Modal: nuevo/editar deportista ---- */
+function openEliteNuevoModal(id){
+  const d = id ? eliteById(id) : null;
+  const title = d ? 'Editar deportista' : 'Nuevo deportista elite';
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:16px;">${title}</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 16px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre completo *</label>
+      <input id="eliteNombre" placeholder="Nombre completo" value="${esc(d?d.n:'')}" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">DNI *</label>
+      <input id="eliteDni" placeholder="DNI (sin puntos)" value="${esc(d?d.dni:'')}" style="width:100%;margin-bottom:10px;" type="number">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Disciplina</label>
+      <input id="eliteDisciplina" placeholder="Ej: Atletismo, Ciclismo, Triatlón..." value="${esc(d?d.disciplina||'':'')}" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Teléfono</label>
+      <input id="eliteTel" placeholder="Teléfono (opcional)" value="${esc(d?d.tel||'':'')}" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Email</label>
+      <input id="eliteEmail" placeholder="Email (opcional)" value="${esc(d?d.email||'':'')}" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Observaciones</label>
+      <textarea id="eliteOb" placeholder="Notas, objetivos, historial..." style="width:100%;margin-bottom:14px;resize:vertical;min-height:60px;">${esc(d?d.ob||'':'')}</textarea>
+      <div id="eliteFormErr" style="color:var(--red);font-size:13px;margin-bottom:8px;display:none;"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="guardarEliteDeportista('${d?d.id:''}')">${d?'Guardar cambios':'Crear deportista'}</button>
+    </div>`);
+}
+
+function guardarEliteDeportista(id){
+  const n = ($('#eliteNombre')||{}).value?.trim();
+  const dni = ($('#eliteDni')||{}).value?.trim();
+  const errEl = $('#eliteFormErr');
+  if(!n || !dni){
+    if(errEl){ errEl.textContent='El nombre y el DNI son obligatorios.'; errEl.style.display='block'; }
+    return;
+  }
+  // Verificar DNI único
+  const existente = eliteByDni(dni);
+  if(existente && existente.id !== id){
+    if(errEl){ errEl.textContent='Ya existe un deportista con ese DNI.'; errEl.style.display='block'; }
+    return;
+  }
+  if(id){
+    const d = eliteById(id);
+    if(!d) return;
+    d.n = n; d.dni = dni;
+    d.disciplina = $('#eliteDisciplina').value.trim();
+    d.tel = $('#eliteTel').value.trim();
+    d.email = $('#eliteEmail').value.trim();
+    d.ob = $('#eliteOb').value.trim();
+    showToast('Deportista actualizado', 'ok');
+  } else {
+    const newId = 'elite_' + Date.now() + '_' + (eliteSeq++);
+    ELITE_DEPORTISTAS.push({
+      id: newId, n, dni,
+      disciplina: $('#eliteDisciplina').value.trim(),
+      tel: $('#eliteTel').value.trim(),
+      email: $('#eliteEmail').value.trim(),
+      ob: $('#eliteOb').value.trim(),
+      rs: [], rsHechos: {}, rsOverride: {}, rsRemoved: [],
+      competencias: [], pse: [],
+      ultimoEntreno: null, activo: true,
+    });
+    showToast('Deportista creado', 'ok');
+  }
+  persist();
+  closeModal();
+  staffPage = 'elite';
+  renderStaff();
+}
+
+/* ---- Modal: ficha completa del deportista (staff) ---- */
+function openEliteDeportistaModal(id){
+  const d = eliteById(id);
+  if(!d) return;
+  const link = eliteLoginLink(d);
+  const todayStr = todayISO();
+
+  const rutinasAsignadas = Array.isArray(d.rs) ? d.rs.filter(n=>RUTINAS.some(r=>r.n===n)) : [];
+  const todasRutinas = RUTINAS.map(r=>r.n);
+  const sinAsignar = todasRutinas.filter(n=>!rutinasAsignadas.includes(n));
+
+  const rutinaRows = rutinasAsignadas.map(rname=>{
+    const r = RUTINAS.find(x=>x.n===rname);
+    if(!r) return '';
+    const hoy = d.rsHechos?.[rname] && Object.values(d.rsHechos[rname]).some(f=>f===todayStr);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2);">
+      <span style="flex:1;font-size:13px;font-weight:600;">${esc(rname)}</span>
+      <span style="font-size:11px;color:var(--text2);">${esc(r.t||'')}</span>
+      ${hoy?`<span style="background:var(--green);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;">Hecho hoy</span>`:''}
+      <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${esc(rname)}')"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('');
+
+  const addRutinaSelect = sinAsignar.length ? `
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <select id="eliteAddRutinaSel" style="flex:1;">
+        <option value="">— Asignar rutina —</option>
+        ${sinAsignar.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="asignarRutinaElite('${id}')"><i class="ti ti-plus"></i> Asignar</button>
+    </div>` : '';
+
+  const competencias = Array.isArray(d.competencias) ? d.competencias : [];
+  const compRows = competencias.sort((a,b)=>a.f.localeCompare(b.f)).map((c,ci)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);">
+      <span style="font-size:12px;color:var(--text2);flex-shrink:0;">${esc(c.f)}</span>
+      <span style="font-size:13px;font-weight:600;flex:1;">${esc(c.n)}</span>
+      <span style="font-size:12px;color:var(--text2);">${esc(c.lugar||'')}</span>
+      ${c.resultado?`<span style="font-size:11px;background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 8px;">${esc(c.resultado)}</span>`:''}
+      <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}',${ci})"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+
+  const pses = Array.isArray(d.pse) ? d.pse.slice().reverse().slice(0,10) : [];
+  const pseRows = pses.map(p=>`
+    <div style="padding:6px 0;border-bottom:1px solid var(--border2);">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:11px;background:${p.tipo==='pre'?'rgba(59,130,201,.15)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:1px 8px;font-weight:600;">${p.tipo==='pre'?'PRE':'POST'}</span>
+        <span style="font-size:12px;color:var(--text2);">${esc(p.f)}</span>
+        <span style="font-size:12px;font-weight:600;">${esc(p.rname||'')}</span>
+        ${p.r?.rpe?`<span style="font-size:11px;background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:1px 8px;font-weight:700;">RPE ${p.r.rpe}</span>`:''}
+      </div>
+      ${p.r?.nota_post?`<div style="font-size:12px;color:var(--text2);margin-top:4px;padding-left:4px;">"${esc(p.r.nota_post)}"</div>`:''}
+      ${p.r?.nota_pre?`<div style="font-size:12px;color:var(--text2);margin-top:4px;padding-left:4px;">"${esc(p.r.nota_pre)}"</div>`:''}
+    </div>`).join('');
+
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:16px;">${eliteAvatarSVG(d.n,28)} <span style="margin-left:8px;">${esc(d.n)}</span></h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
+
+      <!-- Datos -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">DNI</div>
+          <div style="font-weight:700;">${esc(d.dni)}</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Disciplina</div>
+          <div style="font-weight:700;">${esc(d.disciplina||'—')}</div>
+        </div>
+        ${d.tel?`<div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;"><div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Teléfono</div><div style="font-weight:700;">${esc(d.tel)}</div></div>`:''}
+      </div>
+
+      <!-- Link de acceso -->
+      <div style="background:var(--primary-light);border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px;"><i class="ti ti-link"></i> Link de acceso del deportista</div>
+        <div style="font-size:12px;word-break:break-all;color:var(--text);background:var(--bg);border-radius:6px;padding:6px 8px;margin-bottom:8px;">${esc(link)}</div>
+        <button class="btn btn-primary btn-sm" onclick="copiarEliteLink('${id}')"><i class="ti ti-copy"></i> Copiar link</button>
+      </div>
+
+      <!-- Rutinas -->
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;"><i class="ti ti-barbell"></i> Rutinas asignadas</div>
+      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);">Sin rutinas asignadas.</p>`}
+      ${addRutinaSelect}
+
+      <!-- Competencias -->
+      <div style="font-weight:700;font-size:14px;margin:16px 0 8px;"><i class="ti ti-medal"></i> Competencias</div>
+      ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);">Sin competencias cargadas.</p>`}
+      <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar competencia</button>
+
+      <!-- PSE -->
+      <div style="font-weight:700;font-size:14px;margin:16px 0 8px;"><i class="ti ti-heart-rate-monitor"></i> Últimas PSE</div>
+      ${pses.length ? pseRows : `<p style="font-size:13px;color:var(--text2);">Sin PSE registradas todavía.</p>`}
+
+      <!-- Acciones -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
+        <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar datos</button>
+        <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
+      </div>
+    </div>`);
+}
+
+function copiarEliteLink(id){
+  const d = eliteById(id);
+  if(!d) return;
+  const link = eliteLoginLink(d);
+  navigator.clipboard.writeText(link).then(()=>showToast('Link copiado al portapapeles','ok')).catch(()=>showToast('No se pudo copiar — copiá el link manualmente','warn'));
+}
+
+function asignarRutinaElite(id){
+  const sel = $('#eliteAddRutinaSel');
+  if(!sel||!sel.value) return;
+  const d = eliteById(id);
+  if(!d) return;
+  if(!Array.isArray(d.rs)) d.rs = [];
+  if(d.rs.includes(sel.value)){ showToast('Ya tiene esa rutina asignada','warn'); return; }
+  d.rs.push(sel.value);
+  if(!d.rsHechos) d.rsHechos = {};
+  if(!d.rsHechos[sel.value]) d.rsHechos[sel.value] = {};
+  persist();
+  openEliteDeportistaModal(id);
+}
+
+function quitarRutinaElite(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  d.rs = (d.rs||[]).filter(n=>n!==rname);
+  persist();
+  openEliteDeportistaModal(id);
+}
+
+function toggleActivoElite(id){
+  const d = eliteById(id);
+  if(!d) return;
+  d.activo = d.activo===false ? true : false;
+  persist();
+  closeModal();
+  staffPage = 'elite';
+  renderStaff();
+  showToast(d.activo ? 'Deportista reactivado' : 'Deportista dado de baja', 'ok');
+}
+
+function openAgregarCompetenciaModal(id){
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:16px;">Agregar competencia</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 16px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre *</label>
+      <input id="compNombre" placeholder="Ej: Maratón de Buenos Aires" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Fecha *</label>
+      <input id="compFecha" type="date" style="width:100%;margin-bottom:10px;" value="${todayISO()}">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Lugar</label>
+      <input id="compLugar" placeholder="Ej: Buenos Aires, Córdoba..." style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Resultado (si ya pasó)</label>
+      <input id="compResultado" placeholder="Ej: 1° puesto, 3:45:00..." style="width:100%;margin-bottom:14px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="guardarCompetenciaElite('${id}')">Guardar</button>
+    </div>`);
+}
+
+function guardarCompetenciaElite(id){
+  const n = ($('#compNombre')||{}).value?.trim();
+  const f = ($('#compFecha')||{}).value?.trim();
+  if(!n||!f){ showToast('Nombre y fecha son obligatorios','warn'); return; }
+  const d = eliteById(id);
+  if(!d) return;
+  if(!Array.isArray(d.competencias)) d.competencias = [];
+  d.competencias.push({n, f, lugar:($('#compLugar')||{}).value?.trim()||'', resultado:($('#compResultado')||{}).value?.trim()||''});
+  persist();
+  openEliteDeportistaModal(id);
+  showToast('Competencia guardada','ok');
+}
+
+function eliminarCompetenciaElite(id, ci){
+  const d = eliteById(id);
+  if(!d||!Array.isArray(d.competencias)) return;
+  d.competencias.splice(ci,1);
+  persist();
+  openEliteDeportistaModal(id);
+}
+
+/* ============ PANEL ELITE (deportista) ============ */
+function renderElitePanel(){
+  const d = eliteById(currentEliteId);
+  if(!d){ $('#elite').classList.add('hidden'); $('#login').classList.remove('hidden'); renderLogin(); return; }
+  const c = $('#eliteContent');
+  if(!c) return;
+  if(elitePage==='inicio') c.innerHTML = elitePageInicio(d);
+  else if(elitePage==='rutinas') c.innerHTML = elitePageRutinas(d);
+  else if(elitePage==='competencias') c.innerHTML = elitePageCompetencias(d);
+  else if(elitePage==='pse') c.innerHTML = elitePagePseHistorial(d);
+  // nav activo
+  $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
+}
+
+function elitePageInicio(d){
+  const todayStr = todayISO();
+  const proxComp = Array.isArray(d.competencias) ? d.competencias.filter(c=>c.f>=todayStr).sort((a,b)=>a.f.localeCompare(b.f))[0] : null;
+  const rutinas = (d.rs||[]).filter(n=>RUTINAS.some(r=>r.n===n));
+  const hechosHoy = rutinas.filter(rname=>{
+    const rh = d.rsHechos?.[rname]||{};
+    return Object.values(rh).some(f=>f===todayStr);
+  });
+
+  return `
+  <div style="padding:0 4px;">
+    <div class="welcome-banner" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        ${eliteAvatarSVG(d.n,48)}
+        <div>
+          <div style="font-size:18px;font-weight:800;">¡Hola, ${esc(d.n.split(' ')[0])}!</div>
+          <div style="font-size:13px;color:var(--text2);">${esc(d.disciplina||'Deportista elite')}</div>
+        </div>
+      </div>
+    </div>
+
+    ${proxComp?`<div style="background:rgba(251,191,36,.12);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;">
+      <i class="ti ti-medal" style="font-size:24px;color:#d97706;flex-shrink:0;"></i>
+      <div>
+        <div style="font-size:12px;color:#d97706;font-weight:700;">Próxima competencia</div>
+        <div style="font-size:14px;font-weight:700;">${esc(proxComp.n)}</div>
+        <div style="font-size:12px;color:var(--text2);">${esc(proxComp.f)}${proxComp.lugar?' · '+esc(proxComp.lugar):''}</div>
+      </div>
+    </div>`:''}
+
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div class="metric" style="flex:1;text-align:center;">
+        <div class="num">${rutinas.length}</div>
+        <div class="lbl">Rutinas</div>
+      </div>
+      <div class="metric" style="flex:1;text-align:center;">
+        <div class="num">${hechosHoy.length}</div>
+        <div class="lbl">Hechos hoy</div>
+      </div>
+      ${d.ultimoEntreno?`<div class="metric" style="flex:1;text-align:center;"><div class="num" style="font-size:14px;">${esc(d.ultimoEntreno.f)}</div><div class="lbl">Último entreno</div></div>`:''}
+    </div>
+
+    ${rutinas.length?`
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px;">Mis rutinas</div>
+    ${rutinas.map(rname=>{
+      const r = RUTINAS.find(x=>x.n===rname);
+      const rh = d.rsHechos?.[rname]||{};
+      const ejsTotal = (r?r.ejs:[]).length;
+      const ejsHechos = Object.values(rh).filter(f=>f===todayStr).length;
+      const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
+      return `<div class="card" style="padding:14px;margin-bottom:10px;cursor:pointer;" onclick="eliteAbrirRutina('${esc(rname)}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${ejsTotal?'8px':'0'};">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">${esc(rname)}</div>
+            <div style="font-size:12px;color:var(--text2);">${esc(r?.t||'')} · ${ejsTotal} ejercicios</div>
+          </div>
+          ${ejsHechos===ejsTotal&&ejsTotal>0?`<span style="background:rgba(5,150,105,.15);color:var(--green);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700;">✓ Completo</span>`:`<i class="ti ti-chevron-right" style="color:var(--text2);"></i>`}
+        </div>
+        ${ejsTotal?`<div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+          <div style="background:var(--primary);height:100%;width:${pct}%;border-radius:4px;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">${ejsHechos}/${ejsTotal} completados hoy</div>`:''}
+      </div>`;
+    }).join('')}`:'<div class="card" style="text-align:center;padding:30px;color:var(--text2);">Todavía no tenés rutinas asignadas.</div>'}
+  </div>`;
+}
+
+function elitePageRutinas(d){
+  const rutinas = (d.rs||[]).filter(n=>RUTINAS.some(r=>r.n===n));
+  if(!rutinas.length) return `<div class="card" style="text-align:center;padding:40px;color:var(--text2);">No tenés rutinas asignadas todavía.</div>`;
+  return rutinas.map(rname=>{
+    const r = RUTINAS.find(x=>x.n===rname);
+    const todayStr = todayISO();
+    const rh = d.rsHechos?.[rname]||{};
+    const ejs = (r?r.ejs:[]);
+    return `<div class="card" style="padding:14px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">${esc(rname)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">${esc(r?.t||'')} · ${ejs.length} ejercicios</div>
+      ${ejs.map(e=>{
+        const hecho = rh[e.n]===todayStr;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);">
+          <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:18px;color:${hecho?'var(--green)':'var(--text2)'};flex-shrink:0;"></i>
+          <span style="flex:1;font-size:13px;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</span>
+          <span style="font-size:12px;color:var(--text2);">${e.s}×${e.r||e.s}</span>
+        </div>`;
+      }).join('')}
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="eliteAbrirRutina('${esc(rname)}')">Ver rutina completa</button>
+    </div>`;
+  }).join('');
+}
+
+function elitePageCompetencias(d){
+  const todayStr = todayISO();
+  const proximas = (d.competencias||[]).filter(c=>c.f>=todayStr).sort((a,b)=>a.f.localeCompare(b.f));
+  const pasadas = (d.competencias||[]).filter(c=>c.f<todayStr).sort((a,b)=>b.f.localeCompare(a.f));
+  const renderComp = (c)=>`<div class="card" style="padding:14px;margin-bottom:8px;">
+    <div style="font-weight:700;font-size:14px;">${esc(c.n)}</div>
+    <div style="font-size:12px;color:var(--text2);">${esc(c.f)}${c.lugar?' · '+esc(c.lugar):''}</div>
+    ${c.resultado?`<div style="margin-top:6px;"><span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:600;">${esc(c.resultado)}</span></div>`:''}
+  </div>`;
+  return `
+    ${proximas.length?`<div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--primary);">Próximas</div>${proximas.map(renderComp).join('')}`:''}
+    ${pasadas.length?`<div style="font-weight:700;font-size:14px;margin:16px 0 10px;color:var(--text2);">Historial</div>${pasadas.map(renderComp).join('')}`:''}
+    ${!proximas.length&&!pasadas.length?`<div class="card" style="text-align:center;padding:40px;color:var(--text2);">Sin competencias cargadas todavía.</div>`:''}`;
+}
+
+function elitePagePseHistorial(d){
+  const pses = (d.pse||[]).slice().reverse();
+  if(!pses.length) return `<div class="card" style="text-align:center;padding:40px;color:var(--text2);">No hay PSE registradas todavía.</div>`;
+  return pses.slice(0,30).map(p=>{
+    const labelMap = {pre:'Antes del entreno', post:'Después del entreno'};
+    const resp = p.r||{};
+    const items = Object.entries(resp).filter(([k,v])=>v).map(([k,v])=>{
+      const preguntasList = p.tipo==='pre'?PSE_PRE:PSE_POST;
+      const preg = preguntasList.find(q=>q.id===k);
+      if(!preg) return '';
+      return `<div style="font-size:12px;color:var(--text2);margin-top:3px;"><strong>${esc(preg.label.replace('¿','').replace('?','').trim())}:</strong> ${esc(String(v))}</div>`;
+    }).filter(Boolean).join('');
+    return `<div class="card" style="padding:12px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="background:${p.tipo==='pre'?'var(--primary-light)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;">${labelMap[p.tipo]||p.tipo}</span>
+        <span style="font-size:12px;color:var(--text2);">${esc(p.f)}</span>
+        <span style="font-size:12px;font-weight:600;">${esc(p.rname||'')}</span>
+        ${resp.rpe?`<span style="background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">RPE ${resp.rpe}</span>`:''}
+      </div>
+      ${items}
+    </div>`;
+  }).join('');
+}
+
+/* ---- Rutina detalle elite ---- */
+function eliteAbrirRutina(rname){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  // Si no hay PSE pre registrada hoy → mostrar cuestionario PRE primero
+  const todayStr = todayISO();
+  const yaTienePre = (d.pse||[]).some(p=>p.tipo==='pre'&&p.rname===rname&&p.f===todayStr);
+  if(!yaTienePre){
+    _pseMode = 'pre'; _pseRutinaName = rname; _pseTemp = {};
+    openPseModal();
+    return;
+  }
+  openEliteRutinaDetalleModal(rname);
+}
+
+function openEliteRutinaDetalleModal(rname){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+  const todayStr = todayISO();
+  const rh = d.rsHechos?.[rname]||{};
+  const ejs = r.ejs||[];
+  const todosHechos = ejs.length>0 && ejs.every(e=>rh[e.n]===todayStr);
+
+  const ejRows = ejs.map(e=>{
+    const hecho = rh[e.n]===todayStr;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border2);cursor:pointer;" onclick="eliteToggleEjercicio('${esc(rname)}','${esc(e.n)}')">
+      <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--text2)'};flex-shrink:0;"></i>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:600;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
+        <div style="font-size:12px;color:var(--text2);">${e.s} series × ${e.r||''}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:15px;">${esc(rname)}</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · ${ejs.length} ejercicios${r.ob?` · ${esc(r.ob)}`:''}</div>
+      ${ejRows}
+      <button class="btn ${todosHechos?'btn-outline':'btn-primary'}" style="width:100%;margin-top:16px;" onclick="eliteCompletarEntrenamiento('${esc(rname)}')">
+        <i class="ti ${todosHechos?'ti-x':'ti-check'}"></i> ${todosHechos?'Desmarcar todo':'Completar entrenamiento'}
+      </button>
+    </div>`);
+}
+
+function eliteToggleEjercicio(rname, ejName){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  if(!d.rsHechos) d.rsHechos = {};
+  if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
+  const todayStr = todayISO();
+  if(d.rsHechos[rname][ejName]===todayStr) delete d.rsHechos[rname][ejName];
+  else d.rsHechos[rname][ejName] = todayStr;
+  persist();
+  openEliteRutinaDetalleModal(rname);
+}
+
+function eliteCompletarEntrenamiento(rname){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+  const todayStr = todayISO();
+  if(!d.rsHechos) d.rsHechos = {};
+  if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
+  const ejs = r.ejs||[];
+  const todosHechos = ejs.length>0 && ejs.every(e=>d.rsHechos[rname][e.n]===todayStr);
+  if(todosHechos){
+    ejs.forEach(e=>delete d.rsHechos[rname][e.n]);
+    persist();
+    openEliteRutinaDetalleModal(rname);
+  } else {
+    ejs.forEach(e=>{ d.rsHechos[rname][e.n]=todayStr; });
+    d.ultimoEntreno = {r:rname, f:todayStr};
+    persist();
+    closeModal();
+    // Mostrar PSE post
+    _pseMode = 'post'; _pseRutinaName = rname; _pseTemp = {};
+    setTimeout(()=>openPseModal(), 200);
+  }
+}
+
+/* ---- PSE Modal ---- */
+function openPseModal(){
+  const preguntas = _pseMode==='pre' ? PSE_PRE : PSE_POST;
+  const titulo = _pseMode==='pre' ? 'Antes del entrenamiento' : 'Después del entrenamiento';
+  const subtitulo = _pseMode==='pre'
+    ? 'Contanos cómo llegás hoy al entreno'
+    : 'Contanos cómo fue el entrenamiento';
+  const icon = _pseMode==='pre' ? 'ti-heart-rate-monitor' : 'ti-chart-bar';
+
+  const preguntasHTML = preguntas.map(q=>renderPsePregunta(q)).join('');
+
+  openModal(`
+    <div class="modal-head" style="background:${_pseMode==='pre'?'var(--primary-light)':'rgba(5,150,105,.1)'};border-radius:12px 12px 0 0;">
+      <div>
+        <h3 style="font-size:15px;font-weight:800;color:${_pseMode==='pre'?'var(--primary)':'var(--green)'};">
+          <i class="ti ${icon}"></i> PSE — ${titulo}
+        </h3>
+        <p style="font-size:12px;color:var(--text2);margin:2px 0 0;">${subtitulo}</p>
+      </div>
+      <button onclick="saltarPse()">Omitir</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:68vh;-webkit-overflow-scrolling:touch;">
+      ${preguntasHTML}
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="guardarPse()">
+        <i class="ti ti-check"></i> ${_pseMode==='pre'?'Empezar entrenamiento':'Guardar y terminar'}
+      </button>
+    </div>`);
+}
+
+function renderPsePregunta(q){
+  const val = _pseTemp[q.id]||'';
+  if(q.type==='text'){
+    return `<div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">${esc(q.label)}</label>
+      <textarea id="pse_${q.id}" style="width:100%;resize:vertical;min-height:60px;" placeholder="Escribí acá..." oninput="_pseTemp['${q.id}']=this.value">${esc(val)}</textarea>
+    </div>`;
+  }
+  if(q.type==='rpe'){
+    return `<div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">${esc(q.label)}</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${[1,2,3,4,5,6,7,8,9,10].map(n=>{
+          const selected = String(_pseTemp[q.id])===String(n);
+          const color = n<=3?'#059669':n<=6?'#d97706':'#dc2626';
+          return `<button onclick="_pseTemp['${q.id}']=${n};openPseModal()" style="width:44px;height:44px;border-radius:8px;border:2px solid ${selected?color:'var(--border)'};background:${selected?color+'22':'var(--bg2)'};color:${selected?color:'var(--text)'};font-weight:700;font-size:16px;cursor:pointer;flex-shrink:0;transition:all .15s;">${n}</button>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:4px;"><span>Muy fácil</span><span>Muy duro</span></div>
+    </div>`;
+  }
+  // scale o choice
+  return `<div style="margin-bottom:16px;">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">${esc(q.label)}</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${(q.opts||[]).map((opt,i)=>{
+        const selected = _pseTemp[q.id]===opt;
+        return `<button onclick="_pseTemp['${q.id}']='${esc(opt).replace(/'/g,"\\'")}';openPseModal()" style="padding:7px 12px;border-radius:20px;border:1.5px solid ${selected?'var(--primary)':'var(--border)'};background:${selected?'var(--primary-light)':'var(--bg2)'};color:${selected?'var(--primary)':'var(--text)'};font-size:12px;font-weight:${selected?'700':'400'};cursor:pointer;transition:all .15s;">${esc(opt)}</button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function guardarPse(){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  if(!Array.isArray(d.pse)) d.pse = [];
+  d.pse.push({tipo:_pseMode, rname:_pseRutinaName, f:todayISO(), r:{..._pseTemp}});
+  if(d.pse.length>200) d.pse = d.pse.slice(-200);
+  persist();
+  closeModal();
+  if(_pseMode==='pre'){
+    setTimeout(()=>openEliteRutinaDetalleModal(_pseRutinaName), 200);
+  } else {
+    showToast('¡Entrenamiento completado! Muy bien.', 'ok');
+    renderElitePanel();
+  }
+}
+
+function saltarPse(){
+  closeModal();
+  if(_pseMode==='pre'){
+    setTimeout(()=>openEliteRutinaDetalleModal(_pseRutinaName), 200);
+  } else {
+    showToast('Entrenamiento registrado', 'ok');
+    renderElitePanel();
+  }
+}
+
+/* ============ LOGIN ELITE (URL ?elite=DNI) ============ */
+function tryEliteLogin(dni){
+  const d = eliteByDni(String(dni).trim());
+  if(!d||d.activo===false){
+    $('#eliteLoginErr').textContent = 'DNI no encontrado o cuenta inactiva.';
+    $('#eliteLoginErr').style.display = 'block';
+    return;
+  }
+  currentEliteId = d.id;
+  localStorage.setItem('afys_elite_id', d.id);
+  $('#login').classList.add('hidden');
+  $('#elite').classList.remove('hidden');
+  elitePage = 'inicio';
+  renderElitePanel();
+}
+
+function renderEliteLogin(prefillDni){
+  const el = $('#login');
+  el.classList.remove('hidden');
+  el.innerHTML = `<div class="login-box" style="max-width:380px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:32px;margin-bottom:8px;">🏆</div>
+      <h2 style="font-size:22px;font-weight:800;margin:0 0 4px;">AFYS Elite</h2>
+      <p style="font-size:13px;color:var(--text2);margin:0;">Ingresá tu número de DNI para acceder</p>
+    </div>
+    <div id="eliteLoginErr" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
+    <input id="eliteDniLogin" type="number" placeholder="Número de DNI" style="width:100%;margin-bottom:12px;" value="${esc(prefillDni||'')}" onkeydown="if(event.key==='Enter')tryEliteLogin($('#eliteDniLogin').value)">
+    <button class="btn btn-primary" style="width:100%;" onclick="tryEliteLogin($('#eliteDniLogin').value)">Ingresar</button>
+  </div>`;
+}
+
+/* ============ HTML PANEL ELITE ============ */
+function renderEliteShell(){
+  const existing = document.getElementById('elite');
+  if(existing) return;
+  const div = document.createElement('div');
+  div.id = 'elite';
+  div.className = 'hidden';
+  div.innerHTML = `
+    <div class="socio-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">🏆</span>
+        <span style="font-weight:800;font-size:16px;">AFYS Elite</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="darkModeBtnElite" onclick="toggleDarkMode()" style="all:unset;cursor:pointer;padding:6px;border-radius:8px;"><i class="ti ti-moon" style="font-size:18px;"></i></button>
+        <button onclick="eliteSalir()" style="all:unset;cursor:pointer;padding:6px;border-radius:8px;color:var(--text2);"><i class="ti ti-logout" style="font-size:18px;"></i></button>
+      </div>
+    </div>
+    <div id="eliteContent" style="padding:16px;max-width:600px;margin:0 auto;padding-bottom:80px;"></div>
+    <div class="bottom-nav" style="display:flex;justify-content:space-around;align-items:center;">
+      <button class="elite-nav-item" data-page="inicio" onclick="eliteNav('inicio')"><i class="ti ti-home"></i><span>Inicio</span></button>
+      <button class="elite-nav-item" data-page="rutinas" onclick="eliteNav('rutinas')"><i class="ti ti-barbell"></i><span>Rutinas</span></button>
+      <button class="elite-nav-item" data-page="competencias" onclick="eliteNav('competencias')"><i class="ti ti-medal"></i><span>Competencias</span></button>
+      <button class="elite-nav-item" data-page="pse" onclick="eliteNav('pse')"><i class="ti ti-heart-rate-monitor"></i><span>PSE</span></button>
+    </div>`;
+  document.body.appendChild(div);
+}
+
+function eliteNav(page){
+  elitePage = page;
+  renderElitePanel();
+}
+
+function eliteSalir(){
+  currentEliteId = null;
+  localStorage.removeItem('afys_elite_id');
+  $('#elite').classList.add('hidden');
+  $('#login').classList.remove('hidden');
+  renderLogin();
+}
+
+/* merge para ELITE_DEPORTISTAS en mergeRemoteIntoLocal/mergeRemoteAntesDeGuardar */
+function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
+  if(Array.isArray(remoteDeletedEliteIds)){
+    remoteDeletedEliteIds.forEach(id=>{ if(!deletedEliteIds.includes(id)) deletedEliteIds.push(id); });
+    const delSet = new Set(deletedEliteIds);
+    for(let i=ELITE_DEPORTISTAS.length-1;i>=0;i--){ if(delSet.has(ELITE_DEPORTISTAS[i].id)) ELITE_DEPORTISTAS.splice(i,1); }
+  }
+  if(!Array.isArray(remoteElite)) return;
+  const delSet = new Set(deletedEliteIds);
+  const localById = {};
+  ELITE_DEPORTISTAS.forEach(d=>{ localById[d.id]=d; });
+  remoteElite.forEach(rd=>{
+    if(!rd.id||delSet.has(rd.id)) return;
+    if(localById[rd.id]){
+      const ld = localById[rd.id];
+      // merge rsHechos
+      if(rd.rsHechos) mergeRsHechos(ld.rsHechos||(ld.rsHechos={}), rd.rsHechos);
+      if(rd.ultimoEntreno&&(!ld.ultimoEntreno||rd.ultimoEntreno.f>ld.ultimoEntreno.f)) ld.ultimoEntreno=rd.ultimoEntreno;
+      // merge pse (additivo por timestamp)
+      if(Array.isArray(rd.pse)&&rd.pse.length){
+        if(!Array.isArray(ld.pse)) ld.pse=[];
+        const lk=new Set(ld.pse.map(p=>p.f+'|'+p.tipo+'|'+(p.rname||'')));
+        rd.pse.forEach(p=>{ const k=p.f+'|'+p.tipo+'|'+(p.rname||''); if(!lk.has(k)){ ld.pse.push(p); lk.add(k); } });
+      }
+      // merge competencias
+      if(Array.isArray(rd.competencias)&&rd.competencias.length){
+        if(!Array.isArray(ld.competencias)) ld.competencias=[];
+        const lk=new Set(ld.competencias.map(c=>c.f+'|'+c.n));
+        rd.competencias.forEach(c=>{ const k=c.f+'|'+c.n; if(!lk.has(k)){ ld.competencias.push(c); lk.add(k); } });
+      }
+      // merge rs (rutinas asignadas)
+      if(Array.isArray(rd.rs)&&rd.rs.length){
+        if(!Array.isArray(ld.rs)) ld.rs=[];
+        const localRemoved=new Set(ld.rsRemoved||[]);
+        const lk=new Set(ld.rs);
+        rd.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ld.rs.push(r);lk.add(r);}});
+      }
+      // campos simples: tomar remoto si el local no tiene
+      ['n','dni','disciplina','tel','email','ob'].forEach(k=>{ if(rd[k]&&!ld[k]) ld[k]=rd[k]; });
+      if(typeof rd.activo==='boolean') ld.activo=rd.activo;
+    } else {
+      ELITE_DEPORTISTAS.push(rd);
+      localById[rd.id]=rd;
+    }
+  });
+}
+
 function pageMovimientos(){
   const opciones = Object.keys(MOVIMIENTO_TIPOS).map(k=>`<option value="${k}" ${movFiltroTipo===k?'selected':''}>${esc(MOVIMIENTO_TIPOS[k])}</option>`).join('');
   return `
@@ -6037,7 +6845,8 @@ function socioCuenta(){
   const qrType = urlParams.get('qr'); // 'general' | 'clase' (escaneado con la cámara del celular)
   const isStaffQR = urlParams.get('staff')==='1';
   const inviteToken = urlParams.get('invite');
-  if(qrType || isStaffQR || inviteToken){
+  const eliteDniParam = urlParams.get('elite'); // login de deportista elite
+  if(qrType || isStaffQR || inviteToken || eliteDniParam){
     if(qrType) pendingQR = {tipo: qrType, clase: urlParams.get('nombre')||null};
     window.history.replaceState({}, '', window.location.pathname);
   }
@@ -6045,6 +6854,9 @@ function socioCuenta(){
   if(inviteToken){
     invite = PENDING_INVITES.find(i=>i.token===inviteToken) || null;
   }
+
+  // Construir el shell de elite (el div#elite)
+  renderEliteShell();
 
   const isRecovery = _initialHash.includes('type=recovery') || urlParams.get('type')==='recovery';
 
@@ -6215,6 +7027,8 @@ function socioCuenta(){
     if(remote.notifSocio){ const _n2remap={}; if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _n2remap[ri]=li; }); Object.keys(remote.notifSocio).forEach(remIdx=>{ if(_n2remap[Number(remIdx)]===undefined) return; const li=_n2remap[Number(remIdx)]; if(!notifSocio[li]) notifSocio[li]=[]; const lk=new Set(notifSocio[li].map(n=>n.txt)); (remote.notifSocio[remIdx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[li].unshift(n); lk.add(n.txt); } }); }); }
     if(typeof remote.turnoSeq==='number' && remote.turnoSeq > turnoSeq) turnoSeq = remote.turnoSeq;
     if(typeof remote.socioSeq==='number' && remote.socioSeq > socioSeq) socioSeq = remote.socioSeq;
+    if(typeof remote.eliteSeq==='number' && remote.eliteSeq > eliteSeq) eliteSeq = remote.eliteSeq;
+    mergeEliteRemote(remote.ELITE_DEPORTISTAS, remote.deletedEliteIds);
     recalcEstados({notify:false}); // _merging removed: allows persist() when es status changes
   }
 
@@ -6243,6 +7057,19 @@ function socioCuenta(){
     }
     await routeLoggedInUser(sEmail);
     if(pendingQR && currentRole==='socio') startScan();
+  } else if(eliteDniParam){
+    // Login directo por link con DNI
+    renderEliteLogin(eliteDniParam);
+    // intentar login automático si el DNI está en la URL
+    const dFound = eliteByDni(eliteDniParam);
+    if(dFound && dFound.activo!==false){
+      currentEliteId = dFound.id;
+      localStorage.setItem('afys_elite_id', dFound.id);
+      $('#login').classList.add('hidden');
+      $('#elite').classList.remove('hidden');
+      elitePage = 'inicio';
+      renderElitePanel();
+    }
   } else if(invite){
     openStaffGate(invite);
   } else if(inviteToken){
@@ -6254,8 +7081,18 @@ function socioCuenta(){
   } else if(pendingQR){
     openQRGate();
   } else {
-    $('#login').classList.remove('hidden');
-    renderLogin();
+    // Verificar si hay sesión elite guardada en localStorage
+    const savedEliteId = localStorage.getItem('afys_elite_id');
+    if(savedEliteId && eliteById(savedEliteId) && eliteById(savedEliteId).activo!==false){
+      currentEliteId = savedEliteId;
+      $('#login').classList.add('hidden');
+      $('#elite').classList.remove('hidden');
+      elitePage = 'inicio';
+      renderElitePanel();
+    } else {
+      $('#login').classList.remove('hidden');
+      renderLogin();
+    }
   }
 })();
 </script>
