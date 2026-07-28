@@ -5440,7 +5440,7 @@ function guardarEliteDeportista(id){
       email: $('#eliteEmail').value.trim(),
       ob: $('#eliteOb').value.trim(),
       rs: [], rsHechos: {}, rsOverride: {}, rsRemoved: [],
-      competencias: [], pse: [], planSemanal: {},
+      competencias: [], pse: [], planSemanal: {}, planFechas: {},
       ultimoEntreno: null, activo: true,
     });
     showToast('Deportista creado', 'ok');
@@ -5533,35 +5533,21 @@ function _eliteDeportistaModalHTML(id){
         ${d.email?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(d.email)}</span>`:''}
       </div>
 
-      <!-- Rutinas + Plan semanal combinados -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Rutinas y días</div>
-      ${rutinasAsignadas.length ? rutinasAsignadas.map(rname=>{
-        const r = RUTINAS.find(x=>x.n===rname);
-        const plan = d.planSemanal||{};
-        const dias = Array.isArray(plan[rname]) ? plan[rname] : [];
-        const DIAS_BTN = [['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']];
-        const dayBtns = DIAS_BTN.map(([dn,lbl])=>{
-          const on = dias.includes(Number(dn));
-          return `<button onclick="togglePlanDia('${id}','${escQ(rname)}',${dn})" style="all:unset;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:700;text-align:center;line-height:28px;cursor:pointer;flex-shrink:0;transition:all .15s;background:${on?'var(--primary)':'var(--bg2)'};color:${on?'#fff':'var(--text2)'};border:1.5px solid ${on?'var(--primary)':'var(--border2)'};">${lbl}</button>`;
-        }).join('');
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
-          <div style="font-size:13px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}${r?`<span style="font-size:11px;color:var(--text2);font-weight:400;margin-left:6px;">${esc(r.t||'')}</span>`:''}
-            <button style="all:unset;float:right;padding:0 2px;cursor:pointer;color:var(--text2);opacity:.4;" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:13px;"></i></button>
-          </div>
-          <div style="display:flex;gap:5px;align-items:center;">${dayBtns}</div>
-        </div>`;
-      }).join('') : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`}
+      <!-- Rutinas asignadas -->
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Rutinas asignadas</div>
+      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`}
       ${addRutinaSection}
+
+      <!-- Plan mensual + Entrenamientos -->
+      <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border2);">
+        <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openElitePlanCalendarioModal('${id}')"><i class="ti ti-calendar-month"></i> Plan mensual</button>
+        <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
+      </div>
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
       ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin competencias.</p>`}
       <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar</button>
-
-      <!-- Entrenamientos -->
-      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border2);">
-        <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
-      </div>
 
       <!-- Acciones -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);">
@@ -5871,7 +5857,7 @@ function openEliteEntrenamientosModal(id){
     for(let i=0;i<7;i++){
       const d2 = new Date(wkDt); d2.setDate(d2.getDate()+i);
       const ds = d2.toISOString().slice(0,10);
-      if(rutinasDelDia(d2.getDay()).length) weekMapFull[wkMon].add(ds);
+      if((d.planFechas||{})[ds] || rutinasDelDia(d2.getDay()).length) weekMapFull[wkMon].add(ds);
     }
   }
 
@@ -5893,7 +5879,9 @@ function openEliteEntrenamientosModal(id){
     const daysHTML = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
-      const planRnames = rutinasDelDia(dt.getDay()); // rutinas planificadas ese día
+      // planFechas tiene prioridad; si no hay, caer en planSemanal legacy
+      const planFechaRname = (d.planFechas||{})[ds];
+      const planRnames = planFechaRname ? [planFechaRname] : rutinasDelDia(dt.getDay());
 
       // Rutinas con actividad real ese día (de todas las asignadas)
       const rutDia = (d.rs||[]).map(rname=>{
@@ -5994,6 +5982,120 @@ function togglePlanDia(id, rname, dayNum){
   else d.planSemanal[rname].push(dn);
   persist();
   refreshEliteDeportistaModal(id);
+}
+
+function openElitePlanCalendarioModal(id, ym){
+  const d = eliteById(id);
+  if(!d) return;
+  const now = new Date();
+  const curYM = ym || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const [year, month] = curYM.split('-').map(Number);
+  const firstDay = new Date(year, month-1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startDow = (firstDay.getDay()+6)%7; // Lun=0
+  const planFechas = d.planFechas||{};
+  const rh = d.rsHechos||{};
+  const rutinas = d.rs||[];
+  const todayStr = todayISO();
+  const MESES_N = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_H = ['L','M','X','J','V','S','D'];
+  const prevYM = month===1?`${year-1}-12`:`${year}-${String(month-1).padStart(2,'0')}`;
+  const nextYM = month===12?`${year+1}-01`:`${year}-${String(month+1).padStart(2,'0')}`;
+
+  const headerCells = DIAS_H.map(h=>`<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:5px 0;">${h}</div>`).join('');
+
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells += '<div></div>';
+
+  for(let day=1;day<=daysInMonth;day++){
+    const ds = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const planRname = planFechas[ds]||'';
+    const isToday = ds===todayStr;
+    const isPast = ds<todayStr;
+
+    let done = false;
+    if(planRname){
+      const r = RUTINAS.find(x=>x.n===planRname);
+      const ejs = r?r.ejs||[]:[];
+      const rhR = rh[planRname]||{};
+      done = ejs.length>0 && ejs.every(e=>rhR[e.n]===ds);
+    }
+    const hasAnyActivity = rutinas.some(rname=>{
+      const r = RUTINAS.find(x=>x.n===rname);
+      const ejs = r?r.ejs||[]:[];
+      return ejs.some(e=>(rh[rname]||{})[e.n]===ds);
+    });
+
+    const bg = done?'rgba(5,150,105,.13)':planRname&&!isPast?'rgba(59,130,201,.1)':planRname&&isPast?'rgba(220,38,38,.07)':'transparent';
+    const border = isToday?'2px solid var(--primary)':done?'1.5px solid rgba(5,150,105,.4)':'1.5px solid transparent';
+    const numColor = isToday?'var(--primary)':isPast?'var(--text2)':'var(--text)';
+    const txtColor = done?'var(--green)':isPast&&planRname?'var(--red)':'var(--primary)';
+    const shortName = planRname.length>8?planRname.slice(0,7)+'…':planRname;
+
+    cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:48px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+      <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
+      ${planRname?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}</div>`:''}
+      ${hasAnyActivity&&!planRname?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
+    </div>`;
+  }
+
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:15px;"><i class="ti ti-calendar-month"></i> Plan — ${esc(d.n)}</h3>
+    <button onclick="openEliteDeportistaModal('${id}')">✕</button>
+  </div>
+  <div style="padding:0 12px 20px;overflow-y:auto;max-height:82vh;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px 14px;">
+      <button onclick="openElitePlanCalendarioModal('${id}','${prevYM}')" style="all:unset;width:34px;height:34px;border-radius:10px;background:var(--bg2);font-size:18px;font-weight:700;color:var(--text);cursor:pointer;text-align:center;line-height:34px;">‹</button>
+      <span style="font-size:16px;font-weight:800;">${MESES_N[month-1]} ${year}</span>
+      <button onclick="openElitePlanCalendarioModal('${id}','${nextYM}')" style="all:unset;width:34px;height:34px;border-radius:10px;background:var(--bg2);font-size:18px;font-weight:700;color:var(--text);cursor:pointer;text-align:center;line-height:34px;">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+      ${headerCells}${cells}
+    </div>
+    <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text2);">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(59,130,201,.15);flex-shrink:0;"></span>Planificado</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(5,150,105,.18);flex-shrink:0;"></span>Completado</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(220,38,38,.1);flex-shrink:0;"></span>No realizado</span>
+    </div>
+  </div>`);
+}
+
+function openEliteAsignarDiaModal(id, fecha, ym){
+  const d = eliteById(id);
+  if(!d) return;
+  const dt = new Date(fecha+'T12:00:00');
+  const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
+  const planFechas = d.planFechas||{};
+  const current = planFechas[fecha]||'';
+  const rutinas = d.rs||[];
+
+  const opts = [`<button onclick="guardarPlanFecha('${id}','${fecha}','','${escQ(ym)}')" style="all:unset;display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;border-bottom:1px solid var(--border2);font-size:13px;color:var(--text2);cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+    <i class="ti ti-ban" style="font-size:16px;opacity:.5;"></i>Sin rutina
+  </button>`].concat(rutinas.map(rname=>{
+    const sel = current===rname;
+    return `<button onclick="guardarPlanFecha('${id}','${fecha}','${escQ(rname)}','${escQ(ym)}')" style="all:unset;display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;border-bottom:1px solid var(--border2);font-size:13px;font-weight:${sel?'700':'400'};color:${sel?'var(--primary)':'var(--text)'};cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;background:${sel?'var(--primary-light)':''};">
+      <i class="ti ${sel?'ti-check-circle':'ti-circle'}" style="font-size:16px;color:${sel?'var(--primary)':'var(--border)'};flex-shrink:0;"></i>
+      ${esc(rname)}
+    </button>`;
+  })).join('');
+
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
+    <button onclick="openElitePlanCalendarioModal('${id}','${ym}')">✕</button>
+  </div>
+  <div style="overflow-y:auto;max-height:70vh;">${opts}</div>`);
+}
+
+function guardarPlanFecha(id, fecha, rname, ym){
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.planFechas) d.planFechas = {};
+  if(rname) d.planFechas[fecha] = rname;
+  else delete d.planFechas[fecha];
+  persist();
+  openElitePlanCalendarioModal(id, ym);
 }
 
 function quitarRutinaElite(id, rname){
@@ -6589,6 +6691,11 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
       if(rd.planSemanal && typeof rd.planSemanal==='object'){
         if(!ld.planSemanal) ld.planSemanal = {};
         Object.keys(rd.planSemanal).forEach(rname=>{ ld.planSemanal[rname] = rd.planSemanal[rname]; });
+      }
+      // planFechas: merge por fecha (remoto gana si local no tiene ese día)
+      if(rd.planFechas && typeof rd.planFechas==='object'){
+        if(!ld.planFechas) ld.planFechas = {};
+        Object.keys(rd.planFechas).forEach(fecha=>{ if(ld.planFechas[fecha]===undefined) ld.planFechas[fecha]=rd.planFechas[fecha]; });
       }
     } else {
       ELITE_DEPORTISTAS.push(rd);
