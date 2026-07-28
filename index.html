@@ -5485,14 +5485,16 @@ function _eliteDeportistaModalHTML(id){
     const hechosHoy = Object.values(rh).filter(f=>f===todayStr).length;
     const totalEjs = ejs.length;
     const completo = totalEjs>0 && hechosHoy===totalEjs;
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--border2);">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="flex:1;font-size:13px;font-weight:600;">${esc(rname)}</span>
-        <span style="font-size:11px;color:var(--text2);">${esc(r.t||'')}</span>
-        ${hechosHoy>0?`<span style="background:${completo?'var(--green)':'var(--primary-light)'};color:${completo?'#fff':'var(--primary)'};border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;">${completo?'✓ Completa':''+hechosHoy+'/'+totalEjs}</span>`:''}
-        <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x"></i></button>
+    const parcial = hechosHoy>0 && !completo;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);">
+      <button title="${completo?'Desmarcar':'Marcar completa hoy'}" style="all:unset;width:28px;height:28px;border-radius:8px;background:${completo?'rgba(5,150,105,.12)':parcial?'rgba(59,130,201,.1)':'var(--bg2)'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s;" onclick="eliteToggleCompletadaHoy('${id}','${escQ(rname)}')">
+        <i class="ti ${completo?'ti-check':'ti-circle'}" style="font-size:15px;color:${completo?'var(--green)':parcial?'var(--primary)':'var(--border)'};"></i>
+      </button>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
+        <div style="font-size:11px;color:var(--text2);">${esc(r.t||'')} · ${totalEjs} ej.${parcial?` · <span style="color:var(--primary)">${hechosHoy}/${totalEjs} hoy</span>`:''}${completo?' · <span style="color:var(--green)">completa hoy</span>':''}</div>
       </div>
-      ${totalEjs>0?`<button class="btn btn-outline btn-sm" style="margin-top:5px;font-size:11px;color:${completo?'var(--red)':'var(--green)'};border-color:${completo?'var(--red)':'var(--green)'};" onclick="eliteToggleCompletadaHoy('${id}','${escQ(rname)}')">${completo?'<i class="ti ti-x"></i> Desmarcar completa':'<i class="ti ti-check"></i> Marcar completa hoy'}</button>`:''}
+      <button style="all:unset;padding:4px;cursor:pointer;color:var(--text2);opacity:.5;" title="Quitar rutina" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:14px;"></i></button>
     </div>`;
   }).join('');
 
@@ -5519,50 +5521,40 @@ function _eliteDeportistaModalHTML(id){
 
   return `
     <div class="modal-head">
-      <h3 style="font-size:16px;">${eliteAvatarSVG(d.n,28)} <span style="margin-left:8px;">${esc(d.n)}</span></h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${eliteAvatarSVG(d.n,32)}
+        <div>
+          <div style="font-size:16px;font-weight:800;">${esc(d.n)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:1px;">${esc(d.disciplina||'—')}${d.activo===false?' · <span style="color:var(--red);">Inactivo</span>':''}</div>
+        </div>
+      </div>
       <button onclick="closeModal()">✕</button>
     </div>
-    <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
+    <div style="padding:0 16px 20px;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch;">
 
-      <!-- Datos -->
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">DNI</div>
-          <div style="font-weight:700;">${esc(d.dni)}</div>
-        </div>
-        <div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Disciplina</div>
-          <div style="font-weight:700;">${esc(d.disciplina||'—')}</div>
-        </div>
-        ${d.tel?`<div style="flex:1;min-width:140px;background:var(--bg2);border-radius:10px;padding:10px 12px;"><div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Teléfono</div><div style="font-weight:700;">${esc(d.tel)}</div></div>`:''}
-      </div>
-
-      <!-- Link de acceso -->
-      <div style="background:var(--primary-light);border-radius:10px;padding:12px;margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px;"><i class="ti ti-link"></i> Link de acceso del deportista</div>
-        <div style="font-size:12px;word-break:break-all;color:var(--text);background:var(--bg);border-radius:6px;padding:6px 8px;margin-bottom:8px;">${esc(link)}</div>
-        <button class="btn btn-primary btn-sm" onclick="copiarEliteLink('${id}')"><i class="ti ti-copy"></i> Copiar link</button>
+      <!-- Info rápida -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px;">
+        <span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;"><span style="color:var(--text2);">DNI </span><strong>${esc(d.dni)}</strong></span>
+        ${d.tel?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;"><span style="color:var(--text2);">Tel </span><strong>${esc(d.tel)}</strong></span>`:''}
+        ${d.email?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(d.email)}</span>`:''}
       </div>
 
       <!-- Rutinas -->
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;"><i class="ti ti-barbell"></i> Rutinas asignadas</div>
-      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);">Sin rutinas asignadas.</p>`}
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rutinas</div>
+      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 8px;">Sin rutinas asignadas.</p>`}
       ${addRutinaSelect}
 
       <!-- Competencias -->
-      <div style="font-weight:700;font-size:14px;margin:16px 0 8px;"><i class="ti ti-medal"></i> Competencias</div>
-      ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);">Sin competencias cargadas.</p>`}
-      <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar competencia</button>
-
-      <!-- PSE -->
-      <button class="btn btn-outline" style="width:100%;margin-top:16px;border-radius:10px;justify-content:space-between;" onclick="openElitePseFechasModal('${id}')">
-        <span><i class="ti ti-heart-rate-monitor" style="margin-right:6px;"></i> PSE${pseCount?` · ${pseCount} registros`:''}</span>
-        <i class="ti ti-chevron-right"></i>
-      </button>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
+      ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin competencias.</p>`}
+      <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar</button>
 
       <!-- Acciones -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
-        <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar datos</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
+        <button class="btn btn-outline btn-sm" onclick="openElitePseFechasModal('${id}')"><i class="ti ti-heart-rate-monitor"></i> PSE${pseCount?` (${pseCount})`:''}</button>
+        <button class="btn btn-outline btn-sm" onclick="copiarEliteLink('${id}')"><i class="ti ti-copy"></i> Copiar link</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar</button>
         <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
       </div>
     </div>`;
