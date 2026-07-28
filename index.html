@@ -5491,18 +5491,29 @@ function openEliteDeportistaModal(id){
       <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}',${ci})"><i class="ti ti-x"></i></button>
     </div>`).join('');
 
-  const pses = Array.isArray(d.pse) ? d.pse.slice().reverse().slice(0,10) : [];
-  const pseRows = pses.map(p=>`
-    <div style="padding:6px 0;border-bottom:1px solid var(--border2);">
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span style="font-size:11px;background:${p.tipo==='pre'?'rgba(59,130,201,.15)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:1px 8px;font-weight:600;">${p.tipo==='pre'?'PRE':'POST'}</span>
-        <span style="font-size:12px;color:var(--text2);">${esc(p.f)}</span>
+  const pses = Array.isArray(d.pse) ? d.pse.slice().reverse().slice(0,6) : [];
+  const pseRows = pses.map(p=>{
+    const resp = p.r||{};
+    const preguntasList = p.tipo==='pre'?PSE_PRE:PSE_POST;
+    const respItems = preguntasList.map(q=>{
+      const v = resp[q.id];
+      if(!v&&v!==0) return '';
+      const isPre = p.tipo==='pre';
+      return `<div style="font-size:12px;margin-top:4px;display:flex;gap:6px;align-items:flex-start;">
+        <span style="color:var(--text2);flex-shrink:0;">${esc(q.label.replace(/[¿?]/g,'').trim())}:</span>
+        <span style="font-weight:600;color:${q.id==='rpe'?(+v<=3?'var(--green)':+v<=6?'#d97706':'var(--red)'):'var(--text)'};">${esc(String(v))}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border2);">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:11px;background:${p.tipo==='pre'?'rgba(59,130,201,.15)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:2px 9px;font-weight:700;">${p.tipo==='pre'?'PRE-entreno':'POST-entreno'}</span>
+        <span style="font-size:11px;color:var(--text2);">${esc(p.f)}</span>
         <span style="font-size:12px;font-weight:600;">${esc(p.rname||'')}</span>
-        ${p.r?.rpe?`<span style="font-size:11px;background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:1px 8px;font-weight:700;">RPE ${p.r.rpe}</span>`:''}
+        ${resp.rpe?`<span style="font-size:11px;background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:2px 8px;font-weight:700;">RPE ${resp.rpe}</span>`:''}
       </div>
-      ${p.r?.nota_post?`<div style="font-size:12px;color:var(--text2);margin-top:4px;padding-left:4px;">"${esc(p.r.nota_post)}"</div>`:''}
-      ${p.r?.nota_pre?`<div style="font-size:12px;color:var(--text2);margin-top:4px;padding-left:4px;">"${esc(p.r.nota_pre)}"</div>`:''}
-    </div>`).join('');
+      ${respItems}
+    </div>`;
+  }).join('');
 
   openModal(`
     <div class="modal-head">
@@ -5542,14 +5553,54 @@ function openEliteDeportistaModal(id){
       <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar competencia</button>
 
       <!-- PSE -->
-      <div style="font-weight:700;font-size:14px;margin:16px 0 8px;"><i class="ti ti-heart-rate-monitor"></i> Últimas PSE</div>
+      <div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;">
+        <div style="font-weight:700;font-size:14px;flex:1;"><i class="ti ti-heart-rate-monitor"></i> PSE recientes</div>
+        ${Array.isArray(d.pse)&&d.pse.length>6?`<button class="btn btn-outline btn-sm" onclick="openEliteFullPseModal('${id}')"><i class="ti ti-list"></i> Ver todo (${d.pse.length})</button>`:''}
+      </div>
       ${pses.length ? pseRows : `<p style="font-size:13px;color:var(--text2);">Sin PSE registradas todavía.</p>`}
+      ${pses.length&&Array.isArray(d.pse)&&d.pse.length<=6?'':`${pses.length?`<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;" onclick="openEliteFullPseModal('${id}')"><i class="ti ti-list"></i> Ver historial completo de PSE</button>`:''}`}
 
       <!-- Acciones -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
         <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar datos</button>
         <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
       </div>
+    </div>`);
+}
+
+function openEliteFullPseModal(id){
+  const d = eliteById(id);
+  if(!d||!Array.isArray(d.pse)||!d.pse.length){ showToast('Sin PSE registradas','warn'); return; }
+  const pses = d.pse.slice().reverse();
+  const rows = pses.map(p=>{
+    const resp = p.r||{};
+    const preguntasList = p.tipo==='pre'?PSE_PRE:PSE_POST;
+    const respItems = preguntasList.map(q=>{
+      const v = resp[q.id];
+      if(!v&&v!==0) return '';
+      return `<div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:3px 0;">
+        <span style="color:var(--text2);min-width:120px;flex-shrink:0;">${esc(q.label.replace(/[¿?]/g,'').trim())}</span>
+        <span style="font-weight:700;color:${q.id==='rpe'?(+v<=3?'var(--green)':+v<=6?'#d97706':'var(--red)'):'var(--primary)'};">${esc(String(v))}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    return `<div style="background:var(--bg2);border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="background:${p.tipo==='pre'?'var(--primary-light)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:3px 10px;font-size:11px;font-weight:700;">${p.tipo==='pre'?'PRE-entreno':'POST-entreno'}</span>
+        <span style="font-size:12px;color:var(--text2);">${esc(p.f)}</span>
+        <span style="font-size:13px;font-weight:600;">${esc(p.rname||'')}</span>
+        ${resp.rpe?`<span style="background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:700;">RPE ${resp.rpe}</span>`:''}
+      </div>
+      ${respItems||`<span style="font-size:12px;color:var(--text2);">Sin respuestas guardadas.</span>`}
+    </div>`;
+  }).join('');
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:15px;"><i class="ti ti-heart-rate-monitor"></i> PSE — ${esc(d.n)}</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">${pses.length} registros en total</div>
+      ${rows}
     </div>`);
 }
 
@@ -5762,7 +5813,9 @@ function elitePageRutinas(d){
           <span style="font-size:12px;color:var(--text2);flex-shrink:0;">${e.s} × ${e.r||'—'}</span>
         </div>`;
       }).join('')}
-      <button class="btn btn-primary" style="width:100%;margin-top:14px;border-radius:10px;" onclick="eliteAbrirRutina('${escQ(rname)}')"><i class="ti ti-player-play"></i> Iniciar entrenamiento</button>
+      <button class="btn ${completo?'btn-outline':'btn-primary'}" style="width:100%;margin-top:14px;border-radius:10px;${completo?'color:var(--green);border-color:var(--green);':''}" onclick="eliteAbrirRutina('${escQ(rname)}')">
+        <i class="ti ${completo?'ti-refresh':'ti-player-play'}"></i> ${completo?'Ver ejercicios / repetir':'Iniciar entrenamiento'}
+      </button>
     </div>`;
   }).join('');
 }
@@ -5831,6 +5884,7 @@ function openEliteRutinaDetalleModal(rname){
   const ejs = r.ejs||[];
   const todosHechos = ejs.length>0 && ejs.every(e=>rh[e.n]===todayStr);
 
+  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
   const ejRows = ejs.map(e=>{
     const hecho = rh[e.n]===todayStr;
     return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteToggleEjercicio('${escQ(rname)}','${escQ(e.n)}')">
@@ -5842,16 +5896,23 @@ function openEliteRutinaDetalleModal(rname){
     </div>`;
   }).join('');
 
+  const progresoTxt = `${Object.values(rh).filter(f=>f===todayStr).length}/${ejs.length} ejercicios`;
+  const btnLabel = yaHizoPost
+    ? `<i class="ti ti-check"></i> Entrenamiento finalizado`
+    : todosHechos
+      ? `<i class="ti ti-player-stop-filled"></i> Finalizar y registrar`
+      : `<i class="ti ti-check"></i> Completar entrenamiento`;
+
   openModal(`
     <div class="modal-head">
       <h3 style="font-size:15px;">${esc(rname)}</h3>
       <button onclick="closeModal()">✕</button>
     </div>
     <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · ${ejs.length} ejercicios${r.ob?` · ${esc(r.ob)}`:''}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · ${progresoTxt}${r.ob?` · ${esc(r.ob)}`:''}</div>
       ${ejRows}
-      <button class="btn ${todosHechos?'btn-outline':'btn-primary'}" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
-        <i class="ti ${todosHechos?'ti-x':'ti-check'}"></i> ${todosHechos?'Desmarcar todo':'¡Completé el entrenamiento!'}
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;${yaHizoPost?'opacity:.6;pointer-events:none;background:var(--green);border-color:var(--green);':''}" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
+        ${btnLabel}
       </button>
     </div>`);
 }
@@ -5877,17 +5938,17 @@ function eliteCompletarEntrenamiento(rname){
   if(!d.rsHechos) d.rsHechos = {};
   if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
   const ejs = r.ejs||[];
-  const todosHechos = ejs.length>0 && ejs.every(e=>d.rsHechos[rname][e.n]===todayStr);
-  if(todosHechos){
-    ejs.forEach(e=>delete d.rsHechos[rname][e.n]);
-    persist();
-    openEliteRutinaDetalleModal(rname);
+  // Marcar todos los ejercicios que falten
+  ejs.forEach(e=>{ d.rsHechos[rname][e.n]=todayStr; });
+  d.ultimoEntreno = {r:rname, f:todayStr};
+  persist();
+  closeModal();
+  // Si ya respondió el PSE post hoy → toast y volver al panel
+  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+  if(yaHizoPost){
+    showToast('¡Entrenamiento registrado! Muy bien.', 'ok');
+    renderElitePanel();
   } else {
-    ejs.forEach(e=>{ d.rsHechos[rname][e.n]=todayStr; });
-    d.ultimoEntreno = {r:rname, f:todayStr};
-    persist();
-    closeModal();
-    // Mostrar PSE post
     _pseMode = 'post'; _pseRutinaName = rname; _pseTemp = {};
     setTimeout(()=>openPseModal(), 200);
   }
