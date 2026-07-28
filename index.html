@@ -5893,11 +5893,9 @@ function openEliteEntrenamientosModal(id){
     const daysHTML = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
-      // planFechas tiene prioridad; si no hay, caer en planSemanal legacy
       const planFechaRname = (d.planFechas||{})[ds];
       const planRnames = planFechaRname ? [planFechaRname] : rutinasDelDia(dt.getDay());
 
-      // Rutinas con actividad real ese día (de todas las asignadas)
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
         const ejs = r ? r.ejs||[] : [];
@@ -5914,54 +5912,37 @@ function openEliteEntrenamientosModal(id){
       const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
       const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
       const isFuture = ds > todayStr;
+      const isToday = ds === todayStr;
 
-      // Días sin plan y sin actividad: omitir
       if(!hasPlan && !hasActivity && !psePre && !psePost) return '';
 
-      // Chips de plan para cada rutina planificada ese día
-      const planChip = planRnames.map(planRname=>{
-        const cumplida = rutDia.some(rt=>rt.rname===planRname);
-        const pendiente = !cumplida && !isFuture;
-        const futuro = !cumplida && isFuture;
-        return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:${cumplida?'rgba(5,150,105,.1)':futuro?'var(--bg2)':'rgba(220,38,38,.08)'};color:${cumplida?'var(--green)':futuro?'var(--text2)':'var(--red)'};border:1px solid ${cumplida?'var(--green)':futuro?'var(--border2)':'rgba(220,38,38,.2)'};">
-          <i class="ti ${cumplida?'ti-check':futuro?'ti-calendar':'ti-alert-circle'}" style="font-size:9px;"></i>
-          ${esc(planRname)}
-        </span>`;
-      }).join(' ');
+      // Indicador de estado: color del punto a la derecha
+      let dotColor = 'var(--border2)';
+      let dotIcon = 'ti-circle';
+      if(hasActivity){
+        const todoCompleto = rutDia.every(rt=>rt.completo);
+        dotColor = todoCompleto ? 'var(--green)' : 'var(--primary)';
+        dotIcon = todoCompleto ? 'ti-circle-check-filled' : 'ti-circle-half-2';
+      } else if(hasPlan && !isFuture){
+        dotColor = 'var(--red)'; dotIcon = 'ti-circle-x';
+      } else if(hasPlan && isFuture){
+        dotColor = 'var(--text2)'; dotIcon = 'ti-calendar';
+      }
+      if(psePre || psePost){ dotColor = dotColor==='var(--border2)'?'var(--primary)':dotColor; }
 
-      const rutHTML = hasActivity
-        ? rutDia.map(rt=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-            <div style="width:20px;height:20px;border-radius:5px;background:${rt.completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="ti ${rt.completo?'ti-check':'ti-barbell'}" style="font-size:10px;color:${rt.completo?'var(--green)':'var(--primary)'};"></i>
-            </div>
-            <div style="min-width:0;">
-              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rt.rname)}</div>
-              <div style="font-size:10px;color:var(--text2);">${rt.done}/${rt.total} ej.${rt.completo?' · <span style="color:var(--green);">✓</span>':''}</div>
-            </div>
-          </div>`).join('')
-        : (hasPlan && !isFuture ? `<div style="font-size:11px;color:var(--red);margin-top:4px;opacity:.7;">No realizado</div>` : '');
+      // Subtítulo compacto: rutina planificada o realizada
+      const subtitulo = planRnames.length ? esc(planRnames[0]) : (hasActivity ? esc(rutDia[0].rname) : '');
 
-      const preHTML = psePre ? `
-        <div style="margin-top:7px;padding:6px 9px;background:var(--bg2);border-radius:7px;border-left:3px solid var(--primary);">
-          <div style="font-size:9px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">PSE antes</div>
-          <div style="font-size:11px;color:var(--text);line-height:1.5;">${pseResumen(psePre)||'<span style="color:var(--text2);">—</span>'}</div>
-        </div>` : '';
-
-      const postHTML = psePost ? `
-        <div style="margin-top:5px;padding:6px 9px;background:var(--bg2);border-radius:7px;border-left:3px solid var(--green);">
-          <div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">PSE después</div>
-          <div style="font-size:11px;color:var(--text);line-height:1.5;">${psePostResumen(psePost)||'<span style="color:var(--text2);">—</span>'}</div>
-        </div>` : '';
-
-      const isToday = ds === todayStr;
-      return `<div style="padding:10px 14px;border-bottom:1px solid var(--border2);${isToday?'background:var(--primary-light);':''}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <span style="font-size:10px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;min-width:26px;">${diaLabel}</span>
-          <span style="font-size:12px;font-weight:700;${isToday?'color:var(--primary);':''}">${fmtDate(ds)}${isToday?' <span style="font-size:10px;font-weight:600;opacity:.7;">(hoy)</span>':''}</span>
-          ${planChip}
+      return `<div onclick="openEliteEntrenamientoDiaModal('${id}','${ds}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border2);cursor:pointer;${isToday?'background:var(--primary-light);':''}">
+        <div style="min-width:36px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;">${diaLabel}</div>
+          <div style="font-size:15px;font-weight:700;${isToday?'color:var(--primary);':''}">${dt.getDate()}</div>
         </div>
-        ${rutHTML}${preHTML}${postHTML}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${subtitulo||'<span style="color:var(--text2);font-size:12px;">Sin rutina asignada</span>'}</div>
+          ${hasActivity?`<div style="font-size:11px;color:var(--text2);">${rutDia.map(rt=>`${rt.done}/${rt.total} ej.`).join(' · ')}</div>`:''}
+        </div>
+        <i class="ti ${dotIcon}" style="font-size:18px;color:${dotColor};flex-shrink:0;"></i>
       </div>`;
     }).filter(Boolean).join('');
 
@@ -5996,6 +5977,112 @@ function togglePlanDia(id, rname, dayNum){
   else d.planSemanal[rname].push(dn);
   persist();
   refreshEliteDeportistaModal(id);
+}
+
+function openEliteEntrenamientoDiaModal(id, ds){
+  const d = eliteById(id);
+  if(!d) return;
+  const rh = d.rsHechos||{};
+  const pse = d.pse||[];
+  const todayStr = todayISO();
+  const DIAS_L = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const dt = new Date(ds+'T12:00:00');
+  const fechaLabel = `${DIAS_L[dt.getDay()]} ${dt.getDate()} de ${MESES[dt.getMonth()]} ${dt.getFullYear()}`;
+  const isFuture = ds > todayStr;
+  const isToday = ds === todayStr;
+
+  const planSemanal = d.planSemanal||{};
+  const planFechaRname = (d.planFechas||{})[ds];
+  const planRnames = planFechaRname ? [planFechaRname] : Object.keys(planSemanal).filter(rname=>{
+    const dias = planSemanal[rname];
+    return Array.isArray(dias) && dias.includes(dt.getDay());
+  });
+
+  const rutDia = (d.rs||[]).map(rname=>{
+    const r = RUTINAS.find(x=>x.n===rname);
+    const ejs = r ? r.ejs||[] : [];
+    const rhR = rh[rname]||{};
+    const done = ejs.filter(e=>rhR[e.n]===ds).length;
+    if(!done) return null;
+    return {rname, done, total: ejs.length, completo: done===ejs.length && ejs.length>0};
+  }).filter(Boolean);
+
+  const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
+  const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
+
+  function pseResumen(pseObj){
+    if(!pseObj) return '';
+    const r = pseObj.r||{};
+    const parts = [];
+    if(r.energia!=null&&r.energia!=='') parts.push(`Energía: <b>${esc(String(r.energia))}</b>`);
+    if(r.sueno!=null&&r.sueno!=='') parts.push(`Sueño: <b>${esc(String(r.sueno))}</b>`);
+    if(r.dolor!=null&&r.dolor!=='') parts.push(`Dolor: <b>${esc(String(r.dolor))}</b>`);
+    if(r.animo!=null&&r.animo!=='') parts.push(`Ánimo: <b>${esc(String(r.animo))}</b>`);
+    if(r.nota_pre) parts.push(`Nota: <b>${esc(r.nota_pre)}</b>`);
+    return parts.join(' · ');
+  }
+  function psePostResumen(pseObj){
+    if(!pseObj) return '';
+    const r = pseObj.r||{};
+    const parts = [];
+    if(r.rpe!=null&&r.rpe!=='') parts.push(`RPE: <b>${esc(String(r.rpe))}/10</b>`);
+    if(r.carga!=null&&r.carga!=='') parts.push(`Carga: <b>${esc(String(r.carga))}</b>`);
+    if(r.recuperacion!=null&&r.recuperacion!=='') parts.push(`Recuperación: <b>${esc(String(r.recuperacion))}</b>`);
+    if(r.satisfaccion!=null&&r.satisfaccion!=='') parts.push(`Conformidad: <b>${esc(String(r.satisfaccion))}</b>`);
+    if(r.nota_post) parts.push(`Nota: <b>${esc(r.nota_post)}</b>`);
+    return parts.join(' · ');
+  }
+
+  // Rutinas planificadas
+  const planHTML = planRnames.length ? planRnames.map(pname=>{
+    const cumplida = rutDia.some(rt=>rt.rname===pname);
+    const color = cumplida?'var(--green)':isFuture?'var(--text2)':'var(--red)';
+    const icon = cumplida?'ti-circle-check-filled':isFuture?'ti-calendar':'ti-circle-x';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border2);">
+      <i class="ti ${icon}" style="font-size:20px;color:${color};flex-shrink:0;"></i>
+      <div>
+        <div style="font-size:13px;font-weight:700;">${esc(pname)}</div>
+        <div style="font-size:11px;color:${color};">${cumplida?'Realizada':isFuture?'Planificada':'No realizada'}</div>
+      </div>
+    </div>`;
+  }).join('') : '';
+
+  // Actividad real (rutinas con ejercicios hechos)
+  const actividadHTML = rutDia.length ? rutDia.map(rt=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border2);">
+      <i class="ti ${rt.completo?'ti-circle-check-filled':'ti-circle-half-2'}" style="font-size:20px;color:${rt.completo?'var(--green)':'var(--primary)'};flex-shrink:0;"></i>
+      <div>
+        <div style="font-size:13px;font-weight:700;">${esc(rt.rname)}</div>
+        <div style="font-size:11px;color:var(--text2);">${rt.done}/${rt.total} ejercicios${rt.completo?' · <span style="color:var(--green);">Completo ✓</span>':''}</div>
+      </div>
+    </div>`).join('') : (!planHTML && !isFuture ? `<p style="color:var(--text2);font-size:13px;margin:0;">Sin actividad registrada.</p>` : '');
+
+  const preHTML = psePre ? `
+    <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg2);border-radius:10px;border-left:3px solid var(--primary);">
+      <div style="font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">PSE antes del entrenamiento</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.6;">${pseResumen(psePre)||'—'}</div>
+    </div>` : '';
+
+  const postHTML = psePost ? `
+    <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg2);border-radius:10px;border-left:3px solid var(--green);">
+      <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">PSE después del entrenamiento</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.6;">${psePostResumen(psePost)||'—'}</div>
+    </div>` : '';
+
+  const hasPSE = psePre || psePost;
+  const hasAny = planHTML || actividadHTML || hasPSE;
+
+  openModal(`<div class="modal-head">
+    <button onclick="openEliteEntrenamientosModal('${id}')">←</button>
+    <h3 style="font-size:14px;font-weight:700;flex:1;text-align:center;${isToday?'color:var(--primary)':''}">${fechaLabel}${isToday?' · Hoy':''}</h3>
+    <button onclick="closeModal()">✕</button>
+  </div>
+  <div style="padding:16px 16px 24px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
+    ${planHTML || actividadHTML ? `<div style="margin-bottom:16px;">${planHTML}${actividadHTML}</div>` : ''}
+    ${preHTML}${postHTML}
+    ${!hasAny ? `<div style="text-align:center;padding:32px 0;color:var(--text2);"><i class="ti ti-calendar-off" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i><p style="margin:0;font-size:13px;">Sin información para este día.</p></div>` : ''}
+  </div>`);
 }
 
 function openElitePlanCalendarioModal(id, ym){
