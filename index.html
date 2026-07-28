@@ -5498,29 +5498,7 @@ function openEliteDeportistaModal(id){
       <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}',${ci})"><i class="ti ti-x"></i></button>
     </div>`).join('');
 
-  const pses = Array.isArray(d.pse) ? d.pse.slice().reverse().slice(0,6) : [];
-  const pseRows = pses.map(p=>{
-    const resp = p.r||{};
-    const preguntasList = p.tipo==='pre'?PSE_PRE:PSE_POST;
-    const respItems = preguntasList.map(q=>{
-      const v = resp[q.id];
-      if(!v&&v!==0) return '';
-      const isPre = p.tipo==='pre';
-      return `<div style="font-size:12px;margin-top:4px;display:flex;gap:6px;align-items:flex-start;">
-        <span style="color:var(--text2);flex-shrink:0;">${esc(q.label.replace(/[¿?]/g,'').trim())}:</span>
-        <span style="font-weight:600;color:${q.id==='rpe'?(+v<=3?'var(--green)':+v<=6?'#d97706':'var(--red)'):'var(--text)'};">${esc(String(v))}</span>
-      </div>`;
-    }).filter(Boolean).join('');
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--border2);">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <span style="font-size:11px;background:${p.tipo==='pre'?'rgba(59,130,201,.15)':'rgba(5,150,105,.15)'};color:${p.tipo==='pre'?'var(--primary)':'var(--green)'};border-radius:10px;padding:2px 9px;font-weight:700;">${p.tipo==='pre'?'PRE-entreno':'POST-entreno'}</span>
-        <span style="font-size:11px;color:var(--text2);">${esc(p.f)}</span>
-        <span style="font-size:12px;font-weight:600;">${esc(p.rname||'')}</span>
-        ${resp.rpe?`<span style="font-size:11px;background:rgba(220,38,38,.12);color:var(--red);border-radius:10px;padding:2px 8px;font-weight:700;">RPE ${resp.rpe}</span>`:''}
-      </div>
-      ${respItems}
-    </div>`;
-  }).join('');
+  const pseCount = Array.isArray(d.pse) ? d.pse.length : 0;
 
   openModal(`
     <div class="modal-head">
@@ -5560,12 +5538,10 @@ function openEliteDeportistaModal(id){
       <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar competencia</button>
 
       <!-- PSE -->
-      <div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;">
-        <div style="font-weight:700;font-size:14px;flex:1;"><i class="ti ti-heart-rate-monitor"></i> PSE recientes</div>
-        ${Array.isArray(d.pse)&&d.pse.length>6?`<button class="btn btn-outline btn-sm" onclick="openEliteFullPseModal('${id}')"><i class="ti ti-list"></i> Ver todo (${d.pse.length})</button>`:''}
-      </div>
-      ${pses.length ? pseRows : `<p style="font-size:13px;color:var(--text2);">Sin PSE registradas todavía.</p>`}
-      ${pses.length&&Array.isArray(d.pse)&&d.pse.length<=6?'':`${pses.length?`<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;" onclick="openEliteFullPseModal('${id}')"><i class="ti ti-list"></i> Ver historial completo de PSE</button>`:''}`}
+      <button class="btn btn-outline" style="width:100%;margin-top:16px;border-radius:10px;justify-content:space-between;" onclick="openElitePseFechasModal('${id}')">
+        <span><i class="ti ti-heart-rate-monitor" style="margin-right:6px;"></i> PSE${pseCount?` · ${pseCount} registros`:''}</span>
+        <i class="ti ti-chevron-right"></i>
+      </button>
 
       <!-- Acciones -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
@@ -5588,6 +5564,113 @@ function eliteForzarCompletada(id, rname){
   persist();
   showToast('Rutina marcada como completada hoy','ok');
   openEliteDeportistaModal(id);
+}
+
+function openElitePseFechasModal(id){
+  const d = eliteById(id);
+  if(!d){ showToast('Deportista no encontrado','warn'); return; }
+  const pse = Array.isArray(d.pse) ? d.pse : [];
+  if(!pse.length){
+    openModal(`
+      <div class="modal-head">
+        <h3 style="font-size:15px;"><i class="ti ti-heart-rate-monitor"></i> PSE — ${esc(d.n)}</h3>
+        <button onclick="closeModal()">✕</button>
+      </div>
+      <div style="padding:32px 16px;text-align:center;color:var(--text2);">
+        <i class="ti ti-chart-bar" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3;"></i>
+        <p style="margin:0;font-size:14px;">Sin PSE registradas todavía.</p>
+      </div>`);
+    return;
+  }
+  // Agrupar por fecha, mantener las rutinas de ese día
+  const byFecha = {};
+  pse.forEach(p=>{
+    if(!byFecha[p.f]) byFecha[p.f] = {rnames: new Set(), pre:false, post:false};
+    byFecha[p.f].rnames.add(p.rname||'');
+    if(p.tipo==='pre') byFecha[p.f].pre = true;
+    if(p.tipo==='post') byFecha[p.f].post = true;
+  });
+  const fechas = Object.keys(byFecha).sort((a,b)=>b.localeCompare(a));
+  const rows = fechas.map(f=>{
+    const g = byFecha[f];
+    const rnames = [...g.rnames].filter(Boolean).join(', ');
+    const [yr,mo,dy] = f.split('-');
+    const fechaLeg = `${dy}/${mo}/${yr}`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="openElitePseDiaModal('${id}','${f}')">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-calendar" style="font-size:18px;color:var(--primary);"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">${fechaLeg}</div>
+        ${rnames?`<div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rnames)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;">
+        ${g.pre?`<span style="background:var(--primary-light);color:var(--primary);border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;">PRE</span>`:''}
+        ${g.post?`<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;">POST</span>`:''}
+      </div>
+      <i class="ti ti-chevron-right" style="font-size:16px;color:var(--text2);"></i>
+    </div>`;
+  }).join('');
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:15px;"><i class="ti ti-heart-rate-monitor"></i> PSE — ${esc(d.n)}</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch;">
+      <div style="padding:10px 16px 6px;font-size:12px;color:var(--text2);">${fechas.length} día${fechas.length!==1?'s':''} con PSE registrada</div>
+      ${rows}
+    </div>`);
+}
+
+function openElitePseDiaModal(id, fecha){
+  const d = eliteById(id);
+  if(!d) return;
+  const pse = (d.pse||[]).filter(p=>p.f===fecha);
+  const [yr,mo,dy] = fecha.split('-');
+  const fechaLeg = `${dy}/${mo}/${yr}`;
+
+  function renderEntrada(p){
+    const resp = p.r||{};
+    const preguntas = p.tipo==='pre' ? PSE_PRE : PSE_POST;
+    const isPre = p.tipo==='pre';
+    const items = preguntas.map(q=>{
+      const v = resp[q.id];
+      if(v===undefined||v===null||v==='') return '';
+      const isRpe = q.id==='rpe';
+      const color = isRpe?(+v<=3?'var(--green)':+v<=6?'#d97706':'var(--red)'):'var(--primary)';
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);">
+        <span style="font-size:13px;color:var(--text2);flex:1;">${esc(q.label)}</span>
+        <span style="font-size:13px;font-weight:700;color:${color};flex-shrink:0;text-align:right;">${esc(String(v))}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    return `<div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="background:${isPre?'var(--primary-light)':'rgba(5,150,105,.12)'};color:${isPre?'var(--primary)':'var(--green)'};border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;">${isPre?'Antes del entrenamiento':'Después del entrenamiento'}</span>
+        ${p.rname?`<span style="font-size:12px;color:var(--text2);">${esc(p.rname)}</span>`:''}
+      </div>
+      ${items||`<p style="font-size:13px;color:var(--text2);margin:0;">Sin respuestas guardadas.</p>`}
+    </div>`;
+  }
+
+  const preEntradas = pse.filter(p=>p.tipo==='pre');
+  const postEntradas = pse.filter(p=>p.tipo==='post');
+  const html = [
+    preEntradas.length ? preEntradas.map(renderEntrada).join('') : '',
+    postEntradas.length ? postEntradas.map(renderEntrada).join('') : '',
+    !pse.length ? `<p style="font-size:13px;color:var(--text2);">Sin datos para esta fecha.</p>` : ''
+  ].join('');
+
+  openModal(`
+    <div class="modal-head">
+      <div>
+        <h3 style="font-size:15px;">${fechaLeg}</h3>
+        <p style="font-size:12px;color:var(--text2);margin:2px 0 0;">${esc(d.n)}</p>
+      </div>
+      <button onclick="openElitePseFechasModal('${id}')"><i class="ti ti-arrow-left"></i></button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch;">
+      ${html}
+    </div>`);
 }
 
 function openEliteFullPseModal(id){
