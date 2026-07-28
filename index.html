@@ -5479,33 +5479,27 @@ function _eliteDeportistaModalHTML(id){
 
   const rutinaRows = rutinasAsignadas.map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
-    if(!r) return '';
     const rh = d.rsHechos?.[rname]||{};
-    const ejs = r.ejs||[];
+    const ejs = r ? r.ejs||[] : [];
     const hechosHoy = ejs.filter(e=>rh[e.n]===todayStr).length;
     const totalEjs = ejs.length;
     const completo = totalEjs>0 && hechosHoy===totalEjs;
     const parcial = hechosHoy>0 && !completo;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);">
-      <button title="${completo?'Desmarcar':'Marcar completa hoy'}" style="all:unset;width:28px;height:28px;border-radius:8px;background:${completo?'rgba(5,150,105,.12)':parcial?'rgba(59,130,201,.1)':'var(--bg2)'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s;" onclick="eliteToggleCompletadaHoy('${id}','${escQ(rname)}')">
-        <i class="ti ${completo?'ti-check':'ti-circle'}" style="font-size:15px;color:${completo?'var(--green)':parcial?'var(--primary)':'var(--border)'};"></i>
-      </button>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-        <div style="font-size:11px;color:var(--text2);">${esc(r.t||'')} · ${totalEjs} ej.${parcial?` · <span style="color:var(--primary)">${hechosHoy}/${totalEjs} hoy</span>`:''}${completo?' · <span style="color:var(--green)">completa hoy</span>':''}</div>
+        <div style="font-size:11px;color:var(--text2);">${r?esc(r.t||''):'Rutina personalizada'} · ${totalEjs} ej.${parcial?` · <span style="color:var(--primary)">${hechosHoy}/${totalEjs} hoy</span>`:''}${completo?' · <span style="color:var(--green)">✓ completa hoy</span>':''}</div>
       </div>
-      <button style="all:unset;padding:4px;cursor:pointer;color:var(--text2);opacity:.5;" title="Quitar rutina" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:14px;"></i></button>
+      <button style="all:unset;padding:4px 6px;cursor:pointer;color:var(--text2);opacity:.4;" title="Quitar rutina" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:14px;"></i></button>
     </div>`;
   }).join('');
 
-  const addRutinaSelect = sinAsignar.length ? `
+  const addRutinaSection = `
     <div style="display:flex;gap:8px;margin-top:10px;">
-      <select id="eliteAddRutinaSel" style="flex:1;">
-        <option value="">— Asignar rutina —</option>
-        ${sinAsignar.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}
-      </select>
-      <button class="btn btn-primary btn-sm" onclick="asignarRutinaElite('${id}')"><i class="ti ti-plus"></i> Asignar</button>
-    </div>` : '';
+      <input id="eliteAddRutinaInput" list="eliteRutinasList" placeholder="Buscar o escribir rutina..." style="flex:1;">
+      <datalist id="eliteRutinasList">${todasRutinas.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+      <button class="btn btn-primary btn-sm" onclick="asignarRutinaEliteTexto('${id}')"><i class="ti ti-plus"></i></button>
+    </div>`;
 
   const competencias = Array.isArray(d.competencias) ? d.competencias : [];
   const compRows = competencias.sort((a,b)=>a.f.localeCompare(b.f)).map((c,ci)=>`
@@ -5540,17 +5534,22 @@ function _eliteDeportistaModalHTML(id){
       </div>
 
       <!-- Rutinas -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rutinas</div>
-      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 8px;">Sin rutinas asignadas.</p>`}
-      ${addRutinaSelect}
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rutinas asignadas</div>
+      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 2px;">Sin rutinas asignadas.</p>`}
+      ${addRutinaSection}
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
       ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin competencias.</p>`}
       <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar</button>
 
+      <!-- Entrenamientos -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border2);">
+        <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
+      </div>
+
       <!-- Acciones -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--border2);">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);">
         <button class="btn btn-outline btn-sm" onclick="openElitePseFechasModal('${id}')"><i class="ti ti-heart-rate-monitor"></i> PSE${pseCount?` (${pseCount})`:''}</button>
         <button class="btn btn-outline btn-sm" onclick="copiarEliteLink('${id}')"><i class="ti ti-copy"></i> Copiar link</button>
         <div style="flex:1;"></div>
@@ -5745,6 +5744,158 @@ function asignarRutinaElite(id){
   if(!d.rsHechos[sel.value]) d.rsHechos[sel.value] = {};
   persist();
   refreshEliteDeportistaModal(id);
+}
+
+function asignarRutinaEliteTexto(id){
+  const inp = $('#eliteAddRutinaInput');
+  if(!inp) return;
+  const rname = inp.value.trim();
+  if(!rname){ showToast('Escribí el nombre de la rutina','warn'); return; }
+  const d = eliteById(id);
+  if(!d) return;
+  if(!Array.isArray(d.rs)) d.rs = [];
+  if(d.rs.includes(rname)){ showToast('Ya tiene esa rutina asignada','warn'); return; }
+  d.rs.push(rname);
+  if(!d.rsHechos) d.rsHechos = {};
+  if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
+  persist();
+  refreshEliteDeportistaModal(id);
+}
+
+function _weekMonday(dateStr){
+  const dt = new Date(dateStr+'T12:00:00');
+  const day = dt.getDay();
+  const diff = day===0 ? -6 : 1-day;
+  dt.setDate(dt.getDate()+diff);
+  return dt.toISOString().slice(0,10);
+}
+
+function openEliteEntrenamientosModal(id){
+  const d = eliteById(id);
+  if(!d) return;
+  const rh = d.rsHechos||{};
+  const dateSet = new Set();
+  for(const rname of Object.keys(rh)){
+    for(const val of Object.values(rh[rname])){
+      if(val && typeof val==='string' && val.length===10) dateSet.add(val);
+    }
+  }
+  if(!dateSet.size){
+    openModal(`<div class="modal-head"><h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos</h3><button onclick="closeModal()">✕</button></div>
+      <div style="padding:40px 16px;text-align:center;color:var(--text2);"><i class="ti ti-calendar-off" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3;"></i><p style="margin:0;font-size:14px;">Sin entrenamientos registrados aún.</p></div>`);
+    return;
+  }
+  const weekMap = {};
+  for(const ds of dateSet){
+    const wk = _weekMonday(ds);
+    if(!weekMap[wk]) weekMap[wk] = [];
+    weekMap[wk].push(ds);
+  }
+  const DIAS_C = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  function fmtShort(ds){
+    const dt = new Date(ds+'T12:00:00');
+    return `${dt.getDate()}/${dt.getMonth()+1}`;
+  }
+  const weeks = Object.keys(weekMap).sort().reverse();
+  const weeksHTML = weeks.map(wkMon=>{
+    const wkEnd = new Date(wkMon+'T12:00:00');
+    wkEnd.setDate(wkEnd.getDate()+6);
+    const wkEndStr = wkEnd.toISOString().slice(0,10);
+    const dias = weekMap[wkMon].sort();
+    const daysHTML = dias.map(ds=>{
+      const dt = new Date(ds+'T12:00:00');
+      const diaLabel = DIAS_C[dt.getDay()];
+      const rutsDone = (d.rs||[]).filter(rname=>{
+        const r = RUTINAS.find(x=>x.n===rname);
+        const ejs = r ? r.ejs||[] : [];
+        const rhR = rh[rname]||{};
+        return ejs.some(e=>rhR[e.n]===ds);
+      });
+      const hasPse = (d.pse||[]).some(p=>p.f===ds);
+      return `<button onclick="openEliteSemanaDiaModal('${id}','${ds}')" style="all:unset;display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border2);cursor:pointer;width:100%;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+        <div style="width:38px;text-align:center;flex-shrink:0;">
+          <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">${diaLabel}</div>
+          <div style="font-size:20px;font-weight:800;line-height:1.1;">${dt.getDate()}</div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          ${rutsDone.length ? rutsDone.map(r=>`<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r)}</div>`).join('') : '<div style="font-size:12px;color:var(--text2);">Actividad parcial</div>'}
+          ${hasPse?'<div style="font-size:11px;color:var(--primary);margin-top:1px;"><i class="ti ti-heart-rate-monitor" style="font-size:10px;"></i> PSE registrada</div>':''}
+        </div>
+        <i class="ti ti-chevron-right" style="color:var(--text2);font-size:14px;flex-shrink:0;"></i>
+      </button>`;
+    }).join('');
+    return `<div style="margin-bottom:10px;border:1px solid var(--border2);border-radius:12px;overflow:hidden;">
+      <div style="padding:8px 14px;background:var(--bg2);font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">
+        Semana del ${fmtShort(wkMon)} al ${fmtShort(wkEndStr)}
+      </div>
+      ${daysHTML}
+    </div>`;
+  }).join('');
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3>
+    <button onclick="closeModal()">✕</button>
+  </div>
+  <div style="padding:0 16px 20px;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch;">
+    ${weeksHTML}
+  </div>`);
+}
+
+function openEliteSemanaDiaModal(id, fecha){
+  const d = eliteById(id);
+  if(!d) return;
+  const rh = d.rsHechos||{};
+  const dt = new Date(fecha+'T12:00:00');
+  const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
+
+  const rutRows = (d.rs||[]).map(rname=>{
+    const r = RUTINAS.find(x=>x.n===rname);
+    const ejs = r ? r.ejs||[] : [];
+    const rhR = rh[rname]||{};
+    const done = ejs.filter(e=>rhR[e.n]===fecha).length;
+    if(!done) return '';
+    const total = ejs.length;
+    const completo = done===total && total>0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);">
+      <div style="width:30px;height:30px;border-radius:8px;background:${completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:14px;color:${completo?'var(--green)':'var(--primary)'};"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;">${esc(rname)}</div>
+        <div style="font-size:11px;color:var(--text2);">${done}/${total} ejercicios${completo?' · completa':' · parcial'}</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  const pseDia = (d.pse||[]).filter(p=>p.f===fecha);
+  const pseHTML = pseDia.length ? `
+    <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">PSE</div>
+    ${pseDia.map(p=>{
+      const tipo = p.tipo==='pre'?'Antes de entrenar':'Después de entrenar';
+      const preguntas = p.tipo==='pre' ? PSE_PRE : PSE_POST;
+      const rows = preguntas.map(q=>{
+        const val = p[q.id];
+        if(val===undefined||val===null||val==='') return '';
+        const display = (q.type==='scale'||q.type==='choice') && Array.isArray(q.opts) && typeof val==='number'
+          ? `${val+1} — ${q.opts[val]||val}` : String(val);
+        return `<div style="font-size:12px;margin-bottom:4px;"><span style="color:var(--text2);">${esc(q.label)}: </span><strong>${esc(display)}</strong></div>`;
+      }).filter(Boolean).join('');
+      return `<div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--primary);">${tipo}${p.rname?` · ${esc(p.rname)}`:''}</div>
+        ${rows||'<span style="font-size:12px;color:var(--text2);">Sin datos.</span>'}
+      </div>`;
+    }).join('')}` : `<p style="font-size:13px;color:var(--text2);margin-top:16px;">Sin PSE registrada para este día.</p>`;
+
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
+    <button onclick="closeModal()">✕</button>
+  </div>
+  <div style="padding:0 16px 20px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
+    <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;">Rutinas</div>
+    ${rutRows||'<p style="font-size:13px;color:var(--text2);margin:0;">Sin rutinas registradas.</p>'}
+    ${pseHTML}
+  </div>`);
 }
 
 function quitarRutinaElite(id, rname){
