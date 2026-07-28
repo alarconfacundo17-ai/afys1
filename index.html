@@ -6172,7 +6172,7 @@ function _quitarPlanFechaCalendario(){
   const d = eliteById(id);
   if(!d) return;
   if(!d.planFechas) d.planFechas = {};
-  delete d.planFechas[fecha];
+  d.planFechas[fecha] = null;
   persist();
   openElitePlanCalendarioModal(id, ym);
 }
@@ -6212,8 +6212,9 @@ function openEliteAsignarDiaModal(id, fecha, ym){
 
 function quitarPlanFecha(id, fecha){
   const d = eliteById(id);
-  if(!d || !d.planFechas) return;
-  delete d.planFechas[fecha];
+  if(!d) return;
+  if(!d.planFechas) d.planFechas = {};
+  d.planFechas[fecha] = null;
   persist();
   openEliteEntrenamientoDiaModal(id, fecha);
 }
@@ -6223,7 +6224,7 @@ function guardarPlanFecha(id, fecha, rname, ym){
   if(!d) return;
   if(!d.planFechas) d.planFechas = {};
   if(rname) d.planFechas[fecha] = rname;
-  else delete d.planFechas[fecha];
+  else d.planFechas[fecha] = null;
   persist();
   openElitePlanCalendarioModal(id, ym);
 }
