@@ -5440,7 +5440,7 @@ function guardarEliteDeportista(id){
       email: $('#eliteEmail').value.trim(),
       ob: $('#eliteOb').value.trim(),
       rs: [], rsHechos: {}, rsOverride: {}, rsRemoved: [],
-      competencias: [], pse: [],
+      competencias: [], pse: [], planSemanal: {},
       ultimoEntreno: null, activo: true,
     });
     showToast('Deportista creado', 'ok');
@@ -5537,6 +5537,22 @@ function _eliteDeportistaModalHTML(id){
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rutinas asignadas</div>
       ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 2px;">Sin rutinas asignadas.</p>`}
       ${addRutinaSection}
+
+      <!-- Plan semanal -->
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px;">Plan semanal</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${[['1','Lun'],['2','Mar'],['3','Mié'],['4','Jue'],['5','Vie'],['6','Sáb'],['0','Dom']].map(([dn,label])=>{
+          const plan = d.planSemanal||{};
+          const val = plan[dn]||'';
+          return `<div style="display:flex;align-items:center;gap:10px;">
+            <span style="width:30px;font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0;">${label}</span>
+            <select style="flex:1;font-size:13px;padding:6px 8px;border-radius:8px;" onchange="guardarPlanDia('${id}',${dn},this.value)">
+              <option value="">— Sin rutina —</option>
+              ${rutinasAsignadas.map(r=>`<option value="${esc(r)}" ${val===r?'selected':''}>${esc(r)}</option>`).join('')}
+            </select>
+          </div>`;
+        }).join('')}
+      </div>
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
@@ -5831,19 +5847,52 @@ function openEliteEntrenamientosModal(id){
     return parts.join(' · ');
   }
 
-  const weeks = Object.keys(weekMap).sort().reverse();
+  const planSemanal = d.planSemanal||{};
+
+  // Incluir también las semanas que tienen días planificados aunque no haya actividad
+  const todayStr = todayISO();
+  // Agregar la semana actual siempre (para ver el plan aunque no haya entrenamientos)
+  dateSet.add(todayStr);
+  // Re-poblar weekMap con las fechas actualizadas
+  const weekMapFull = {};
+  for(const ds of dateSet){
+    const wk = _weekMonday(ds);
+    if(!weekMapFull[wk]) weekMapFull[wk] = new Set();
+    weekMapFull[wk].add(ds);
+  }
+  // Para cada semana, completar los 7 días si hay plan en alguno de ellos
+  for(const wkMon of Object.keys(weekMapFull)){
+    const wkDt = new Date(wkMon+'T12:00:00');
+    for(let i=0;i<7;i++){
+      const d2 = new Date(wkDt); d2.setDate(d2.getDate()+i);
+      const ds = d2.toISOString().slice(0,10);
+      const dn = String(d2.getDay());
+      if(planSemanal[dn]) weekMapFull[wkMon].add(ds);
+    }
+  }
+
+  const weeks = Object.keys(weekMapFull).sort().reverse();
 
   const weeksHTML = weeks.map(wkMon=>{
     const wkEnd = new Date(wkMon+'T12:00:00');
     wkEnd.setDate(wkEnd.getDate()+6);
     const wkEndStr = wkEnd.toISOString().slice(0,10);
-    const dias = weekMap[wkMon].sort();
 
-    const daysHTML = dias.map(ds=>{
+    // Mostrar los 7 días de la semana en orden
+    const wkDays = [];
+    const wkDt = new Date(wkMon+'T12:00:00');
+    for(let i=0;i<7;i++){
+      const d2 = new Date(wkDt); d2.setDate(d2.getDate()+i);
+      wkDays.push(d2.toISOString().slice(0,10));
+    }
+
+    const daysHTML = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
+      const dn = String(dt.getDay());
+      const planRname = planSemanal[dn]||null;
 
-      // Rutinas con actividad ese día
+      // Rutinas con actividad real ese día
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
         const ejs = r ? r.ejs||[] : [];
@@ -5855,45 +5904,62 @@ function openEliteEntrenamientosModal(id){
         return {rname, done, total, completo};
       }).filter(Boolean);
 
-      // PSE de ese día
+      const hasPlan = !!planRname;
+      const hasActivity = rutDia.length > 0;
       const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
       const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
+      const isFuture = ds > todayStr;
 
-      const rutHTML = rutDia.length
+      // Días sin plan y sin actividad: omitir
+      if(!hasPlan && !hasActivity && !psePre && !psePost) return '';
+
+      const esPlanCumplido = planRname && rutDia.some(rt=>rt.rname===planRname);
+      const esPlanPendiente = planRname && !esPlanCumplido && !isFuture;
+      const esPlanFuturo = planRname && isFuture;
+
+      // Chip del plan del día
+      const planChip = planRname ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:${esPlanCumplido?'rgba(5,150,105,.1)':esPlanFuturo?'var(--bg2)':esPlanPendiente?'rgba(220,38,38,.08)':'var(--bg2)'};color:${esPlanCumplido?'var(--green)':esPlanFuturo?'var(--text2)':esPlanPendiente?'var(--red)':'var(--text2)'};border:1px solid ${esPlanCumplido?'var(--green)':esPlanFuturo?'var(--border2)':esPlanPendiente?'rgba(220,38,38,.2)':'var(--border2)'};">
+          <i class="ti ${esPlanCumplido?'ti-check':esPlanFuturo?'ti-calendar':'ti-alert-circle'}" style="font-size:9px;"></i>
+          ${esc(planRname)}
+        </span>` : '';
+
+      const rutHTML = hasActivity
         ? rutDia.map(rt=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <div style="width:22px;height:22px;border-radius:6px;background:${rt.completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <i class="ti ${rt.completo?'ti-check':'ti-barbell'}" style="font-size:11px;color:${rt.completo?'var(--green)':'var(--primary)'};"></i>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <div style="width:20px;height:20px;border-radius:5px;background:${rt.completo?'rgba(5,150,105,.12)':'rgba(59,130,201,.1)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ti ${rt.completo?'ti-check':'ti-barbell'}" style="font-size:10px;color:${rt.completo?'var(--green)':'var(--primary)'};"></i>
             </div>
             <div style="min-width:0;">
-              <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rt.rname)}</div>
-              <div style="font-size:11px;color:var(--text2);">${rt.done}/${rt.total} ejercicios${rt.completo?' · <span style="color:var(--green);">completa</span>':''}</div>
+              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rt.rname)}</div>
+              <div style="font-size:10px;color:var(--text2);">${rt.done}/${rt.total} ej.${rt.completo?' · <span style="color:var(--green);">✓</span>':''}</div>
             </div>
           </div>`).join('')
-        : `<div style="font-size:12px;color:var(--text2);font-style:italic;">Sin rutina</div>`;
+        : (hasPlan && !isFuture ? `<div style="font-size:11px;color:var(--red);margin-top:4px;opacity:.7;">No realizado</div>` : '');
 
       const preHTML = psePre ? `
-        <div style="margin-top:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--primary);">
-          <div style="font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">PSE antes</div>
-          <div style="font-size:11px;color:var(--text);line-height:1.5;">${pseResumen(psePre)||'<span style="color:var(--text2);">Sin datos</span>'}</div>
+        <div style="margin-top:7px;padding:6px 9px;background:var(--bg2);border-radius:7px;border-left:3px solid var(--primary);">
+          <div style="font-size:9px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">PSE antes</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.5;">${pseResumen(psePre)||'<span style="color:var(--text2);">—</span>'}</div>
         </div>` : '';
 
       const postHTML = psePost ? `
-        <div style="margin-top:6px;padding:7px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--green);">
-          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">PSE después${psePost.rname?` · ${esc(psePost.rname)}`:''}</div>
-          <div style="font-size:11px;color:var(--text);line-height:1.5;">${psePostResumen(psePost)||'<span style="color:var(--text2);">Sin datos</span>'}</div>
+        <div style="margin-top:5px;padding:6px 9px;background:var(--bg2);border-radius:7px;border-left:3px solid var(--green);">
+          <div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">PSE después</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.5;">${psePostResumen(psePost)||'<span style="color:var(--text2);">—</span>'}</div>
         </div>` : '';
 
-      return `<div style="padding:12px 14px;border-bottom:1px solid var(--border2);">
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
-          <span style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;min-width:26px;">${diaLabel}</span>
-          <span style="font-size:13px;font-weight:700;">${fmtDate(ds)}</span>
+      const isToday = ds === todayStr;
+      return `<div style="padding:10px 14px;border-bottom:1px solid var(--border2);${isToday?'background:var(--primary-light);':''}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:10px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;min-width:26px;">${diaLabel}</span>
+          <span style="font-size:12px;font-weight:700;${isToday?'color:var(--primary);':''}">${fmtDate(ds)}${isToday?' <span style="font-size:10px;font-weight:600;opacity:.7;">(hoy)</span>':''}</span>
+          ${planChip}
         </div>
-        ${rutHTML}
-        ${preHTML}
-        ${postHTML}
+        ${rutHTML}${preHTML}${postHTML}
       </div>`;
-    }).join('');
+    }).filter(Boolean).join('');
+
+    if(!daysHTML) return '';
 
     return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
       <div style="padding:9px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;">
@@ -5902,7 +5968,7 @@ function openEliteEntrenamientosModal(id){
       </div>
       ${daysHTML}
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 
   openModal(`<div class="modal-head">
     <h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3>
@@ -5911,6 +5977,15 @@ function openEliteEntrenamientosModal(id){
   <div style="padding:0 16px 20px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
     ${weeksHTML}
   </div>`);
+}
+
+function guardarPlanDia(id, dayNum, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.planSemanal) d.planSemanal = {};
+  if(rname) d.planSemanal[String(dayNum)] = rname;
+  else delete d.planSemanal[String(dayNum)];
+  persist();
 }
 
 function quitarRutinaElite(id, rname){
@@ -6502,6 +6577,11 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
       // campos simples: tomar remoto si el local no tiene
       ['n','dni','disciplina','tel','email','ob'].forEach(k=>{ if(rd[k]&&!ld[k]) ld[k]=rd[k]; });
       if(typeof rd.activo==='boolean') ld.activo=rd.activo;
+      // planSemanal: merge additive (remoto gana por día, para propagar cambios entre dueños)
+      if(rd.planSemanal && typeof rd.planSemanal==='object'){
+        if(!ld.planSemanal) ld.planSemanal = {};
+        Object.keys(rd.planSemanal).forEach(dn=>{ ld.planSemanal[dn] = rd.planSemanal[dn]; });
+      }
     } else {
       ELITE_DEPORTISTAS.push(rd);
       localById[rd.id]=rd;
