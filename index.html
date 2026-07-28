@@ -6039,12 +6039,16 @@ function openEliteEntrenamientoDiaModal(id, ds){
     const cumplida = rutDia.some(rt=>rt.rname===pname);
     const color = cumplida?'var(--green)':isFuture?'var(--text2)':'var(--red)';
     const icon = cumplida?'ti-circle-check-filled':isFuture?'ti-calendar':'ti-circle-x';
+    // Solo mostrar X si fue asignada via planFechas (no planSemanal legacy)
+    const esPlanFecha = !!(d.planFechas||{})[ds];
+    const removeBtn = esPlanFecha ? `<button onclick="quitarPlanFecha('${id}','${ds}')" style="all:unset;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;" title="Quitar rutina de este día"><i class="ti ti-x" style="font-size:16px;"></i></button>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border2);">
       <i class="ti ${icon}" style="font-size:20px;color:${color};flex-shrink:0;"></i>
-      <div>
+      <div style="flex:1;">
         <div style="font-size:13px;font-weight:700;">${esc(pname)}</div>
         <div style="font-size:11px;color:${color};">${cumplida?'Realizada':isFuture?'Planificada':'No realizada'}</div>
       </div>
+      ${removeBtn}
     </div>`;
   }).join('') : '';
 
@@ -6187,6 +6191,14 @@ function openEliteAsignarDiaModal(id, fecha, ym){
     <button onclick="openElitePlanCalendarioModal('${id}','${ym}')">✕</button>
   </div>
   <div style="overflow-y:auto;max-height:70vh;">${opts}</div>`);
+}
+
+function quitarPlanFecha(id, fecha){
+  const d = eliteById(id);
+  if(!d || !d.planFechas) return;
+  delete d.planFechas[fecha];
+  persist();
+  openEliteEntrenamientoDiaModal(id, fecha);
 }
 
 function guardarPlanFecha(id, fecha, rname, ym){
