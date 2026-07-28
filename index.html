@@ -503,6 +503,7 @@ let eliteSeq = 1;
 let currentEliteId = null; // ID del deportista elite logueado
 let _diaModalId = null; // contexto del modal de detalle de día
 let _diaModalDs = null;
+let _asignarDiaCtx = {id:null, fecha:null, ym:null}; // contexto del picker de asignación
 let elitePage = 'inicio'; // página actual del panel elite
 let _merging = false; // guard para evitar que recalcEstados llame persist() durante un merge
 let _editingRutinaName = null; // nombre de la rutina siendo editada ahora mismo
@@ -6165,7 +6166,19 @@ function openElitePlanCalendarioModal(id, ym){
   </div>`);
 }
 
+function _quitarPlanFechaCalendario(){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  if(!id || !fecha) return;
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.planFechas) d.planFechas = {};
+  delete d.planFechas[fecha];
+  persist();
+  openElitePlanCalendarioModal(id, ym);
+}
+
 function openEliteAsignarDiaModal(id, fecha, ym){
+  _asignarDiaCtx = {id, fecha, ym};
   const d = eliteById(id);
   if(!d) return;
   const dt = new Date(fecha+'T12:00:00');
@@ -6180,7 +6193,7 @@ function openEliteAsignarDiaModal(id, fecha, ym){
     <i class="ti ti-ban" style="font-size:16px;opacity:.5;"></i>Sin rutina
   </button>`].concat(rutinas.map(rname=>{
     const sel = current===rname;
-    const removeBtn = sel ? `<button onclick="event.stopPropagation();guardarPlanFecha('${id}','${fecha}','','${escQ(ym)}')" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;flex-shrink:0;line-height:1;" title="Quitar"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>` : '';
+    const removeBtn = sel ? `<button onclick="_quitarPlanFechaCalendario()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;flex-shrink:0;line-height:1;" title="Quitar"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>` : '';
     return `<div style="display:flex;align-items:center;border-bottom:1px solid var(--border2);background:${sel?'var(--primary-light)':''};">
       <button onclick="guardarPlanFecha('${id}','${fecha}','${escQ(rname)}','${escQ(ym)}')" style="all:unset;display:flex;align-items:center;gap:10px;flex:1;padding:12px 16px;font-size:13px;font-weight:${sel?'700':'400'};color:${sel?'var(--primary)':'var(--text)'};cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
         <i class="ti ${sel?'ti-check-circle':'ti-circle'}" style="font-size:16px;color:${sel?'var(--primary)':'var(--border)'};flex-shrink:0;"></i>
