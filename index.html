@@ -6154,18 +6154,18 @@ function openEliteRutinaDetalleModal(rname){
   const todosHechos = ejs.length>0 && ejs.every(e=>rh[e.n]===todayStr);
 
   const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
-  const ejRows = ejs.map(e=>{
+  const ejRows = ejs.map((e, ei)=>{
     const hecho = rh[e.n]===todayStr;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteToggleEjercicio('${escQ(rname)}','${escQ(e.n)}')">
-      <i class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--border)'};flex-shrink:0;transition:color .2s,transform .15s;${hecho?'transform:scale(1.1);':''}"></i>
+    return `<div data-ejidx="${ei}" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s;" onclick="eliteToggleEjercicio('${escQ(rname)}','${escQ(e.n)}',${ei})">
+      <i data-ejicon class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--border)'};flex-shrink:0;transition:color .18s,transform .15s;${hecho?'transform:scale(1.1);':''}"></i>
       <div style="flex:1;">
-        <div style="font-size:14px;font-weight:600;transition:color .2s;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
+        <div data-ejname style="font-size:14px;font-weight:600;transition:color .18s,text-decoration .18s;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
         <div style="font-size:12px;color:var(--text2);">${e.s} series × ${e.r||'—'}</div>
       </div>
     </div>`;
   }).join('');
 
-  const progresoTxt = `${ejs.filter(e=>rh[e.n]===todayStr).length}/${ejs.length} ejercicios`;
+  const hechosCnt = ejs.filter(e=>rh[e.n]===todayStr).length;
   const btnLabel = yaHizoPost
     ? `<i class="ti ti-check"></i> Entrenamiento finalizado`
     : todosHechos
@@ -6178,24 +6178,61 @@ function openEliteRutinaDetalleModal(rname){
       <button onclick="closeModal()">✕</button>
     </div>
     <div style="padding:0 16px 16px;overflow-y:auto;max-height:72vh;-webkit-overflow-scrolling:touch;">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · ${progresoTxt}${r.ob?` · ${esc(r.ob)}`:''}</div>
-      ${ejRows}
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;${yaHizoPost?'opacity:.6;pointer-events:none;background:var(--green);border-color:var(--green);':''}" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(r.t||'')} · <span id="eliteRutDetProg">${hechosCnt}/${ejs.length} ejercicios</span>${r.ob?` · ${esc(r.ob)}`:''}</div>
+      <div id="eliteRutDetRows">${ejRows}</div>
+      <button id="eliteRutDetBtn" class="btn btn-primary" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;${yaHizoPost?'opacity:.6;pointer-events:none;background:var(--green);border-color:var(--green);':''}" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
         ${btnLabel}
       </button>
     </div>`);
+  // store current rname for in-place updates
+  window._eliteRutinaDetalleRname = rname;
 }
 
-function eliteToggleEjercicio(rname, ejName){
+function eliteToggleEjercicio(rname, ejName, ejIdx){
   const d = eliteById(currentEliteId);
   if(!d) return;
   if(!d.rsHechos) d.rsHechos = {};
   if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
   const todayStr = todayISO();
-  if(d.rsHechos[rname][ejName]===todayStr) d.rsHechos[rname][ejName] = null; // null = tombstone "desmarcado"
-  else d.rsHechos[rname][ejName] = todayStr;
+  const wasHecho = d.rsHechos[rname][ejName]===todayStr;
+  d.rsHechos[rname][ejName] = wasHecho ? null : todayStr;
   persist();
-  openEliteRutinaDetalleModal(rname);
+  // Update DOM in-place (no re-render)
+  const row = document.querySelector(`[data-ejidx="${ejIdx}"]`);
+  if(row){
+    const hecho = !wasHecho;
+    const icon = row.querySelector('[data-ejicon]');
+    const nameEl = row.querySelector('[data-ejname]');
+    if(icon){
+      icon.className = `ti ${hecho?'ti-check-circle':'ti-circle'}`;
+      icon.style.color = hecho?'var(--green)':'var(--border)';
+      icon.style.transform = hecho?'scale(1.1)':'scale(1)';
+    }
+    if(nameEl){
+      nameEl.style.textDecoration = hecho?'line-through':'';
+      nameEl.style.color = hecho?'var(--text2)':'';
+    }
+    // brief tap flash
+    row.style.background = 'var(--primary-light)';
+    setTimeout(()=>{ row.style.background = ''; }, 160);
+  }
+  // Update progress + button
+  const r = RUTINAS.find(x=>x.n===rname);
+  const ejs = r ? r.ejs||[] : [];
+  const rh = d.rsHechos[rname]||{};
+  const hechos = ejs.filter(e=>rh[e.n]===todayStr).length;
+  const todosHechos = ejs.length>0 && hechos===ejs.length;
+  const prog = document.getElementById('eliteRutDetProg');
+  if(prog) prog.textContent = `${hechos}/${ejs.length} ejercicios`;
+  const btn = document.getElementById('eliteRutDetBtn');
+  if(btn){
+    const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+    if(!yaHizoPost){
+      btn.innerHTML = todosHechos
+        ? `<i class="ti ti-player-stop-filled"></i> Finalizar y registrar`
+        : `<i class="ti ti-check"></i> Completar entrenamiento`;
+    }
+  }
 }
 
 function eliteCompletarEntrenamiento(rname){
