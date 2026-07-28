@@ -7374,6 +7374,11 @@ function socioCuenta(){
       }
     }
 
+    // Detectar si hay deportistas elite locales que no existen en el remoto (recién creados)
+    if(!localAheadOfRemote && Array.isArray(data.ELITE_DEPORTISTAS)){
+      const remEliteIds = new Set(data.ELITE_DEPORTISTAS.map(rd=>rd.id));
+      if(ELITE_DEPORTISTAS.some(ld=>!remEliteIds.has(ld.id))) localAheadOfRemote = true;
+    }
     // Detectar si un deportista elite local tiene más ejercicios completados hoy que el remoto
     if(!localAheadOfRemote && Array.isArray(data.ELITE_DEPORTISTAS)){
       const todayStr = todayISO();
