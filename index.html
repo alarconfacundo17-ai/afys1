@@ -952,6 +952,16 @@ function mergeRsHechos(local, remote){
     });
   });
 }
+// Versión aditiva: el local siempre gana (no sobreescribe ejercicios ya completados)
+function mergeRsHechosAdditivo(local, remote){
+  if(!remote) return;
+  Object.keys(remote).forEach(rname=>{
+    if(!local[rname]) local[rname] = {};
+    Object.keys(remote[rname]).forEach(ejName=>{
+      if(!local[rname][ejName]) local[rname][ejName] = remote[rname][ejName];
+    });
+  });
+}
 async function mergeRemoteAntesDeGuardar(){
   _merging = true;
   try{
@@ -5634,7 +5644,11 @@ function renderElitePanel(){
   else if(elitePage==='rutinas') html = elitePageRutinas(d);
   else if(elitePage==='competencias') html = elitePageCompetencias(d);
   else if(elitePage==='pse') html = elitePagePseHistorial(d);
-  c.innerHTML = `<div class="elite-slide">${html}</div>`;
+  c.innerHTML = '';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'elite-slide';
+  wrapper.innerHTML = html;
+  c.appendChild(wrapper);
   // nav activo
   $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
 }
@@ -5880,6 +5894,27 @@ function eliteCompletarEntrenamiento(rname){
 }
 
 /* ---- PSE Modal ---- */
+function _pseUpdateRpe(qid){
+  document.querySelectorAll(`[data-pseq="${qid}"]`).forEach(b=>{
+    const n = +b.dataset.pseval;
+    const sel = String(_pseTemp[qid])===String(n);
+    const c = n<=3?'#059669':n<=6?'#d97706':'#dc2626';
+    b.style.border = '2px solid '+(sel?c:'var(--border)');
+    b.style.background = sel?c+'22':'var(--bg2)';
+    b.style.color = sel?c:'var(--text)';
+    b.style.transform = sel?'scale(1.12)':'scale(1)';
+  });
+}
+function _pseUpdateChoice(qid){
+  document.querySelectorAll(`[data-pseq="${qid}"]`).forEach(b=>{
+    const sel = b.dataset.pseval===String(_pseTemp[qid]);
+    b.style.border = '1.5px solid '+(sel?'var(--primary)':'var(--border)');
+    b.style.background = sel?'var(--primary-light)':'var(--bg2)';
+    b.style.color = sel?'var(--primary)':'var(--text)';
+    b.style.fontWeight = sel?'700':'400';
+    b.style.transform = sel?'scale(1.05)':'scale(1)';
+  });
+}
 function openPseModal(){
   const preguntas = _pseMode==='pre' ? PSE_PRE : PSE_POST;
   const titulo = _pseMode==='pre' ? 'Antes del entrenamiento' : 'Después del entrenamiento';
@@ -5923,7 +5958,7 @@ function renderPsePregunta(q){
         ${[1,2,3,4,5,6,7,8,9,10].map(n=>{
           const selected = String(_pseTemp[q.id])===String(n);
           const color = n<=3?'#059669':n<=6?'#d97706':'#dc2626';
-          return `<button onclick="_pseTemp['${q.id}']=${n};openPseModal()" style="width:44px;height:44px;border-radius:8px;border:2px solid ${selected?color:'var(--border)'};background:${selected?color+'22':'var(--bg2)'};color:${selected?color:'var(--text)'};font-weight:700;font-size:16px;cursor:pointer;flex-shrink:0;transition:all .15s;">${n}</button>`;
+          return `<button data-pseq="${q.id}" data-pseval="${n}" onclick="_pseTemp['${q.id}']=${n};_pseUpdateRpe('${q.id}')" style="width:44px;height:44px;border-radius:8px;border:2px solid ${selected?color:'var(--border)'};background:${selected?color+'22':'var(--bg2)'};color:${selected?color:'var(--text)'};font-weight:700;font-size:16px;cursor:pointer;flex-shrink:0;transition:all .2s;">${n}</button>`;
         }).join('')}
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:4px;"><span>Muy fácil</span><span>Muy duro</span></div>
@@ -5935,7 +5970,7 @@ function renderPsePregunta(q){
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       ${(q.opts||[]).map((opt,i)=>{
         const selected = _pseTemp[q.id]===opt;
-        return `<button onclick="_pseTemp['${q.id}']='${esc(opt).replace(/'/g,"\\'")}';openPseModal()" style="padding:7px 12px;border-radius:20px;border:1.5px solid ${selected?'var(--primary)':'var(--border)'};background:${selected?'var(--primary-light)':'var(--bg2)'};color:${selected?'var(--primary)':'var(--text)'};font-size:12px;font-weight:${selected?'700':'400'};cursor:pointer;transition:all .15s;">${esc(opt)}</button>`;
+        return `<button data-pseq="${q.id}" data-pseval="${escQ(opt)}" onclick="_pseTemp['${q.id}']='${esc(opt).replace(/'/g,"\\'")}';_pseUpdateChoice('${q.id}')" style="padding:7px 12px;border-radius:20px;border:1.5px solid ${selected?'var(--primary)':'var(--border)'};background:${selected?'var(--primary-light)':'var(--bg2)'};color:${selected?'var(--primary)':'var(--text)'};font-size:12px;font-weight:${selected?'700':'400'};cursor:pointer;transition:all .2s;">${esc(opt)}</button>`;
       }).join('')}
     </div>
   </div>`;
@@ -6061,7 +6096,7 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
     if(localById[rd.id]){
       const ld = localById[rd.id];
       // merge rsHechos
-      if(rd.rsHechos) mergeRsHechos(ld.rsHechos||(ld.rsHechos={}), rd.rsHechos);
+      if(rd.rsHechos) mergeRsHechosAdditivo(ld.rsHechos||(ld.rsHechos={}), rd.rsHechos);
       if(rd.ultimoEntreno&&(!ld.ultimoEntreno||rd.ultimoEntreno.f>ld.ultimoEntreno.f)) ld.ultimoEntreno=rd.ultimoEntreno;
       // merge pse (additivo por timestamp)
       if(Array.isArray(rd.pse)&&rd.pse.length){
