@@ -5482,7 +5482,7 @@ function _eliteDeportistaModalHTML(id){
     if(!r) return '';
     const rh = d.rsHechos?.[rname]||{};
     const ejs = r.ejs||[];
-    const hechosHoy = Object.values(rh).filter(f=>f===todayStr).length;
+    const hechosHoy = ejs.filter(e=>rh[e.n]===todayStr).length;
     const totalEjs = ejs.length;
     const completo = totalEjs>0 && hechosHoy===totalEjs;
     const parcial = hechosHoy>0 && !completo;
@@ -5879,8 +5879,9 @@ function elitePageInicio(d){
     ${rutinas.map((rname,ri)=>{
       const r = RUTINAS.find(x=>x.n===rname);
       const rh = d.rsHechos?.[rname]||{};
-      const ejsTotal = (r?r.ejs:[]).length;
-      const ejsHechos = Object.values(rh).filter(f=>f===todayStr).length;
+      const ejsList = r?r.ejs:[];
+      const ejsTotal = ejsList.length;
+      const ejsHechos = ejsList.filter(e=>rh[e.n]===todayStr).length;
       const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
       const completo = ejsHechos===ejsTotal&&ejsTotal>0;
       return `<div class="card" style="padding:16px;margin-bottom:10px;cursor:pointer;border-radius:14px;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;animation-delay:${ri*0.04}s;" onclick="eliteAbrirRutina('${escQ(rname)}')" onmouseenter="this.style.boxShadow='0 4px 20px rgba(59,130,201,.18)'" onmouseleave="this.style.boxShadow=''">
@@ -5917,7 +5918,7 @@ function elitePageRutinas(d){
     const r = RUTINAS.find(x=>x.n===rname);
     const rh = d.rsHechos?.[rname]||{};
     const ejs = (r?r.ejs:[]);
-    const ejsHechos = Object.values(rh).filter(f=>f===todayStr).length;
+    const ejsHechos = ejs.filter(e=>rh[e.n]===todayStr).length;
     const completo = ejs.length>0 && ejsHechos===ejs.length;
     const parcial = ejsHechos>0 && !completo;
     return `<div class="card" style="padding:0;margin-bottom:10px;border-radius:14px;overflow:hidden;animation:eliteFadeIn .22s ease both;animation-delay:${idx*0.06}s;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteAbrirRutina('${escQ(rname)}')">
@@ -6013,7 +6014,7 @@ function openEliteRutinaDetalleModal(rname){
     </div>`;
   }).join('');
 
-  const progresoTxt = `${Object.values(rh).filter(f=>f===todayStr).length}/${ejs.length} ejercicios`;
+  const progresoTxt = `${ejs.filter(e=>rh[e.n]===todayStr).length}/${ejs.length} ejercicios`;
   const btnLabel = yaHizoPost
     ? `<i class="ti ti-check"></i> Entrenamiento finalizado`
     : todosHechos
