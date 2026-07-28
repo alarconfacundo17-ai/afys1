@@ -958,7 +958,9 @@ function mergeRsHechosAdditivo(local, remote){
   Object.keys(remote).forEach(rname=>{
     if(!local[rname]) local[rname] = {};
     Object.keys(remote[rname]).forEach(ejName=>{
-      if(!local[rname][ejName]) local[rname][ejName] = remote[rname][ejName];
+      // undefined = nunca visto → tomar remoto
+      // null = explícitamente desmarcado → respetar (no restaurar)
+      if(local[rname][ejName] === undefined) local[rname][ejName] = remote[rname][ejName];
     });
   });
 }
@@ -5490,7 +5492,7 @@ function _eliteDeportistaModalHTML(id){
         ${hechosHoy>0?`<span style="background:${completo?'var(--green)':'var(--primary-light)'};color:${completo?'#fff':'var(--primary)'};border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;">${completo?'✓ Completa':''+hechosHoy+'/'+totalEjs}</span>`:''}
         <button class="btn btn-outline btn-sm" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x"></i></button>
       </div>
-      ${!completo&&totalEjs>0?`<button class="btn btn-outline btn-sm" style="margin-top:5px;font-size:11px;color:var(--green);border-color:var(--green);" onclick="eliteForzarCompletada('${id}','${escQ(rname)}')"><i class="ti ti-check"></i> Marcar completa hoy</button>`:''}
+      ${totalEjs>0?`<button class="btn btn-outline btn-sm" style="margin-top:5px;font-size:11px;color:${completo?'var(--red)':'var(--green)'};border-color:${completo?'var(--red)':'var(--green)'};" onclick="eliteToggleCompletadaHoy('${id}','${escQ(rname)}')">${completo?'<i class="ti ti-x"></i> Desmarcar completa':'<i class="ti ti-check"></i> Marcar completa hoy'}</button>`:''}
     </div>`;
   }).join('');
 
@@ -5566,7 +5568,7 @@ function _eliteDeportistaModalHTML(id){
     </div>`;
 }
 
-function eliteForzarCompletada(id, rname){
+function eliteToggleCompletadaHoy(id, rname){
   const d = eliteById(id);
   if(!d) return;
   const r = RUTINAS.find(x=>x.n===rname);
@@ -5574,10 +5576,18 @@ function eliteForzarCompletada(id, rname){
   const todayStr = todayISO();
   if(!d.rsHechos) d.rsHechos = {};
   if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
-  (r.ejs||[]).forEach(e=>{ d.rsHechos[rname][e.n]=todayStr; });
-  if(!d.ultimoEntreno||d.ultimoEntreno.f<todayStr) d.ultimoEntreno={r:rname,f:todayStr};
+  const ejs = r.ejs||[];
+  const completo = ejs.length>0 && ejs.every(e=>d.rsHechos[rname][e.n]===todayStr);
+  if(completo){
+    // Desmarcar: usar null como tombstone para que el merge no lo restaure
+    ejs.forEach(e=>{ d.rsHechos[rname][e.n] = null; });
+    showToast('Rutina desmarcada','ok');
+  } else {
+    ejs.forEach(e=>{ d.rsHechos[rname][e.n] = todayStr; });
+    if(!d.ultimoEntreno||d.ultimoEntreno.f<todayStr) d.ultimoEntreno={r:rname,f:todayStr};
+    showToast('Rutina marcada como completada hoy','ok');
+  }
   persist();
-  showToast('Rutina marcada como completada hoy','ok');
   refreshEliteDeportistaModal(id);
 }
 
@@ -6038,7 +6048,7 @@ function eliteToggleEjercicio(rname, ejName){
   if(!d.rsHechos) d.rsHechos = {};
   if(!d.rsHechos[rname]) d.rsHechos[rname] = {};
   const todayStr = todayISO();
-  if(d.rsHechos[rname][ejName]===todayStr) delete d.rsHechos[rname][ejName];
+  if(d.rsHechos[rname][ejName]===todayStr) d.rsHechos[rname][ejName] = null; // null = tombstone "desmarcado"
   else d.rsHechos[rname][ejName] = todayStr;
   persist();
   openEliteRutinaDetalleModal(rname);
@@ -7193,9 +7203,14 @@ function socioCuenta(){
         const rd = remEliteById[ld.id];
         if(!rd||!ld.rsHechos) continue;
         for(const rname of Object.keys(ld.rsHechos)){
-          const localHoy = Object.values(ld.rsHechos[rname]||{}).filter(f=>f===todayStr).length;
-          const remHoy = rd.rsHechos ? Object.values(rd.rsHechos[rname]||{}).filter(f=>f===todayStr).length : 0;
+          const localRh = ld.rsHechos[rname]||{};
+          const remRh = (rd.rsHechos&&rd.rsHechos[rname])||{};
+          const localHoy = Object.values(localRh).filter(f=>f===todayStr).length;
+          const remHoy = Object.values(remRh).filter(f=>f===todayStr).length;
           if(localHoy > remHoy){ localAheadOfRemote = true; break; }
+          // local tiene null (desmarcado) donde remoto tiene fecha → local está adelantado
+          const localHasUnmark = Object.keys(localRh).some(ej=>localRh[ej]===null && remRh[ej]===todayStr);
+          if(localHasUnmark){ localAheadOfRemote = true; break; }
         }
         if(localAheadOfRemote) break;
       }
