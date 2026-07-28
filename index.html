@@ -5533,26 +5533,25 @@ function _eliteDeportistaModalHTML(id){
         ${d.email?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(d.email)}</span>`:''}
       </div>
 
-      <!-- Rutinas -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Rutinas asignadas</div>
-      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 2px;">Sin rutinas asignadas.</p>`}
+      <!-- Rutinas + Plan semanal combinados -->
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Rutinas y días</div>
+      ${rutinasAsignadas.length ? rutinasAsignadas.map(rname=>{
+        const r = RUTINAS.find(x=>x.n===rname);
+        const plan = d.planSemanal||{};
+        const dias = Array.isArray(plan[rname]) ? plan[rname] : [];
+        const DIAS_BTN = [['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']];
+        const dayBtns = DIAS_BTN.map(([dn,lbl])=>{
+          const on = dias.includes(Number(dn));
+          return `<button onclick="togglePlanDia('${id}','${escQ(rname)}',${dn})" style="all:unset;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:700;text-align:center;line-height:28px;cursor:pointer;flex-shrink:0;transition:all .15s;background:${on?'var(--primary)':'var(--bg2)'};color:${on?'#fff':'var(--text2)'};border:1.5px solid ${on?'var(--primary)':'var(--border2)'};">${lbl}</button>`;
+        }).join('');
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}${r?`<span style="font-size:11px;color:var(--text2);font-weight:400;margin-left:6px;">${esc(r.t||'')}</span>`:''}
+            <button style="all:unset;float:right;padding:0 2px;cursor:pointer;color:var(--text2);opacity:.4;" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:13px;"></i></button>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center;">${dayBtns}</div>
+        </div>`;
+      }).join('') : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`}
       ${addRutinaSection}
-
-      <!-- Plan semanal -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px;">Plan semanal</div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        ${[['1','Lun'],['2','Mar'],['3','Mié'],['4','Jue'],['5','Vie'],['6','Sáb'],['0','Dom']].map(([dn,label])=>{
-          const plan = d.planSemanal||{};
-          const val = plan[dn]||'';
-          return `<div style="display:flex;align-items:center;gap:10px;">
-            <span style="width:30px;font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0;">${label}</span>
-            <select style="flex:1;font-size:13px;padding:6px 8px;border-radius:8px;" onchange="guardarPlanDia('${id}',${dn},this.value)">
-              <option value="">— Sin rutina —</option>
-              ${rutinasAsignadas.map(r=>`<option value="${esc(r)}" ${val===r?'selected':''}>${esc(r)}</option>`).join('')}
-            </select>
-          </div>`;
-        }).join('')}
-      </div>
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
@@ -5859,14 +5858,20 @@ function openEliteEntrenamientosModal(id){
     if(!weekMapFull[wk]) weekMapFull[wk] = new Set();
     weekMapFull[wk].add(ds);
   }
-  // Para cada semana, completar los 7 días si hay plan en alguno de ellos
+  // Helper: rutinas planificadas para un día de semana (número 0-6)
+  function rutinasDelDia(dayNum){
+    return Object.keys(planSemanal).filter(rname=>{
+      const dias = planSemanal[rname];
+      return Array.isArray(dias) && dias.includes(Number(dayNum));
+    });
+  }
+  // Para cada semana, completar los días que tienen plan
   for(const wkMon of Object.keys(weekMapFull)){
     const wkDt = new Date(wkMon+'T12:00:00');
     for(let i=0;i<7;i++){
       const d2 = new Date(wkDt); d2.setDate(d2.getDate()+i);
       const ds = d2.toISOString().slice(0,10);
-      const dn = String(d2.getDay());
-      if(planSemanal[dn]) weekMapFull[wkMon].add(ds);
+      if(rutinasDelDia(d2.getDay()).length) weekMapFull[wkMon].add(ds);
     }
   }
 
@@ -5888,10 +5893,9 @@ function openEliteEntrenamientosModal(id){
     const daysHTML = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
-      const dn = String(dt.getDay());
-      const planRname = planSemanal[dn]||null;
+      const planRnames = rutinasDelDia(dt.getDay()); // rutinas planificadas ese día
 
-      // Rutinas con actividad real ese día
+      // Rutinas con actividad real ese día (de todas las asignadas)
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
         const ejs = r ? r.ejs||[] : [];
@@ -5903,7 +5907,7 @@ function openEliteEntrenamientosModal(id){
         return {rname, done, total, completo};
       }).filter(Boolean);
 
-      const hasPlan = !!planRname;
+      const hasPlan = planRnames.length > 0;
       const hasActivity = rutDia.length > 0;
       const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
       const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
@@ -5912,15 +5916,16 @@ function openEliteEntrenamientosModal(id){
       // Días sin plan y sin actividad: omitir
       if(!hasPlan && !hasActivity && !psePre && !psePost) return '';
 
-      const esPlanCumplido = planRname && rutDia.some(rt=>rt.rname===planRname);
-      const esPlanPendiente = planRname && !esPlanCumplido && !isFuture;
-      const esPlanFuturo = planRname && isFuture;
-
-      // Chip del plan del día
-      const planChip = planRname ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:${esPlanCumplido?'rgba(5,150,105,.1)':esPlanFuturo?'var(--bg2)':esPlanPendiente?'rgba(220,38,38,.08)':'var(--bg2)'};color:${esPlanCumplido?'var(--green)':esPlanFuturo?'var(--text2)':esPlanPendiente?'var(--red)':'var(--text2)'};border:1px solid ${esPlanCumplido?'var(--green)':esPlanFuturo?'var(--border2)':esPlanPendiente?'rgba(220,38,38,.2)':'var(--border2)'};">
-          <i class="ti ${esPlanCumplido?'ti-check':esPlanFuturo?'ti-calendar':'ti-alert-circle'}" style="font-size:9px;"></i>
+      // Chips de plan para cada rutina planificada ese día
+      const planChip = planRnames.map(planRname=>{
+        const cumplida = rutDia.some(rt=>rt.rname===planRname);
+        const pendiente = !cumplida && !isFuture;
+        const futuro = !cumplida && isFuture;
+        return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:${cumplida?'rgba(5,150,105,.1)':futuro?'var(--bg2)':'rgba(220,38,38,.08)'};color:${cumplida?'var(--green)':futuro?'var(--text2)':'var(--red)'};border:1px solid ${cumplida?'var(--green)':futuro?'var(--border2)':'rgba(220,38,38,.2)'};">
+          <i class="ti ${cumplida?'ti-check':futuro?'ti-calendar':'ti-alert-circle'}" style="font-size:9px;"></i>
           ${esc(planRname)}
-        </span>` : '';
+        </span>`;
+      }).join(' ');
 
       const rutHTML = hasActivity
         ? rutDia.map(rt=>`
@@ -5978,13 +5983,17 @@ function openEliteEntrenamientosModal(id){
   </div>`);
 }
 
-function guardarPlanDia(id, dayNum, rname){
+function togglePlanDia(id, rname, dayNum){
   const d = eliteById(id);
   if(!d) return;
   if(!d.planSemanal) d.planSemanal = {};
-  if(rname) d.planSemanal[String(dayNum)] = rname;
-  else delete d.planSemanal[String(dayNum)];
+  if(!Array.isArray(d.planSemanal[rname])) d.planSemanal[rname] = [];
+  const dn = Number(dayNum);
+  const idx = d.planSemanal[rname].indexOf(dn);
+  if(idx>=0) d.planSemanal[rname].splice(idx,1);
+  else d.planSemanal[rname].push(dn);
   persist();
+  refreshEliteDeportistaModal(id);
 }
 
 function quitarRutinaElite(id, rname){
@@ -6576,10 +6585,10 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
       // campos simples: tomar remoto si el local no tiene
       ['n','dni','disciplina','tel','email','ob'].forEach(k=>{ if(rd[k]&&!ld[k]) ld[k]=rd[k]; });
       if(typeof rd.activo==='boolean') ld.activo=rd.activo;
-      // planSemanal: merge additive (remoto gana por día, para propagar cambios entre dueños)
+      // planSemanal: merge additive por rutina
       if(rd.planSemanal && typeof rd.planSemanal==='object'){
         if(!ld.planSemanal) ld.planSemanal = {};
-        Object.keys(rd.planSemanal).forEach(dn=>{ ld.planSemanal[dn] = rd.planSemanal[dn]; });
+        Object.keys(rd.planSemanal).forEach(rname=>{ ld.planSemanal[rname] = rd.planSemanal[rname]; });
       }
     } else {
       ELITE_DEPORTISTAS.push(rd);
