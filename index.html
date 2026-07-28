@@ -5893,11 +5893,11 @@ function openEliteEntrenamientosModal(id){
       wkDays.push(d2.toISOString().slice(0,10));
     }
 
-    const daysHTML = wkDays.map(ds=>{
+    const dayCells = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
       const planFechaRname = (d.planFechas||{})[ds];
-      const planRnames = planFechaRname ? [planFechaRname] : rutinasDelDia(dt.getDay());
+      const planRname = planFechaRname || null;
 
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
@@ -5905,58 +5905,54 @@ function openEliteEntrenamientosModal(id){
         const rhR = rh[rname]||{};
         const done = ejs.filter(e=>rhR[e.n]===ds).length;
         if(!done) return null;
-        const total = ejs.length;
-        const completo = done===total && total>0;
-        return {rname, done, total, completo};
+        return {rname, done, total: ejs.length, completo: done===ejs.length && ejs.length>0};
       }).filter(Boolean);
 
-      const hasPlan = planRnames.length > 0;
+      const hasPlan = !!planRname;
       const hasActivity = rutDia.length > 0;
       const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
       const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
       const isFuture = ds > todayStr;
       const isToday = ds === todayStr;
 
-      if(!hasPlan && !hasActivity && !psePre && !psePost) return '';
+      // Color de fondo de la celda
+      let bg = 'var(--bg)';
+      let borderColor = 'var(--border2)';
+      if(isToday){ borderColor = 'var(--primary)'; bg = 'var(--primary-light)'; }
+      else if(hasActivity && rutDia.every(rt=>rt.completo)){ bg = 'rgba(5,150,105,.07)'; borderColor = 'rgba(5,150,105,.3)'; }
+      else if(hasActivity){ bg = 'rgba(59,130,201,.06)'; }
+      else if(hasPlan && !isFuture){ bg = 'rgba(220,38,38,.05)'; borderColor = 'rgba(220,38,38,.2)'; }
 
-      // Indicador de estado: color del punto a la derecha
-      let dotColor = 'var(--border2)';
-      let dotIcon = 'ti-circle';
-      if(hasActivity){
-        const todoCompleto = rutDia.every(rt=>rt.completo);
-        dotColor = todoCompleto ? 'var(--green)' : 'var(--primary)';
-        dotIcon = todoCompleto ? 'ti-circle-check-filled' : 'ti-circle-half-2';
-      } else if(hasPlan && !isFuture){
-        dotColor = 'var(--red)'; dotIcon = 'ti-circle-x';
-      } else if(hasPlan && isFuture){
-        dotColor = 'var(--text2)'; dotIcon = 'ti-calendar';
-      }
-      if(psePre || psePost){ dotColor = dotColor==='var(--border2)'?'var(--primary)':dotColor; }
+      // Ícono de estado
+      let stateIcon = '';
+      if(hasActivity && rutDia.every(rt=>rt.completo)) stateIcon = `<i class="ti ti-circle-check-filled" style="font-size:11px;color:var(--green);"></i>`;
+      else if(hasActivity) stateIcon = `<i class="ti ti-circle-half-2" style="font-size:11px;color:var(--primary);"></i>`;
+      else if(hasPlan && !isFuture) stateIcon = `<i class="ti ti-circle-x" style="font-size:11px;color:var(--red);"></i>`;
+      if(psePre || psePost) stateIcon += `<i class="ti ti-heart-rate-monitor" style="font-size:11px;color:var(--primary);margin-left:2px;"></i>`;
 
-      // Subtítulo compacto: rutina planificada o realizada
-      const subtitulo = planRnames.length ? esc(planRnames[0]) : (hasActivity ? esc(rutDia[0].rname) : '');
+      const label = planRname ? esc(planRname.length>10?planRname.slice(0,9)+'…':planRname)
+                  : hasActivity ? esc(rutDia[0].rname.length>10?rutDia[0].rname.slice(0,9)+'…':rutDia[0].rname)
+                  : `<span style="color:var(--border2);font-size:10px;">—</span>`;
 
-      return `<div onclick="openEliteEntrenamientoDiaModal('${id}','${ds}')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border2);cursor:pointer;${isToday?'background:var(--primary-light);':''}">
-        <div style="min-width:36px;text-align:center;">
-          <div style="font-size:10px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;">${diaLabel}</div>
-          <div style="font-size:15px;font-weight:700;${isToday?'color:var(--primary);':''}">${dt.getDate()}</div>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${subtitulo||'<span style="color:var(--text2);font-size:12px;">Sin rutina asignada</span>'}</div>
-          ${hasActivity?`<div style="font-size:11px;color:var(--text2);">${rutDia.map(rt=>`${rt.done}/${rt.total} ej.`).join(' · ')}</div>`:''}
-        </div>
-        <i class="ti ${dotIcon}" style="font-size:18px;color:${dotColor};flex-shrink:0;"></i>
+      // Click en el día: si es dueño abre asignar, sino abre detalle
+      const clickFn = `openEliteAsignarDiaModal('${id}','${ds}','${_weekMonday ? '' : ''}')`;
+
+      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex:1;min-width:0;border:1.5px solid ${borderColor};border-radius:10px;padding:7px 5px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+        <div style="font-size:9px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;">${diaLabel}</div>
+        <div style="font-size:14px;font-weight:800;color:${isToday?'var(--primary)':'var(--text)'};">${dt.getDate()}</div>
+        <div style="font-size:10px;font-weight:600;margin-top:4px;min-height:14px;line-height:1.2;overflow:hidden;">${label}</div>
+        ${stateIcon ? `<div style="margin-top:4px;display:flex;justify-content:center;gap:2px;">${stateIcon}</div>` : ''}
       </div>`;
-    }).filter(Boolean).join('');
-
-    if(!daysHTML) return '';
+    }).join('');
 
     return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
       <div style="padding:9px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Semana</span>
         <span style="font-size:12px;font-weight:700;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
       </div>
-      ${daysHTML}
+      <div style="display:flex;gap:4px;padding:10px 10px;">
+        ${dayCells}
+      </div>
     </div>`;
   }).filter(Boolean).join('');
 
@@ -6178,7 +6174,8 @@ function _guardarPlanFechaCustom(){
   if(!d.planFechas) d.planFechas = {};
   d.planFechas[fecha] = val;
   persist();
-  openElitePlanCalendarioModal(id, ym);
+  if(ym && ym.length===10) openEliteEntrenamientosModal(id);
+  else openElitePlanCalendarioModal(id, ym);
 }
 
 function _quitarPlanFechaCalendario(){
@@ -6189,7 +6186,8 @@ function _quitarPlanFechaCalendario(){
   if(!d.planFechas) d.planFechas = {};
   d.planFechas[fecha] = null;
   persist();
-  openElitePlanCalendarioModal(id, ym);
+  if(ym && ym.length===10) openEliteEntrenamientosModal(id);
+  else openElitePlanCalendarioModal(id, ym);
 }
 
 function openEliteAsignarDiaModal(id, fecha, ym){
@@ -6219,9 +6217,11 @@ function openEliteAsignarDiaModal(id, fecha, ym){
   })).join('');
 
   const customVal = current && !rutinas.includes(current) ? esc(current) : '';
+  // ym de 10 chars = viene de vista semanal (wkMon), volver a entrenamientos
+  const backFn = ym && ym.length===10 ? `openEliteEntrenamientosModal('${id}')` : `openElitePlanCalendarioModal('${id}','${escQ(ym)}')`;
   openModal(`<div class="modal-head">
     <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
-    <button onclick="openElitePlanCalendarioModal('${id}','${ym}')">✕</button>
+    <button onclick="${backFn}">✕</button>
   </div>
   <div style="overflow-y:auto;max-height:70vh;">${opts}</div>
   <div style="padding:12px 16px;border-top:1px solid var(--border2);">
@@ -6249,7 +6249,8 @@ function guardarPlanFecha(id, fecha, rname, ym){
   if(rname) d.planFechas[fecha] = rname;
   else d.planFechas[fecha] = null;
   persist();
-  openElitePlanCalendarioModal(id, ym);
+  if(ym && ym.length===10) openEliteEntrenamientosModal(id);
+  else openElitePlanCalendarioModal(id, ym);
 }
 
 function quitarRutinaElite(id, rname){
