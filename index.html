@@ -5946,7 +5946,9 @@ function openEliteEntrenamientosModal(id){
       wkDays.push(d2.toISOString().slice(0,10));
     }
 
-    const dayCards = wkDays.map(ds=>{
+    const DIAS_ABR2 = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+    const dayCells = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const planItems = getPlanItems(d, ds);
       const comp = (d.competencias||[]).find(c=>c.f===ds);
@@ -5966,53 +5968,49 @@ function openEliteEntrenamientosModal(id){
       const isToday = ds === todayStr;
       const isPast = ds < todayStr;
 
-      // Estado general del día
-      let estadoIcon, estadoColor;
-      if(comp){ estadoIcon='🏆'; estadoColor='#b45309'; }
-      else if(hasActivity && rutDia.every(r=>r.completo)){ estadoIcon='✓'; estadoColor='var(--green)'; }
-      else if(hasActivity){ estadoIcon='◑'; estadoColor='var(--primary)'; }
-      else if(hasPlan && isPast){ estadoIcon='✗'; estadoColor='var(--red)'; }
-      else if(hasPlan && !isFuture){ estadoIcon='·'; estadoColor='var(--text2)'; }
-      else { estadoIcon=''; estadoColor=''; }
+      // Colores de celda
+      let bg, borderColor, topBar;
+      if(isToday){         bg='var(--primary-light)'; borderColor='var(--primary)';          topBar='var(--primary)'; }
+      else if(comp){       bg='rgba(251,191,36,.13)'; borderColor='rgba(251,191,36,.6)';     topBar='#f59e0b'; }
+      else if(hasActivity && rutDia.every(r=>r.completo)){ bg='rgba(5,150,105,.1)'; borderColor='rgba(5,150,105,.4)'; topBar='var(--green)'; }
+      else if(hasActivity){ bg='rgba(59,130,201,.08)'; borderColor='var(--primary)';         topBar='var(--primary)'; }
+      else if(hasPlan && isPast){ bg='rgba(220,38,38,.07)'; borderColor='rgba(220,38,38,.3)'; topBar='var(--red)'; }
+      else {               bg='var(--bg2)'; borderColor='var(--border2)';                    topBar='var(--border)'; }
 
-      // Color del card
-      let bg, borderLeft;
-      if(isToday){ bg='var(--primary-light)'; borderLeft='4px solid var(--primary)'; }
-      else if(comp){ bg='rgba(251,191,36,.1)'; borderLeft='4px solid rgba(251,191,36,.7)'; }
-      else if(hasActivity && rutDia.every(r=>r.completo)){ bg='rgba(5,150,105,.07)'; borderLeft='4px solid rgba(5,150,105,.5)'; }
-      else if(hasActivity){ bg='rgba(59,130,201,.06)'; borderLeft='4px solid var(--primary)'; }
-      else if(hasPlan && isPast){ bg='rgba(220,38,38,.05)'; borderLeft='4px solid rgba(220,38,38,.4)'; }
-      else { bg='var(--bg2)'; borderLeft='4px solid var(--border)'; }
+      // Estado icono arriba derecha
+      let statusBadge = '';
+      if(comp) statusBadge = `<span style="font-size:14px;line-height:1;">🏆</span>`;
+      else if(hasActivity && rutDia.every(r=>r.completo)) statusBadge = `<i class="ti ti-circle-check-filled" style="font-size:16px;color:var(--green);"></i>`;
+      else if(hasActivity) statusBadge = `<i class="ti ti-circle-half-2" style="font-size:16px;color:var(--primary);"></i>`;
+      else if(hasPlan && isPast) statusBadge = `<i class="ti ti-circle-x" style="font-size:16px;color:var(--red);"></i>`;
 
-      // Rutinas / items del plan como pills
-      const allItems = [...planItems];
-      if(comp && !allItems.includes('🏆 '+comp.n)) allItems.unshift('🏆 '+comp.n);
-      const itemPills = allItems.map(item=>{
-        const isComp = item.startsWith('🏆');
-        const rDia = rutDia.find(r=>r.rname===item);
-        const pct = rDia ? Math.round(rDia.hechos/rDia.total*100) : null;
-        return `<div style="margin-bottom:6px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <span style="font-size:13px;font-weight:700;color:${isComp?'#b45309':'var(--text)'};">${esc(item)}</span>
-            ${rDia ? `<span style="font-size:11px;font-weight:700;color:${rDia.completo?'var(--green)':'var(--primary)'};flex-shrink:0;">${rDia.hechos}/${rDia.total}</span>` : ''}
+      // Contenido: rutinas planificadas
+      const allItems = comp ? ['🏆 '+(comp.n.length>14?comp.n.slice(0,13)+'…':comp.n), ...planItems] : [...planItems];
+      const itemsHTML = allItems.length
+        ? allItems.map(item=>{
+            const isComp = item.startsWith('🏆');
+            const short = item.length>16 ? item.slice(0,15)+'…' : item;
+            const rDia = rutDia.find(r=>r.rname===item);
+            const pct = rDia ? Math.round(rDia.hechos/rDia.total*100) : null;
+            return `<div style="margin-top:5px;">
+              <div style="font-size:11px;font-weight:700;color:${isComp?'#b45309':isToday?'var(--primary)':'var(--text)'};line-height:1.25;">${esc(short)}</div>
+              ${rDia&&rDia.total>0?`<div style="background:var(--border2);border-radius:3px;height:3px;margin-top:3px;overflow:hidden;"><div style="background:${rDia.completo?'var(--green)':'var(--primary)'};width:${pct}%;height:100%;border-radius:3px;"></div></div>`:''}
+            </div>`;
+          }).join('')
+        : `<div style="margin-top:8px;font-size:11px;color:var(--border);font-style:italic;">—</div>`;
+
+      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex:0 0 110px;width:110px;border:2px solid ${borderColor};border-radius:14px;overflow:hidden;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;transition:transform .12s,box-shadow .12s;" onmousedown="this.style.transform='scale(.95)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(.95)'" ontouchend="this.style.transform=''">
+        <div style="height:4px;background:${topBar};"></div>
+        <div style="padding:10px 10px 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+            <div>
+              <div style="font-size:11px;font-weight:800;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;">${DIAS_ABR2[dt.getDay()]}</div>
+              <div style="font-size:20px;font-weight:900;color:${isToday?'var(--primary)':'var(--text)'};line-height:1.1;">${dt.getDate()}</div>
+            </div>
+            ${statusBadge}
           </div>
-          ${rDia && rDia.total>0 ? `<div style="background:var(--border2);border-radius:4px;height:4px;margin-top:4px;overflow:hidden;"><div style="background:${rDia.completo?'var(--green)':'var(--primary)'};width:${pct}%;height:100%;border-radius:4px;"></div></div>` : ''}
-        </div>`;
-      }).join('');
-
-      const emptyMsg = !hasPlan && !comp && !hasActivity
-        ? `<span style="font-size:13px;color:var(--border);font-style:italic;">Descanso</span>`
-        : '';
-
-      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="border-radius:14px;background:${bg};border-left:${borderLeft};padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s,opacity .12s;margin-bottom:0;" onmousedown="this.style.transform='scale(.985)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(.985)'" ontouchend="this.style.transform=''">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hasPlan||comp||hasActivity?'8px':'0'};">
-          <div style="display:flex;align-items:baseline;gap:8px;">
-            <span style="font-size:15px;font-weight:900;color:${isToday?'var(--primary)':isPast?'var(--text2)':'var(--text)'};">${DIAS_FULL[dt.getDay()]}</span>
-            <span style="font-size:13px;font-weight:600;color:var(--text2);">${dt.getDate()} ${MESES_C2[dt.getMonth()]}</span>
-          </div>
-          ${estadoIcon ? `<span style="font-size:16px;font-weight:800;color:${estadoColor};">${estadoIcon}</span>` : ''}
+          ${itemsHTML}
         </div>
-        ${itemPills}${emptyMsg}
       </div>`;
     }).join('');
 
@@ -6021,8 +6019,10 @@ function openEliteEntrenamientosModal(id){
         <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;">Semana</span>
         <span style="font-size:13px;font-weight:800;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:2px;padding:8px;">
-        ${dayCards}
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding:12px;">
+        <div style="display:flex;gap:8px;min-width:max-content;">
+          ${dayCells}
+        </div>
       </div>
     </div>`;
   }).filter(Boolean).join('');
@@ -6031,9 +6031,9 @@ function openEliteEntrenamientosModal(id){
     <h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3>
     <button onclick="closeModal()">✕</button>
   </div>
-  <div style="padding:0 16px 20px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
+  <div style="padding:0 16px 20px;overflow-y:auto;max-height:82vh;-webkit-overflow-scrolling:touch;">
     ${weeksHTML}
-  </div>`);
+  </div>`,'wide');
 }
 
 function togglePlanDia(id, rname, dayNum){
