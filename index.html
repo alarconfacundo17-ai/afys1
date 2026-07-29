@@ -6551,6 +6551,12 @@ function guardarCompetenciaElite(id){
 function eliminarCompetenciaElite(id, ci){
   const d = eliteById(id);
   if(!d||!Array.isArray(d.competencias)) return;
+  const comp = d.competencias[ci];
+  if(!comp) return;
+  // Guardar tombstone para que el merge no la restaure
+  if(!Array.isArray(d.competenciasRemoved)) d.competenciasRemoved = [];
+  const key = comp.f+'|'+comp.n;
+  if(!d.competenciasRemoved.includes(key)) d.competenciasRemoved.push(key);
   d.competencias.splice(ci,1);
   persist();
   refreshEliteDeportistaModal(id);
@@ -7240,11 +7246,18 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
         const lk=new Set(ld.pse.map(p=>p.f+'|'+p.tipo+'|'+(p.rname||'')));
         rd.pse.forEach(p=>{ const k=p.f+'|'+p.tipo+'|'+(p.rname||''); if(!lk.has(k)){ ld.pse.push(p); lk.add(k); } });
       }
-      // merge competencias
+      // merge competencias (respeta tombstones de eliminadas)
       if(Array.isArray(rd.competencias)&&rd.competencias.length){
         if(!Array.isArray(ld.competencias)) ld.competencias=[];
+        const removed=new Set(ld.competenciasRemoved||[]);
         const lk=new Set(ld.competencias.map(c=>c.f+'|'+c.n));
-        rd.competencias.forEach(c=>{ const k=c.f+'|'+c.n; if(!lk.has(k)){ ld.competencias.push(c); lk.add(k); } });
+        rd.competencias.forEach(c=>{ const k=c.f+'|'+c.n; if(!lk.has(k)&&!removed.has(k)){ ld.competencias.push(c); lk.add(k); } });
+      }
+      // merge competenciasRemoved
+      if(Array.isArray(rd.competenciasRemoved)&&rd.competenciasRemoved.length){
+        if(!Array.isArray(ld.competenciasRemoved)) ld.competenciasRemoved=[];
+        const lk=new Set(ld.competenciasRemoved);
+        rd.competenciasRemoved.forEach(k=>{ if(!lk.has(k)){ ld.competenciasRemoved.push(k); lk.add(k); } });
       }
       // merge rs (rutinas asignadas)
       if(Array.isArray(rd.rs)&&rd.rs.length){
