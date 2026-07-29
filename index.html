@@ -181,41 +181,125 @@ h3{font-size:15px;margin-bottom:10px;}
 .ej-row:last-child{border-bottom:none;}
 .dot-num{display:inline-flex;width:22px;height:22px;border-radius:50%;color:#fff;align-items:center;justify-content:center;font-size:11px;margin-right:8px;font-weight:700;}
 
-/* modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:14px;animation:fadeIn .15s ease;}
-.modal-box{background:var(--bg);border-radius:14px;padding:24px;width:460px;max-width:100%;max-height:86vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:modalIn .18s ease;color:var(--text);}
-.modal-box.wide{width:600px;max-width:100%;}
+/* ── KEYFRAMES ─────────────────────────────────────────────────────── */
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
-@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-@keyframes checkPop{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
-.ej-done-btn{transition:background-color .3s ease,color .3s ease,border-color .3s ease;}
-.ej-done-btn.pop{animation:checkPop .3s ease;}
-.ej-row-card{transition:background-color .35s ease,border-color .35s ease;}
+@keyframes overlayIn{from{opacity:0;}to{opacity:1;}}
+@keyframes overlayOut{from{opacity:1;}to{opacity:0;}}
+@keyframes sheetIn{from{opacity:0;transform:translateY(32px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes sheetOut{from{opacity:1;transform:translateY(0) scale(1);}to{opacity:0;transform:translateY(24px) scale(.97);}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeInStagger{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes checkPop{0%{transform:scale(1);}35%{transform:scale(1.22);}70%{transform:scale(.95);}100%{transform:scale(1);}}
+@keyframes eliteFadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes eliteSlideUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+@keyframes navTabIn{from{transform:scale(.88);opacity:0;}to{transform:scale(1);opacity:1;}}
+@keyframes ripple{from{transform:scale(0);opacity:.35;}to{transform:scale(2.5);opacity:0;}}
+@keyframes progressFill{from{width:0%;}to{width:var(--pct,0%);}}
+
+/* ── MODAL / SHEET ─────────────────────────────────────────────────── */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.45);
+  display:flex;align-items:flex-end;justify-content:center;
+  z-index:200;
+  animation:overlayIn .2s ease both;
+  -webkit-backdrop-filter:blur(2px);
+  backdrop-filter:blur(2px);
+}
+@media(min-width:520px){.modal-overlay{align-items:center;padding:14px;}}
+.modal-overlay.closing{animation:overlayOut .18s ease both;}
+.modal-box{
+  background:var(--bg);
+  border-radius:22px 22px 0 0;
+  padding:20px 20px 32px;
+  width:100%;max-width:520px;
+  max-height:92vh;overflow:auto;
+  box-shadow:0 -4px 40px rgba(0,0,0,.18);
+  animation:sheetIn .28s cubic-bezier(.32,1.1,.56,1) both;
+  color:var(--text);
+  position:relative;
+}
+.modal-box::before{
+  content:'';display:block;width:36px;height:4px;
+  background:var(--border);border-radius:2px;
+  margin:0 auto 18px;
+}
+@media(min-width:520px){
+  .modal-box{border-radius:18px;padding:22px;box-shadow:0 16px 60px rgba(0,0,0,.22);}
+  .modal-box::before{display:none;}
+}
+.modal-box.wide{max-width:600px;}
+.modal-box.closing{animation:sheetOut .18s ease both;}
+
+/* ── NAV ───────────────────────────────────────────────────────────── */
+.elite-nav-item{
+  all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:11px;font-weight:600;color:var(--text2);
+  padding:6px 12px;border-radius:14px;cursor:pointer;flex:1;text-align:center;
+  transition:color .22s cubic-bezier(.4,0,.2,1),background .22s;
+  -webkit-tap-highlight-color:transparent;position:relative;overflow:hidden;
+}
+.elite-nav-item i{font-size:22px;transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.elite-nav-item.active{color:var(--primary);}
+.elite-nav-item.active i{transform:scale(1.18) translateY(-1px);}
+.elite-nav-item:active i{transform:scale(.88);}
+
+/* ── PAGE TRANSITIONS ──────────────────────────────────────────────── */
+.page-fade{animation:fadeInUp .24s cubic-bezier(.22,1,.36,1) both;}
+.elite-fade{animation:eliteFadeIn .3s cubic-bezier(.22,1,.36,1) both;}
+.elite-slide{animation:eliteSlideUp .34s cubic-bezier(.22,1,.36,1) both;}
+
+/* Staggered children */
+#eliteContent > *{animation:fadeInStagger .3s cubic-bezier(.22,1,.36,1) both;}
+#eliteContent > *:nth-child(1){animation-delay:.03s;}
+#eliteContent > *:nth-child(2){animation-delay:.07s;}
+#eliteContent > *:nth-child(3){animation-delay:.11s;}
+#eliteContent > *:nth-child(4){animation-delay:.14s;}
+#eliteContent > *:nth-child(5){animation-delay:.17s;}
+#staffContent>*, #socioContent>*{animation:fadeInUp .24s cubic-bezier(.22,1,.36,1) both;}
+
+/* ── BUTTONS ───────────────────────────────────────────────────────── */
+.btn{
+  transition:
+    opacity .15s ease,
+    transform .14s cubic-bezier(.34,1.56,.64,1),
+    background-color .2s ease,
+    border-color .2s ease,
+    color .2s ease,
+    box-shadow .2s ease;
+}
+.btn:active{transform:scale(.94);}
+.btn-primary:not(:disabled):hover{box-shadow:0 4px 16px rgba(59,130,201,.35);}
+.rutinas-badge-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--primary-light);color:var(--primary);
+  border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;
+  white-space:nowrap;border:none;cursor:pointer;
+  transition:box-shadow .18s,transform .15s cubic-bezier(.34,1.56,.64,1);
+  -webkit-tap-highlight-color:transparent;
+}
+.rutinas-badge-btn:active{transform:scale(.94);}
+
+/* ── EXERCISES ─────────────────────────────────────────────────────── */
+.ej-done-btn{transition:background-color .25s ease,color .25s ease,border-color .25s ease,transform .14s cubic-bezier(.34,1.56,.64,1);}
+.ej-done-btn.pop{animation:checkPop .38s cubic-bezier(.34,1.56,.64,1);}
+.ej-row-card{transition:background-color .3s ease,border-color .3s ease,opacity .3s ease;}
 .ej-row-done{background:rgba(5,150,105,.07) !important;border-color:rgba(5,150,105,.3) !important;}
 [data-theme="dark"] .ej-row-done{background:rgba(52,211,153,.09) !important;border-color:rgba(52,211,153,.25) !important;}
-.page-fade{animation:fadeInUp .22s ease;}
-.elite-nav-item{all:unset;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:10px;cursor:pointer;flex:1;text-align:center;transition:color .2s,transform .15s;-webkit-tap-highlight-color:transparent;}
-.elite-nav-item i{font-size:22px;transition:transform .2s;}
-.elite-nav-item.active{color:var(--primary);}
-.elite-nav-item.active i{transform:scale(1.15);}
-.elite-nav-item:active{transform:scale(.92);}
-@keyframes eliteFadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-.elite-fade{animation:eliteFadeIn .28s ease both;}
-@keyframes eliteSlideUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
-.elite-slide{animation:eliteSlideUp .32s cubic-bezier(.22,1,.36,1) both;}
-.rutinas-badge-btn{display:inline-flex;align-items:center;gap:5px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;white-space:nowrap;border:none;cursor:pointer;transition:box-shadow .18s,transform .13s;-webkit-tap-highlight-color:transparent;}
-.rutinas-badge-btn:hover{box-shadow:0 2px 10px var(--primary)44;transform:scale(1.06);}
-.rutinas-badge-btn:active{transform:scale(.97);box-shadow:none;}
-.btn{transition:opacity .15s ease,transform .12s ease,background-color .2s ease,border-color .2s ease,color .2s ease;}
-.btn:active{transform:scale(.96);}
-.bn-item{transition:color .2s ease;}
-.bn-item i{transition:transform .2s ease;}
-.bn-item.active i{transform:translateY(-2px);}
+
+/* ── BOTTOM NAV (socios) ───────────────────────────────────────────── */
+.bn-item{transition:color .22s ease;}
+.bn-item i{transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.bn-item.active i{transform:translateY(-2px) scale(1.1);}
 .bell{transition:transform .15s ease;}
 .bell:active{transform:scale(.85);}
-.card{transition:box-shadow .2s ease,border-color .2s ease;}
-#staffContent>*, #socioContent>*{animation:fadeInUp .22s ease;}
+
+/* ── CARDS ─────────────────────────────────────────────────────────── */
+.card{transition:box-shadow .22s ease,border-color .22s ease,transform .14s ease;}
+.card:active{transform:scale(.985);}
+
+/* ── PROGRESS BARS (animated on load) ─────────────────────────────── */
+.pbar-fill{animation:progressFill .6s cubic-bezier(.22,1,.36,1) both;animation-delay:.2s;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
 .modal-sticky-top{position:sticky;top:-24px;margin:-24px -24px 16px -24px;padding:24px 24px 12px 24px;background:var(--bg);z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
@@ -6432,18 +6516,31 @@ function renderElitePanel(){
   if(!d){ currentEliteId=null; localStorage.removeItem('afys_elite_id'); $('#elite').classList.add('hidden'); $('#login').classList.remove('hidden'); renderEliteLogin(); return; }
   const c = $('#eliteContent');
   if(!c) return;
-  let html = '';
-  if(elitePage==='inicio') html = elitePageInicio(d);
-  else if(elitePage==='rutinas') html = elitePageRutinas(d);
-  else if(elitePage==='competencias') html = elitePageCompetencias(d);
-  else if(elitePage==='pse') html = elitePagePseHistorial(d);
-  c.innerHTML = '';
-  const wrapper = document.createElement('div');
-  wrapper.className = 'elite-slide';
-  wrapper.innerHTML = html;
-  c.appendChild(wrapper);
-  // nav activo
-  $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
+  const _doRender = ()=>{
+    let html = '';
+    if(elitePage==='inicio') html = elitePageInicio(d);
+    else if(elitePage==='rutinas') html = elitePageRutinas(d);
+    else if(elitePage==='competencias') html = elitePageCompetencias(d);
+    else if(elitePage==='pse') html = elitePagePseHistorial(d);
+    c.innerHTML = html;
+    c.style.opacity = '';
+    c.style.transform = '';
+    // nav activo
+    $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
+  };
+  // Si ya hay contenido, fade-out rápido antes de reemplazar
+  if(c.children.length){
+    c.style.transition = 'opacity .12s ease, transform .12s ease';
+    c.style.opacity = '0';
+    c.style.transform = 'translateY(6px)';
+    setTimeout(()=>{
+      c.style.transition = '';
+      _doRender();
+      // fade-in via CSS animation en los hijos (elite-slide)
+    }, 120);
+  } else {
+    _doRender();
+  }
 }
 
 function elitePageInicio(d){
@@ -6524,7 +6621,7 @@ function elitePageInicio(d){
           </div>
           ${ejsTotal ? `
           <div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
-            <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;transition:width .5s cubic-bezier(.22,1,.36,1);"></div>
+            <div class="pbar-fill" style="--pct:${pct}%;background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;"></div>
           </div>
           <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados</div>` : ''}
         </div>`;
@@ -7276,7 +7373,18 @@ function openModal(html, size){
     }
   }
 }
-function closeModal(){ $('#modalHost').innerHTML=''; editNotaIdx=null; _editingRutinaName=null; _editingTurnoId=null; }
+function closeModal(){
+  const overlay = document.querySelector('.modal-overlay');
+  const box = document.querySelector('.modal-box');
+  if(overlay && box){
+    overlay.classList.add('closing');
+    box.classList.add('closing');
+    setTimeout(()=>{ $('#modalHost').innerHTML=''; }, 170);
+  } else {
+    $('#modalHost').innerHTML='';
+  }
+  editNotaIdx=null; _editingRutinaName=null; _editingTurnoId=null;
+}
 
 /* ============ SOCIO APP ============ */
 $all('.bn-item').forEach(el=>el.addEventListener('click',()=>{
