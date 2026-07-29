@@ -5490,34 +5490,6 @@ function _eliteDeportistaModalHTML(id){
   const link = eliteLoginLink(d);
   const todayStr = todayISO();
 
-  const rutinasAsignadas = Array.isArray(d.rs) ? d.rs.filter(n=>RUTINAS.some(r=>r.n===n)) : [];
-  const todasRutinas = RUTINAS.map(r=>r.n);
-  const sinAsignar = todasRutinas.filter(n=>!rutinasAsignadas.includes(n));
-
-  const rutinaRows = rutinasAsignadas.map(rname=>{
-    const r = RUTINAS.find(x=>x.n===rname);
-    const rh = d.rsHechos?.[rname]||{};
-    const ejs = r ? r.ejs||[] : [];
-    const hechosHoy = ejs.filter(e=>rh[e.n]===todayStr).length;
-    const totalEjs = ejs.length;
-    const completo = totalEjs>0 && hechosHoy===totalEjs;
-    const parcial = hechosHoy>0 && !completo;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-        <div style="font-size:11px;color:var(--text2);">${r?esc(r.t||''):'Rutina personalizada'} · ${totalEjs} ej.${parcial?` · <span style="color:var(--primary)">${hechosHoy}/${totalEjs} hoy</span>`:''}${completo?' · <span style="color:var(--green)">✓ completa hoy</span>':''}</div>
-      </div>
-      <button style="all:unset;padding:4px 6px;cursor:pointer;color:var(--text2);opacity:.4;" title="Quitar rutina" onclick="quitarRutinaElite('${id}','${escQ(rname)}')"><i class="ti ti-x" style="font-size:14px;"></i></button>
-    </div>`;
-  }).join('');
-
-  const addRutinaSection = `
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <input id="eliteAddRutinaInput" list="eliteRutinasList" placeholder="Buscar o escribir rutina..." style="flex:1;">
-      <datalist id="eliteRutinasList">${todasRutinas.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
-      <button class="btn btn-primary btn-sm" onclick="asignarRutinaEliteTexto('${id}')"><i class="ti ti-plus"></i></button>
-    </div>`;
-
   const competencias = Array.isArray(d.competencias) ? d.competencias : [];
   const compRows = competencias.sort((a,b)=>a.f.localeCompare(b.f)).map((c,ci)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);">
@@ -5549,11 +5521,6 @@ function _eliteDeportistaModalHTML(id){
         ${d.tel?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;"><span style="color:var(--text2);">Tel </span><strong>${esc(d.tel)}</strong></span>`:''}
         ${d.email?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(d.email)}</span>`:''}
       </div>
-
-      <!-- Rutinas asignadas -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Rutinas asignadas</div>
-      ${rutinasAsignadas.length ? rutinaRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`}
-      ${addRutinaSection}
 
       <!-- Plan mensual + Entrenamientos -->
       <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border2);">
@@ -5896,8 +5863,7 @@ function openEliteEntrenamientosModal(id){
     const dayCells = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
       const diaLabel = DIAS_L[dt.getDay()];
-      const planFechaRname = (d.planFechas||{})[ds];
-      const planRname = planFechaRname || null;
+      const planItems = getPlanItems(d, ds);
 
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
@@ -5908,7 +5874,7 @@ function openEliteEntrenamientosModal(id){
         return {rname, done, total: ejs.length, completo: done===ejs.length && ejs.length>0};
       }).filter(Boolean);
 
-      const hasPlan = !!planRname;
+      const hasPlan = planItems.length > 0;
       const hasActivity = rutDia.length > 0;
       const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
       const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
@@ -5930,7 +5896,9 @@ function openEliteEntrenamientosModal(id){
       else if(hasPlan && !isFuture) stateIcon = `<i class="ti ti-circle-x" style="font-size:11px;color:var(--red);"></i>`;
       if(psePre || psePost) stateIcon += `<i class="ti ti-heart-rate-monitor" style="font-size:11px;color:var(--primary);margin-left:2px;"></i>`;
 
-      const label = planRname ? esc(planRname.length>10?planRname.slice(0,9)+'…':planRname)
+      const _firstPlan = planItems[0]||'';
+      const _extraPlan = planItems.length > 1 ? ` +${planItems.length-1}` : '';
+      const label = hasPlan ? esc(_firstPlan.length>10?_firstPlan.slice(0,9)+'…':_firstPlan)+(_extraPlan?`<span style="font-size:9px;">${esc(_extraPlan)}</span>`:'')
                   : hasActivity ? esc(rutDia[0].rname.length>10?rutDia[0].rname.slice(0,9)+'…':rutDia[0].rname)
                   : `<span style="color:var(--border2);font-size:10px;">—</span>`;
 
@@ -5993,8 +5961,7 @@ function openEliteEntrenamientoDiaModal(id, ds){
   const isFuture = ds > todayStr;
   const isToday = ds === todayStr;
 
-  const planFechaRname = (d.planFechas||{})[ds];
-  const planRnames = planFechaRname ? [planFechaRname] : [];
+  const planRnames = getPlanItems(d, ds);
 
   const rutDia = (d.rs||[]).map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
@@ -6036,9 +6003,8 @@ function openEliteEntrenamientoDiaModal(id, ds){
     const cumplida = rutDia.some(rt=>rt.rname===pname);
     const color = cumplida?'var(--green)':isFuture?'var(--text2)':'var(--red)';
     const icon = cumplida?'ti-circle-check-filled':isFuture?'ti-calendar':'ti-circle-x';
-    // Solo mostrar X si fue asignada via planFechas (no planSemanal legacy)
-    const esPlanFecha = !!(d.planFechas||{})[ds];
-    const removeBtn = esPlanFecha ? `<button onclick="quitarPlanFecha(_diaModalId,_diaModalDs)" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.6;line-height:1;flex-shrink:0;" title="Quitar rutina de este día"><i class="ti ti-x" style="font-size:16px;pointer-events:none;"></i></button>` : '';
+    // Mostrar X para quitar este item específico del array del día
+    const removeBtn = `<button onclick="quitarPlanFechaItem('${id}','${ds}','${escQ(pname)}')" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.6;line-height:1;flex-shrink:0;" title="Quitar del plan de este día"><i class="ti ti-x" style="font-size:16px;pointer-events:none;"></i></button>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border2);">
       <i class="ti ${icon}" style="font-size:20px;color:${color};flex-shrink:0;"></i>
       <div style="flex:1;">
@@ -6111,15 +6077,18 @@ function openElitePlanCalendarioModal(id, ym){
 
   for(let day=1;day<=daysInMonth;day++){
     const ds = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const planRname = planFechas[ds]||'';
+    const planItems = getPlanItems({planFechas}, ds);
+    const hasPlanItem = planItems.length > 0;
     const isToday = ds===todayStr;
     const isPast = ds<todayStr;
 
     let done = false;
-    if(planRname){
-      const r = RUTINAS.find(x=>x.n===planRname);
+    if(hasPlanItem){
+      // done si al menos el primer item está completo
+      const firstPlan = planItems[0];
+      const r = RUTINAS.find(x=>x.n===firstPlan);
       const ejs = r?r.ejs||[]:[];
-      const rhR = rh[planRname]||{};
+      const rhR = rh[firstPlan]||{};
       done = ejs.length>0 && ejs.every(e=>rhR[e.n]===ds);
     }
     const hasAnyActivity = rutinas.some(rname=>{
@@ -6128,16 +6097,18 @@ function openElitePlanCalendarioModal(id, ym){
       return ejs.some(e=>(rh[rname]||{})[e.n]===ds);
     });
 
-    const bg = done?'rgba(5,150,105,.13)':planRname&&!isPast?'rgba(59,130,201,.1)':planRname&&isPast?'rgba(220,38,38,.07)':'transparent';
+    const bg = done?'rgba(5,150,105,.13)':hasPlanItem&&!isPast?'rgba(59,130,201,.1)':hasPlanItem&&isPast?'rgba(220,38,38,.07)':'transparent';
     const border = isToday?'2px solid var(--primary)':done?'1.5px solid rgba(5,150,105,.4)':'1.5px solid transparent';
     const numColor = isToday?'var(--primary)':isPast?'var(--text2)':'var(--text)';
-    const txtColor = done?'var(--green)':isPast&&planRname?'var(--red)':'var(--primary)';
-    const shortName = planRname.length>8?planRname.slice(0,7)+'…':planRname;
+    const txtColor = done?'var(--green)':isPast&&hasPlanItem?'var(--red)':'var(--primary)';
+    const _fp = planItems[0]||'';
+    const shortName = _fp.length>8?_fp.slice(0,7)+'…':_fp;
+    const extraLabel = planItems.length>1?` +${planItems.length-1}`:'';
 
     cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:48px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
-      ${planRname?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}</div>`:''}
-      ${hasAnyActivity&&!planRname?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
+      ${hasPlanItem?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}${extraLabel?`<span style="font-size:8px;">${esc(extraLabel)}</span>`:''}</div>`:''}
+      ${hasAnyActivity&&!hasPlanItem?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
     </div>`;
   }
 
@@ -6172,10 +6143,12 @@ function _guardarPlanFechaCustom(){
   const d = eliteById(id);
   if(!d) return;
   if(!d.planFechas) d.planFechas = {};
-  d.planFechas[fecha] = val;
-  persist();
-  if(ym && ym.length===10) openEliteEntrenamientosModal(id);
-  else openElitePlanCalendarioModal(id, ym);
+  const current = getPlanItems(d, fecha);
+  if(!current.includes(val)){
+    d.planFechas[fecha] = [...current, val];
+    persist();
+  }
+  openEliteAsignarDiaModal(id, fecha, ym);
 }
 
 function _quitarPlanFechaCalendario(){
