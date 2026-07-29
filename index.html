@@ -5456,7 +5456,7 @@ function guardarEliteDeportista(id){
       tel: $('#eliteTel').value.trim(),
       email: $('#eliteEmail').value.trim(),
       ob: $('#eliteOb').value.trim(),
-      rs: [], rsHechos: {}, rsOverride: {}, rsRemoved: [],
+      rs: [], rsHechos: {}, rsOverride: {}, rsRemoved: [], rsMiPeso: {}, rsMiSR: {},
       competencias: [], pse: [], planSemanal: {}, planFechas: {},
       ultimoEntreno: null, activo: true,
     });
@@ -6529,20 +6529,42 @@ function openEliteRutinaDetalleModal(rname){
   const rh = d.rsHechos?.[rname]||{};
   const ejs = r.ejs||[];
   const todosHechos = ejs.length>0 && ejs.every(e=>rh[e.n]===todayStr);
+  const miPeso = (d.rsMiPeso&&d.rsMiPeso[rname])||{};
+  const miSR = (d.rsMiSR&&d.rsMiSR[rname])||{};
 
   const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+  const hechosCnt = ejs.filter(e=>rh[e.n]===todayStr).length;
+
   const ejRows = ejs.map((e, ei)=>{
     const hecho = rh[e.n]===todayStr;
-    return `<div data-ejidx="${ei}" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s;" onclick="eliteToggleEjercicio('${escQ(rname)}','${escQ(e.n)}',${ei})">
-      <i data-ejicon class="ti ${hecho?'ti-check-circle':'ti-circle'}" style="font-size:22px;color:${hecho?'var(--green)':'var(--border)'};flex-shrink:0;transition:color .18s,transform .15s;${hecho?'transform:scale(1.1);':''}"></i>
-      <div style="flex:1;">
-        <div data-ejname style="font-size:14px;font-weight:600;transition:color .18s,text-decoration .18s;${hecho?'text-decoration:line-through;color:var(--text2);':''}">${esc(e.n)}</div>
-        <div style="font-size:12px;color:var(--text2);">${e.s} series × ${e.r||'—'}</div>
+    const rn_esc = rname.replace(/'/g,"\\'");
+    const en_esc = e.n.replace(/'/g,"\\'");
+    const _s = (miSR[e.n]&&miSR[e.n].s) ? String(miSR[e.n].s) : String(e.s||'');
+    const _r = (miSR[e.n]&&miSR[e.n].r) ? String(miSR[e.n].r) : String(e.r||'');
+    const _p = miPeso[e.n] ? String(miPeso[e.n]) : '';
+    const summaryText = e.modo==='tiempo' ? ('Tiempo: '+(e.tiempo||'')) : (_s+'×'+_r+(_p?' | '+_p+' kg':''));
+    const selectOpts = '<option value="">-</option>'+[1,2,3,4].map(n=>'<option value="'+n+'"'+(_s==String(n)?' selected':'')+'>'+n+'</option>').join('');
+    const img = EJ_IMAGES[e.n];
+    return `<div id="eliteEjRow${ei}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;margin-bottom:8px;${hecho?'opacity:.7;':''}">
+      ${img?`<img src="${esc(img)}" style="width:60px;height:60px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <b style="font-size:15px;font-weight:700;">${ei+1}. ${esc(e.n).toUpperCase()}</b>
+          <button onclick="eliteToggleEjEdit(${ei})" style="height:26px;width:26px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-pencil" style="font-size:14px;"></i></button>
+        </div>
+        <p id="eliteEjSum${ei}" style="font-size:14px;font-weight:700;margin:0 0 8px;color:var(--text);">${esc(summaryText)}</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
+          <button id="eliteEjBtn${ei}" class="btn btn-sm ${hecho?'btn-primary':'btn-outline'}" style="margin-left:auto;height:38px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="eliteToggleEjercicio('${rn_esc}','${en_esc}',${ei})"><i class="ti ti-check" style="font-size:18px;"></i><span>${hecho?'Hecho':'Marcar hecho'}</span></button>
+        </div>
+        <div id="eliteEjEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
+          ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="eliteSetMiSREj(\''+rn_esc+'\',\''+en_esc+'\',\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="eliteSetMiSREj(\''+rn_esc+'\',\''+en_esc+'\',\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(_p)}" oninput="eliteSetMiPesoEj('${rn_esc}','${en_esc}',this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
+          <button onclick="eliteGuardarEjEdit(${ei},'${rn_esc}','${en_esc}')" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 
-  const hechosCnt = ejs.filter(e=>rh[e.n]===todayStr).length;
   const btnLabel = yaHizoPost
     ? `<i class="ti ti-check"></i> Entrenamiento finalizado`
     : todosHechos
@@ -6560,9 +6582,47 @@ function openEliteRutinaDetalleModal(rname){
       <button id="eliteRutDetBtn" class="btn btn-primary" style="width:100%;margin-top:16px;border-radius:10px;font-size:15px;padding:13px;${yaHizoPost?'opacity:.6;pointer-events:none;background:var(--green);border-color:var(--green);':''}" onclick="eliteCompletarEntrenamiento('${escQ(rname)}')">
         ${btnLabel}
       </button>
-    </div>`);
-  // store current rname for in-place updates
+    </div>`,'wide');
   window._eliteRutinaDetalleRname = rname;
+}
+function eliteToggleEjEdit(ei){
+  const el = document.getElementById('eliteEjEdit'+ei);
+  if(el) el.style.display = el.style.display==='none' ? 'flex' : 'none';
+}
+function eliteGuardarEjEdit(ei, rname, ejName){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  const ej = (r&&r.ejs||[]).find(x=>x.n===ejName)||{};
+  const miSR = (d.rsMiSR&&d.rsMiSR[rname])||{};
+  const miPeso = (d.rsMiPeso&&d.rsMiPeso[rname])||{};
+  const _s = (miSR[ejName]&&miSR[ejName].s) ? String(miSR[ejName].s) : String(ej.s||'');
+  const _r = (miSR[ejName]&&miSR[ejName].r) ? String(miSR[ejName].r) : String(ej.r||'');
+  const _p = miPeso[ejName] ? String(miPeso[ejName]) : '';
+  const summaryText = ej.modo==='tiempo' ? ('Tiempo: '+(ej.tiempo||'')) : (_s+'×'+_r+(_p?' | '+_p+' kg':''));
+  const sumEl = document.getElementById('eliteEjSum'+ei);
+  if(sumEl) sumEl.textContent = summaryText;
+  eliteToggleEjEdit(ei);
+}
+function eliteSetMiPesoEj(rname, ejName, val){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  if(!d.rsMiPeso) d.rsMiPeso = {};
+  if(!d.rsMiPeso[rname]) d.rsMiPeso[rname] = {};
+  if(val.trim()) d.rsMiPeso[rname][ejName] = val.trim();
+  else delete d.rsMiPeso[rname][ejName];
+  persist();
+}
+function eliteSetMiSREj(rname, ejName, field, val){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  if(!d.rsMiSR) d.rsMiSR = {};
+  if(!d.rsMiSR[rname]) d.rsMiSR[rname] = {};
+  if(!d.rsMiSR[rname][ejName]) d.rsMiSR[rname][ejName] = {};
+  if(val.trim()) d.rsMiSR[rname][ejName][field] = val.trim();
+  else delete d.rsMiSR[rname][ejName][field];
+  if(Object.keys(d.rsMiSR[rname][ejName]).length===0) delete d.rsMiSR[rname][ejName];
+  persist();
 }
 
 function eliteToggleEjercicio(rname, ejName, ejIdx){
@@ -6575,23 +6635,14 @@ function eliteToggleEjercicio(rname, ejName, ejIdx){
   d.rsHechos[rname][ejName] = wasHecho ? null : todayStr;
   persist();
   // Update DOM in-place (no re-render)
-  const row = document.querySelector(`[data-ejidx="${ejIdx}"]`);
-  if(row){
-    const hecho = !wasHecho;
-    const icon = row.querySelector('[data-ejicon]');
-    const nameEl = row.querySelector('[data-ejname]');
-    if(icon){
-      icon.className = `ti ${hecho?'ti-check-circle':'ti-circle'}`;
-      icon.style.color = hecho?'var(--green)':'var(--border)';
-      icon.style.transform = hecho?'scale(1.1)':'scale(1)';
-    }
-    if(nameEl){
-      nameEl.style.textDecoration = hecho?'line-through':'';
-      nameEl.style.color = hecho?'var(--text2)':'';
-    }
-    // brief tap flash
-    row.style.background = 'var(--primary-light)';
-    setTimeout(()=>{ row.style.background = ''; }, 160);
+  const hecho = !wasHecho;
+  const row = document.getElementById(`eliteEjRow${ejIdx}`);
+  const btn = document.getElementById(`eliteEjBtn${ejIdx}`);
+  if(row) row.style.opacity = hecho ? '.7' : '1';
+  if(btn){
+    btn.className = 'btn btn-sm '+(hecho?'btn-primary':'btn-outline');
+    btn.querySelector('span').textContent = hecho ? 'Hecho' : 'Marcar hecho';
+    btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
   }
   // Update progress + button
   const r = RUTINAS.find(x=>x.n===rname);
@@ -6841,6 +6892,10 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
       const ld = localById[rd.id];
       // merge rsHechos
       if(rd.rsHechos) mergeRsHechosAdditivo(ld.rsHechos||(ld.rsHechos={}), rd.rsHechos);
+      // merge rsMiPeso (additivo: no sobreescribir si local ya tiene)
+      if(rd.rsMiPeso&&typeof rd.rsMiPeso==='object'){ if(!ld.rsMiPeso) ld.rsMiPeso={}; Object.keys(rd.rsMiPeso).forEach(rn=>{ if(!ld.rsMiPeso[rn]) ld.rsMiPeso[rn]={}; Object.keys(rd.rsMiPeso[rn]).forEach(en=>{ if(!ld.rsMiPeso[rn][en]) ld.rsMiPeso[rn][en]=rd.rsMiPeso[rn][en]; }); }); }
+      // merge rsMiSR (additivo: no sobreescribir si local ya tiene)
+      if(rd.rsMiSR&&typeof rd.rsMiSR==='object'){ if(!ld.rsMiSR) ld.rsMiSR={}; Object.keys(rd.rsMiSR).forEach(rn=>{ if(!ld.rsMiSR[rn]) ld.rsMiSR[rn]={}; Object.keys(rd.rsMiSR[rn]).forEach(en=>{ if(!ld.rsMiSR[rn][en]||Object.keys(ld.rsMiSR[rn][en]).length===0) ld.rsMiSR[rn][en]=rd.rsMiSR[rn][en]; }); }); }
       if(rd.ultimoEntreno&&(!ld.ultimoEntreno||rd.ultimoEntreno.f>ld.ultimoEntreno.f)) ld.ultimoEntreno=rd.ultimoEntreno;
       // merge pse (additivo por timestamp)
       if(Array.isArray(rd.pse)&&rd.pse.length){
