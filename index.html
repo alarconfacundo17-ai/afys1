@@ -6209,36 +6209,142 @@ function openEliteAsignarDiaModal(id, fecha, ym){
   const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
   const currentItems = getPlanItems(d, fecha);
   const todasRutinas = RUTINAS.map(r=>r.n);
-  // Actividades personalizadas: items que no son rutinas del sistema
   const customItems = currentItems.filter(x=>!todasRutinas.includes(x));
+  const selItems = currentItems.filter(x=>todasRutinas.includes(x));
 
-  const opts = todasRutinas.map(rname=>{
-    const sel = currentItems.includes(rname);
-    const removeBtn = sel ? `<button onclick="_togglePlanFechaItem('${escQ(rname)}')" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;flex-shrink:0;line-height:1;" title="Quitar"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>` : '';
-    return `<div style="display:flex;align-items:center;border-bottom:1px solid var(--border2);background:${sel?'var(--primary-light)':''};">
-      <button onclick="_togglePlanFechaItem('${escQ(rname)}')" style="all:unset;display:flex;align-items:center;gap:10px;flex:1;padding:12px 16px;font-size:13px;font-weight:${sel?'700':'400'};color:${sel?'var(--primary)':'var(--text)'};cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
-        <i class="ti ${sel?'ti-check-circle':'ti-circle'}" style="font-size:16px;color:${sel?'var(--primary)':'var(--border)'};flex-shrink:0;"></i>
-        ${esc(rname)}
-      </button>
-      ${removeBtn}
-    </div>`;
-  }).join('');
-
-  // ym de 10 chars = viene de vista semanal (wkMon), volver a entrenamientos
   const backFn = ym && ym.length===10 ? `openEliteEntrenamientosModal('${id}')` : `openElitePlanCalendarioModal('${id}','${escQ(ym)}')`;
+
+  // Items ya asignados
+  const assignedHtml = currentItems.length ? `<div style="margin-bottom:12px;">
+    <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Asignado</div>
+    ${currentItems.map(item=>`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--primary-light);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+      <span style="font-size:13px;font-weight:700;color:var(--primary);">${esc(item)}</span>
+      <button onclick="_togglePlanFechaItem('${escQ(item)}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);line-height:1;"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>
+    </div>`).join('')}
+  </div>` : '';
+
   openModal(`<div class="modal-head">
     <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
     <button onclick="${backFn}">✕</button>
   </div>
-  <div style="overflow-y:auto;max-height:70vh;">${opts}</div>
-  <div style="padding:12px 16px;border-top:1px solid var(--border2);">
-    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Actividad personalizada</div>
-    <div style="display:flex;gap:8px;">
-      <input id="planFechaCustomInput" type="text" placeholder="Ej: Partido amistoso, Descanso activo..." style="flex:1;font-size:13px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);">
-      <button onclick="_guardarPlanFechaCustom()" style="background:var(--primary);border:none;color:#fff;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;">Agregar</button>
+  <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
+    ${assignedHtml}
+    <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buscar rutina</div>
+    <input id="eliteBuscaRutina" type="text" placeholder="Escribí para buscar..." autocomplete="off"
+      style="width:100%;font-size:14px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:8px;"
+      oninput="_eliteFiltrarRutinas()">
+    <div id="eliteRutinaResultados" style="display:none;border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:12px;"></div>
+    <div style="border-top:1px solid var(--border2);padding-top:12px;margin-top:4px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Actividad libre</div>
+      <div style="display:flex;gap:8px;">
+        <input id="planFechaCustomInput" type="text" placeholder="Ej: Partido, Descanso activo..." style="flex:1;font-size:13px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);">
+        <button onclick="_guardarPlanFechaCustom()" style="background:var(--primary);border:none;color:#fff;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Agregar</button>
+      </div>
     </div>
-    ${customItems.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">${customItems.map(ci=>`<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;">${esc(ci)}<button onclick="_togglePlanFechaItem('${escQ(ci)}')" style="background:none;border:none;cursor:pointer;padding:0 0 0 2px;color:var(--text2);line-height:1;font-size:13px;">✕</button></span>`).join('')}</div>` : ''}
   </div>`);
+  setTimeout(()=>{ const inp=document.getElementById('eliteBuscaRutina'); if(inp) inp.focus(); },100);
+}
+
+function _eliteFiltrarRutinas(){
+  const q = (document.getElementById('eliteBuscaRutina')||{}).value||'';
+  const cont = document.getElementById('eliteRutinaResultados');
+  if(!cont) return;
+  if(q.trim().length<1){ cont.style.display='none'; cont.innerHTML=''; return; }
+  const {id, fecha} = _asignarDiaCtx;
+  const d = eliteById(id);
+  const currentItems = getPlanItems(d, fecha);
+  const matches = RUTINAS.filter(r=>r.n.toLowerCase().includes(q.toLowerCase()));
+  if(!matches.length){ cont.style.display='block'; cont.innerHTML=`<div style="padding:12px 16px;font-size:13px;color:var(--text2);">Sin resultados</div>`; return; }
+  cont.style.display='block';
+  cont.innerHTML = matches.map(r=>{
+    const sel = currentItems.includes(r.n);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border2);background:${sel?'var(--primary-light)':''};">
+      <div>
+        <div style="font-size:13px;font-weight:${sel?'700':'600'};color:${sel?'var(--primary)':'var(--text)'};">${esc(r.n)}</div>
+        ${r.t?`<div style="font-size:11px;color:var(--text2);">${esc(r.t)}</div>`:''}
+      </div>
+      <button onclick="_seleccionarRutinaParaDia('${escQ(r.n)}')" style="background:${sel?'var(--bg2)':'var(--primary)'};border:none;color:${sel?'var(--text2)':'#fff'};border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">
+        ${sel?'Asignada':'Agregar'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function _seleccionarRutinaParaDia(rname){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  const d = eliteById(id);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+
+  // Abrir panel de nota + override por ejercicio
+  const planNotas = (d.planNotas||{})[fecha]||{};
+  const notaRutina = (planNotas[rname]||{}).nota||'';
+  const overrides = (planNotas[rname]||{}).ejs||{};
+
+  const ejRows = (r.ejs||[]).map((e,ei)=>{
+    const ov = overrides[e.n]||{};
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">${esc(e.n)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${e.modo!=='tiempo'?`<div style="display:flex;flex-direction:column;gap:2px;">
+          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Series</label>
+          <input type="text" id="planOvS_${ei}" value="${esc(ov.s||'')}" placeholder="${e.s||'-'}" style="width:56px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+        </div>
+        <span style="align-self:flex-end;padding-bottom:8px;color:var(--text2);">×</span>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Reps</label>
+          <input type="text" id="planOvR_${ei}" value="${esc(ov.r||'')}" placeholder="${e.r||'-'}" style="width:64px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+        </div>`:''}
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Kg</label>
+          <input type="text" id="planOvK_${ei}" value="${esc(ov.kg||'')}" placeholder="${e.kg||'—'}" style="width:72px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:14px;font-weight:700;">${esc(rname)}</h3>
+    <button onclick="openEliteAsignarDiaModal('${id}','${fecha}','${escQ(ym)}')">←</button>
+  </div>
+  <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Nota / indicación</div>
+      <textarea id="planNotaInput" rows="2" placeholder="Ej: Bajar peso, foco en técnica, ritmo suave..." style="width:100%;font-size:13px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);resize:none;box-sizing:border-box;">${esc(notaRutina)}</textarea>
+    </div>
+    ${r.ejs&&r.ejs.length?`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Modificar ejercicios (opcional)</div>${ejRows}`:'' }
+    <button onclick="_guardarSeleccionRutinaParaDia('${escQ(rname)}')" style="width:100%;margin-top:16px;background:var(--primary);border:none;color:#fff;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Guardar</button>
+  </div>`,'wide');
+}
+
+function _guardarSeleccionRutinaParaDia(rname){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  const d = eliteById(id);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+
+  // Agregar rutina al plan del día
+  if(!d.planFechas) d.planFechas = {};
+  const arr = getPlanItems(d, fecha);
+  if(!arr.includes(rname)) arr.push(rname);
+  d.planFechas[fecha] = arr;
+
+  // Guardar nota y overrides
+  const nota = (document.getElementById('planNotaInput')||{}).value||'';
+  const ejs = {};
+  (r&&r.ejs||[]).forEach((e,ei)=>{
+    const s = (document.getElementById(`planOvS_${ei}`)||{}).value||'';
+    const rep = (document.getElementById(`planOvR_${ei}`)||{}).value||'';
+    const kg = (document.getElementById(`planOvK_${ei}`)||{}).value||'';
+    if(s||rep||kg) ejs[e.n] = {s,r:rep,kg};
+  });
+  if(!d.planNotas) d.planNotas = {};
+  if(!d.planNotas[fecha]) d.planNotas[fecha] = {};
+  d.planNotas[fecha][rname] = { nota: nota.trim(), ejs };
+
+  persist();
+  openEliteAsignarDiaModal(id, fecha, ym);
 }
 
 function quitarPlanFecha(id, fecha){
