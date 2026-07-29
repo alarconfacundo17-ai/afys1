@@ -5931,12 +5931,14 @@ function openEliteEntrenamientosModal(id){
 
   const weeks = Object.keys(weekMapFull).sort().reverse();
 
+  const MESES_C2 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const DIAS_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
   const weeksHTML = weeks.map(wkMon=>{
     const wkEnd = new Date(wkMon+'T12:00:00');
     wkEnd.setDate(wkEnd.getDate()+6);
     const wkEndStr = wkEnd.toISOString().slice(0,10);
 
-    // Mostrar los 7 días de la semana en orden
     const wkDays = [];
     const wkDt = new Date(wkMon+'T12:00:00');
     for(let i=0;i<7;i++){
@@ -5944,66 +5946,83 @@ function openEliteEntrenamientosModal(id){
       wkDays.push(d2.toISOString().slice(0,10));
     }
 
-    const dayCells = wkDays.map(ds=>{
+    const dayCards = wkDays.map(ds=>{
       const dt = new Date(ds+'T12:00:00');
-      const diaLabel = DIAS_L[dt.getDay()];
       const planItems = getPlanItems(d, ds);
+      const comp = (d.competencias||[]).find(c=>c.f===ds);
 
       const rutDia = (d.rs||[]).map(rname=>{
         const r = RUTINAS.find(x=>x.n===rname);
         const ejs = r ? r.ejs||[] : [];
         const rhR = rh[rname]||{};
-        const done = ejs.filter(e=>rhR[e.n]===ds).length;
-        if(!done) return null;
-        return {rname, done, total: ejs.length, completo: done===ejs.length && ejs.length>0};
+        const hechos = ejs.filter(e=>rhR[e.n]===ds).length;
+        if(!hechos) return null;
+        return {rname, hechos, total:ejs.length, completo: hechos===ejs.length && ejs.length>0};
       }).filter(Boolean);
 
       const hasPlan = planItems.length > 0;
       const hasActivity = rutDia.length > 0;
-      const psePre = pse.find(p=>p.f===ds && p.tipo==='pre');
-      const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
       const isFuture = ds > todayStr;
       const isToday = ds === todayStr;
+      const isPast = ds < todayStr;
 
-      // Color de fondo de la celda
-      let bg = 'var(--bg)';
-      let borderColor = 'var(--border2)';
-      if(isToday){ borderColor = 'var(--primary)'; bg = 'var(--primary-light)'; }
-      else if(hasActivity && rutDia.every(rt=>rt.completo)){ bg = 'rgba(5,150,105,.07)'; borderColor = 'rgba(5,150,105,.3)'; }
-      else if(hasActivity){ bg = 'rgba(59,130,201,.06)'; }
-      else if(hasPlan && !isFuture){ bg = 'rgba(220,38,38,.05)'; borderColor = 'rgba(220,38,38,.2)'; }
+      // Estado general del día
+      let estadoIcon, estadoColor;
+      if(comp){ estadoIcon='🏆'; estadoColor='#b45309'; }
+      else if(hasActivity && rutDia.every(r=>r.completo)){ estadoIcon='✓'; estadoColor='var(--green)'; }
+      else if(hasActivity){ estadoIcon='◑'; estadoColor='var(--primary)'; }
+      else if(hasPlan && isPast){ estadoIcon='✗'; estadoColor='var(--red)'; }
+      else if(hasPlan && !isFuture){ estadoIcon='·'; estadoColor='var(--text2)'; }
+      else { estadoIcon=''; estadoColor=''; }
 
-      // Ícono de estado
-      let stateIcon = '';
-      if(hasActivity && rutDia.every(rt=>rt.completo)) stateIcon = `<i class="ti ti-circle-check-filled" style="font-size:11px;color:var(--green);"></i>`;
-      else if(hasActivity) stateIcon = `<i class="ti ti-circle-half-2" style="font-size:11px;color:var(--primary);"></i>`;
-      else if(hasPlan && !isFuture) stateIcon = `<i class="ti ti-circle-x" style="font-size:11px;color:var(--red);"></i>`;
-      if(psePre || psePost) stateIcon += `<i class="ti ti-heart-rate-monitor" style="font-size:11px;color:var(--primary);margin-left:2px;"></i>`;
+      // Color del card
+      let bg, borderLeft;
+      if(isToday){ bg='var(--primary-light)'; borderLeft='4px solid var(--primary)'; }
+      else if(comp){ bg='rgba(251,191,36,.1)'; borderLeft='4px solid rgba(251,191,36,.7)'; }
+      else if(hasActivity && rutDia.every(r=>r.completo)){ bg='rgba(5,150,105,.07)'; borderLeft='4px solid rgba(5,150,105,.5)'; }
+      else if(hasActivity){ bg='rgba(59,130,201,.06)'; borderLeft='4px solid var(--primary)'; }
+      else if(hasPlan && isPast){ bg='rgba(220,38,38,.05)'; borderLeft='4px solid rgba(220,38,38,.4)'; }
+      else { bg='var(--bg2)'; borderLeft='4px solid var(--border)'; }
 
-      const _firstPlan = planItems[0]||'';
-      const _extraPlan = planItems.length > 1 ? ` +${planItems.length-1}` : '';
-      const label = hasPlan ? esc(_firstPlan.length>10?_firstPlan.slice(0,9)+'…':_firstPlan)+(_extraPlan?`<span style="font-size:9px;">${esc(_extraPlan)}</span>`:'')
-                  : hasActivity ? esc(rutDia[0].rname.length>10?rutDia[0].rname.slice(0,9)+'…':rutDia[0].rname)
-                  : `<span style="color:var(--border2);font-size:10px;">—</span>`;
+      // Rutinas / items del plan como pills
+      const allItems = [...planItems];
+      if(comp && !allItems.includes('🏆 '+comp.n)) allItems.unshift('🏆 '+comp.n);
+      const itemPills = allItems.map(item=>{
+        const isComp = item.startsWith('🏆');
+        const rDia = rutDia.find(r=>r.rname===item);
+        const pct = rDia ? Math.round(rDia.hechos/rDia.total*100) : null;
+        return `<div style="margin-bottom:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="font-size:13px;font-weight:700;color:${isComp?'#b45309':'var(--text)'};">${esc(item)}</span>
+            ${rDia ? `<span style="font-size:11px;font-weight:700;color:${rDia.completo?'var(--green)':'var(--primary)'};flex-shrink:0;">${rDia.hechos}/${rDia.total}</span>` : ''}
+          </div>
+          ${rDia && rDia.total>0 ? `<div style="background:var(--border2);border-radius:4px;height:4px;margin-top:4px;overflow:hidden;"><div style="background:${rDia.completo?'var(--green)':'var(--primary)'};width:${pct}%;height:100%;border-radius:4px;"></div></div>` : ''}
+        </div>`;
+      }).join('');
 
-      // Click en el día: si es dueño abre asignar, sino abre detalle
-      const clickFn = `openEliteAsignarDiaModal('${id}','${ds}','${_weekMonday ? '' : ''}')`;
+      const emptyMsg = !hasPlan && !comp && !hasActivity
+        ? `<span style="font-size:13px;color:var(--border);font-style:italic;">Descanso</span>`
+        : '';
 
-      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex:1;min-width:0;border:2px solid ${borderColor};border-radius:12px;padding:8px 4px 6px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,box-shadow .12s ease;" onmousedown="this.style.transform='scale(.95)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(.95)'" ontouchend="this.style.transform=''">
-        <div style="font-size:10px;font-weight:800;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">${diaLabel}</div>
-        <div style="font-size:16px;font-weight:900;color:${isToday?'var(--primary)':'var(--text)'};line-height:1;">${dt.getDate()}</div>
-        <div style="font-size:10px;font-weight:700;margin-top:5px;min-height:28px;line-height:1.3;overflow:hidden;word-break:break-word;color:${isToday?'var(--primary)':hasPlan?'var(--text)':'var(--text2)'};">${label}</div>
-        ${stateIcon ? `<div style="margin-top:4px;display:flex;justify-content:center;gap:2px;">${stateIcon}</div>` : '<div style="height:15px;"></div>'}
+      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="border-radius:14px;background:${bg};border-left:${borderLeft};padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s,opacity .12s;margin-bottom:0;" onmousedown="this.style.transform='scale(.985)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(.985)'" ontouchend="this.style.transform=''">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hasPlan||comp||hasActivity?'8px':'0'};">
+          <div style="display:flex;align-items:baseline;gap:8px;">
+            <span style="font-size:15px;font-weight:900;color:${isToday?'var(--primary)':isPast?'var(--text2)':'var(--text)'};">${DIAS_FULL[dt.getDay()]}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text2);">${dt.getDate()} ${MESES_C2[dt.getMonth()]}</span>
+          </div>
+          ${estadoIcon ? `<span style="font-size:16px;font-weight:800;color:${estadoColor};">${estadoIcon}</span>` : ''}
+        </div>
+        ${itemPills}${emptyMsg}
       </div>`;
     }).join('');
 
-    return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04);">
-      <div style="padding:10px 16px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);">
-        <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Semana</span>
+    return `<div style="margin-bottom:18px;border:1px solid var(--border2);border-radius:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+      <div style="padding:12px 16px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);">
+        <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;">Semana</span>
         <span style="font-size:13px;font-weight:800;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
       </div>
-      <div style="display:flex;gap:5px;padding:12px;">
-        ${dayCells}
+      <div style="display:flex;flex-direction:column;gap:2px;padding:8px;">
+        ${dayCards}
       </div>
     </div>`;
   }).filter(Boolean).join('');
