@@ -6530,13 +6530,46 @@ function elitePageInicio(d){
         </div>`;
       }).join('');
 
+      // Semana: lunes al domingo de la semana actual
+      const hoy = new Date(todayStr+'T12:00:00');
+      const diaSemana = hoy.getDay(); // 0=dom
+      const lunesOffset = diaSemana===0 ? -6 : 1-diaSemana;
+      const lunes = new Date(hoy); lunes.setDate(hoy.getDate()+lunesOffset);
+      const DIAS_ABR = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      const semCells = Array.from({length:7},(_,i)=>{
+        const dd = new Date(lunes); dd.setDate(lunes.getDate()+i);
+        const ds = dd.toISOString().slice(0,10);
+        const isHoy = ds===todayStr;
+        const items = getPlanItems(d, ds);
+        const tieneRutina = items.length>0;
+        const rh = items.length ? (d.rsHechos?.[items[0]]||{}) : {};
+        const r0 = items.length ? RUTINAS.find(x=>x.n===items[0]) : null;
+        const ejsTotal = r0 ? (r0.ejs||[]).length : 0;
+        const ejsHechos = r0 ? (r0.ejs||[]).filter(e=>rh[e.n]===ds).length : 0;
+        const completo = ejsTotal>0 && ejsHechos===ejsTotal;
+        const bg = isHoy ? 'var(--primary-light)' : tieneRutina ? 'var(--bg2)' : 'transparent';
+        const border = isHoy ? '1.5px solid var(--primary)' : '1px solid var(--border2)';
+        const extraLabel = items.length>1 ? ` +${items.length-1}` : '';
+        const label = items.length ? (items[0].length>8 ? items[0].slice(0,7)+'…' : items[0]) : '';
+        return `<div onclick="eliteVerDiaSemana('${ds}')" style="flex:1;min-width:0;border:${border};border-radius:10px;padding:7px 4px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+          <div style="font-size:9px;font-weight:700;color:${isHoy?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.3px;">${DIAS_ABR[(lunes.getDay()+i)%7]}</div>
+          <div style="font-size:14px;font-weight:800;color:${isHoy?'var(--primary)':'var(--text)'};">${dd.getDate()}</div>
+          ${tieneRutina ? `<div style="font-size:8px;font-weight:700;color:${completo?'var(--green)':isHoy?'var(--primary)':'var(--text2)'};margin-top:2px;line-height:1.2;overflow:hidden;">${esc(label)}${extraLabel?`<span style="font-size:7px;">${extraLabel}</span>`:''}</div>` : '<div style="height:16px;"></div>'}
+          ${completo ? `<i class="ti ti-check" style="font-size:10px;color:var(--green);"></i>` : ''}
+        </div>`;
+      }).join('');
+
       return `
       <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">${fechaLabel}</div>
       ${itemsHoy.length ? rutinaCards : `
-      <div class="card" style="text-align:center;padding:32px 20px;color:var(--text2);border-radius:14px;">
+      <div class="card" style="text-align:center;padding:32px 20px;color:var(--text2);border-radius:14px;margin-bottom:16px;">
         <i class="ti ti-calendar-off" style="font-size:34px;display:block;margin-bottom:10px;opacity:.3;"></i>
         <p style="margin:0;font-size:14px;">No hay rutina asignada para hoy.</p>
-      </div>`}`;
+      </div>`}
+      <div style="margin-top:18px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Esta semana</div>
+        <div style="display:flex;gap:4px;">${semCells}</div>
+      </div>`;
     })()}
   </div>`;
 }
@@ -6609,6 +6642,62 @@ function elitePagePseHistorial(d){
       ${items}
     </div>`;
   }).join('');
+}
+
+function eliteVerDiaSemana(ds){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  const items = getPlanItems(d, ds);
+  const dt = new Date(ds+'T12:00:00');
+  const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
+  const todayStr = todayISO();
+
+  if(!items.length){
+    openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="text-align:center;padding:40px 20px;color:var(--text2);">
+      <i class="ti ti-calendar-off" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
+      <p style="margin:0;font-size:14px;">Sin rutina asignada para este día.</p>
+    </div>`);
+    return;
+  }
+
+  const rows = items.map(rname=>{
+    const r = RUTINAS.find(x=>x.n===rname);
+    const rh = d.rsHechos?.[rname]||{};
+    const ejs = r ? r.ejs||[] : [];
+    const ejsHechos = ejs.filter(e=>rh[e.n]===ds).length;
+    const pct = ejs.length ? Math.round(ejsHechos/ejs.length*100) : 0;
+    const completo = ejs.length>0 && ejsHechos===ejs.length;
+    const esHoy = ds===todayStr;
+    const planNota = ((d.planNotas||{})[ds]||{})[rname];
+    const nota = planNota&&planNota.nota ? planNota.nota : '';
+    return `<div class="card" style="padding:16px;border-radius:14px;margin-bottom:10px;${esHoy?'cursor:pointer;-webkit-tap-highlight-color:transparent;':''}" ${esHoy?`onclick="closeModal();eliteAbrirRutina('${escQ(rname)}')"`:''}>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejs.length?'10px':'0'};">
+        <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':'var(--primary)'};"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
+          ${ejs.length ? `<div style="font-size:12px;color:var(--text2);">${ejs.length} ejercicios</div>` : ''}
+          ${nota ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;font-style:italic;">${esc(nota)}</div>` : ''}
+        </div>
+        ${completo ? `<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓</span>` : esHoy ? `<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>` : ''}
+      </div>
+      ${ejs.length ? `
+      <div style="background:var(--border2);border-radius:6px;height:5px;overflow:hidden;">
+        <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">${ejsHechos}/${ejs.length} completados</div>` : ''}
+    </div>`;
+  }).join('');
+
+  openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
+  <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
+    ${rows}
+    ${ds===todayStr ? '<p style="font-size:12px;color:var(--text2);text-align:center;margin:0;">Tocá una rutina para ver los ejercicios</p>' : ''}
+  </div>`);
 }
 
 /* ---- Rutina detalle elite ---- */
