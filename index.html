@@ -5523,7 +5523,7 @@ function _eliteDeportistaModalHTML(id){
       </div>
 
       <!-- Plan mensual + Entrenamientos -->
-      <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border2);">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openElitePlanCalendarioModal('${id}')"><i class="ti ti-calendar-month"></i> Plan mensual</button>
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
       </div>
@@ -6163,6 +6163,42 @@ function _quitarPlanFechaCalendario(){
   else openElitePlanCalendarioModal(id, ym);
 }
 
+function getPlanItems(d, ds){
+  const val = (d.planFechas||{})[ds];
+  if(!val) return [];
+  if(Array.isArray(val)) return val;
+  return [val]; // backward compat
+}
+
+function _togglePlanFechaItem(rname){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  if(!id || !fecha) return;
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.planFechas) d.planFechas = {};
+  const current = getPlanItems(d, fecha);
+  const idx = current.indexOf(rname);
+  if(idx >= 0){
+    const next = current.filter((_,i)=>i!==idx);
+    d.planFechas[fecha] = next.length ? next : null;
+  } else {
+    d.planFechas[fecha] = [...current, rname];
+  }
+  persist();
+  openEliteAsignarDiaModal(id, fecha, ym);
+}
+
+function quitarPlanFechaItem(id, ds, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.planFechas) d.planFechas = {};
+  const current = getPlanItems(d, ds);
+  const next = current.filter(x=>x!==rname);
+  d.planFechas[ds] = next.length ? next : null;
+  persist();
+  openEliteEntrenamientoDiaModal(id, ds);
+}
+
 function openEliteAsignarDiaModal(id, fecha, ym){
   _asignarDiaCtx = {id, fecha, ym};
   const d = eliteById(id);
@@ -6171,25 +6207,23 @@ function openEliteAsignarDiaModal(id, fecha, ym){
   const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
-  const planFechas = d.planFechas||{};
-  const current = planFechas[fecha]||'';
-  const rutinas = d.rs||[];
+  const currentItems = getPlanItems(d, fecha);
+  const todasRutinas = RUTINAS.map(r=>r.n);
+  // Actividades personalizadas: items que no son rutinas del sistema
+  const customItems = currentItems.filter(x=>!todasRutinas.includes(x));
 
-  const opts = [`<button onclick="guardarPlanFecha('${id}','${fecha}','','${escQ(ym)}')" style="all:unset;display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;border-bottom:1px solid var(--border2);font-size:13px;color:var(--text2);cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
-    <i class="ti ti-ban" style="font-size:16px;opacity:.5;"></i>Sin rutina
-  </button>`].concat(rutinas.map(rname=>{
-    const sel = current===rname;
-    const removeBtn = sel ? `<button onclick="_quitarPlanFechaCalendario()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;flex-shrink:0;line-height:1;" title="Quitar"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>` : '';
+  const opts = todasRutinas.map(rname=>{
+    const sel = currentItems.includes(rname);
+    const removeBtn = sel ? `<button onclick="_togglePlanFechaItem('${escQ(rname)}')" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);opacity:.5;flex-shrink:0;line-height:1;" title="Quitar"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>` : '';
     return `<div style="display:flex;align-items:center;border-bottom:1px solid var(--border2);background:${sel?'var(--primary-light)':''};">
-      <button onclick="guardarPlanFecha('${id}','${fecha}','${escQ(rname)}','${escQ(ym)}')" style="all:unset;display:flex;align-items:center;gap:10px;flex:1;padding:12px 16px;font-size:13px;font-weight:${sel?'700':'400'};color:${sel?'var(--primary)':'var(--text)'};cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+      <button onclick="_togglePlanFechaItem('${escQ(rname)}')" style="all:unset;display:flex;align-items:center;gap:10px;flex:1;padding:12px 16px;font-size:13px;font-weight:${sel?'700':'400'};color:${sel?'var(--primary)':'var(--text)'};cursor:pointer;box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
         <i class="ti ${sel?'ti-check-circle':'ti-circle'}" style="font-size:16px;color:${sel?'var(--primary)':'var(--border)'};flex-shrink:0;"></i>
         ${esc(rname)}
       </button>
       ${removeBtn}
     </div>`;
-  })).join('');
+  }).join('');
 
-  const customVal = current && !rutinas.includes(current) ? esc(current) : '';
   // ym de 10 chars = viene de vista semanal (wkMon), volver a entrenamientos
   const backFn = ym && ym.length===10 ? `openEliteEntrenamientosModal('${id}')` : `openElitePlanCalendarioModal('${id}','${escQ(ym)}')`;
   openModal(`<div class="modal-head">
@@ -6198,11 +6232,12 @@ function openEliteAsignarDiaModal(id, fecha, ym){
   </div>
   <div style="overflow-y:auto;max-height:70vh;">${opts}</div>
   <div style="padding:12px 16px;border-top:1px solid var(--border2);">
-    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Otra actividad</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Actividad personalizada</div>
     <div style="display:flex;gap:8px;">
-      <input id="planFechaCustomInput" type="text" placeholder="Ej: Partido amistoso, Descanso activo..." value="${customVal}" style="flex:1;font-size:13px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);">
-      <button onclick="_guardarPlanFechaCustom()" style="background:var(--primary);border:none;color:#fff;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+      <input id="planFechaCustomInput" type="text" placeholder="Ej: Partido amistoso, Descanso activo..." style="flex:1;font-size:13px;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);">
+      <button onclick="_guardarPlanFechaCustom()" style="background:var(--primary);border:none;color:#fff;border-radius:10px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;">Agregar</button>
     </div>
+    ${customItems.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">${customItems.map(ci=>`<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;">${esc(ci)}<button onclick="_togglePlanFechaItem('${escQ(ci)}')" style="background:none;border:none;cursor:pointer;padding:0 0 0 2px;color:var(--text2);line-height:1;font-size:13px;">✕</button></span>`).join('')}</div>` : ''}
   </div>`);
 }
 
@@ -6358,36 +6393,40 @@ function elitePageInicio(d){
       const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
       const dt = new Date(todayStr+'T12:00:00');
       const fechaLabel = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
-      const rutinaHoy = (d.planFechas||{})[todayStr];
-      const r = rutinaHoy ? RUTINAS.find(x=>x.n===rutinaHoy) : null;
-      const rh = rutinaHoy ? (d.rsHechos?.[rutinaHoy]||{}) : {};
-      const ejsList = r ? r.ejs||[] : [];
-      const ejsTotal = ejsList.length;
-      const ejsHechos = ejsList.filter(e=>rh[e.n]===todayStr).length;
-      const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
-      const completo = ejsTotal>0 && ejsHechos===ejsTotal;
+      const itemsHoy = getPlanItems(d, todayStr);
+      // Para la vista de hoy, mostrar la primera rutina reconocida; si hay varias, mostrar tarjetas
+      const rutinaCards = itemsHoy.map(rutinaHoy=>{
+        const r = RUTINAS.find(x=>x.n===rutinaHoy);
+        const rh = (d.rsHechos?.[rutinaHoy]||{});
+        const ejsList = r ? r.ejs||[] : [];
+        const ejsTotal = ejsList.length;
+        const ejsHechos = ejsList.filter(e=>rh[e.n]===todayStr).length;
+        const pct = ejsTotal ? Math.round(ejsHechos/ejsTotal*100) : 0;
+        const completo = ejsTotal>0 && ejsHechos===ejsTotal;
+        return `
+        <div class="card" style="padding:16px;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:8px;" onclick="eliteAbrirRutina('${escQ(rutinaHoy)}')">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejsTotal?'12px':'0'};">
+            <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':'var(--primary)'};"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Rutina de hoy</div>
+              <div style="font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rutinaHoy)}</div>
+              ${ejsTotal ? `<div style="font-size:12px;color:var(--text2);">${ejsTotal} ejercicios</div>` : ''}
+            </div>
+            ${completo ? `<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓ Completo</span>` : `<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>`}
+          </div>
+          ${ejsTotal ? `
+          <div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
+            <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;transition:width .5s cubic-bezier(.22,1,.36,1);"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados</div>` : ''}
+        </div>`;
+      }).join('');
 
       return `
       <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">${fechaLabel}</div>
-      ${rutinaHoy ? `
-      <div class="card" style="padding:16px;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteAbrirRutina('${escQ(rutinaHoy)}')">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejsTotal?'12px':'0'};">
-          <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':'var(--primary)'};"></i>
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Rutina de hoy</div>
-            <div style="font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rutinaHoy)}</div>
-            ${ejsTotal ? `<div style="font-size:12px;color:var(--text2);">${ejsTotal} ejercicios</div>` : ''}
-          </div>
-          ${completo ? `<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓ Completo</span>` : `<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>`}
-        </div>
-        ${ejsTotal ? `
-        <div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
-          <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;transition:width .5s cubic-bezier(.22,1,.36,1);"></div>
-        </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:5px;">${ejsHechos}/${ejsTotal} completados</div>` : ''}
-      </div>` : `
+      ${itemsHoy.length ? rutinaCards : `
       <div class="card" style="text-align:center;padding:32px 20px;color:var(--text2);border-radius:14px;">
         <i class="ti ti-calendar-off" style="font-size:34px;display:block;margin-bottom:10px;opacity:.3;"></i>
         <p style="margin:0;font-size:14px;">No hay rutina asignada para hoy.</p>
