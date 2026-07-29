@@ -6344,13 +6344,17 @@ function openEliteAsignarDiaModal(id, fecha, ym){
 
   const backFn = ym && ym.length===10 ? `openEliteEntrenamientosModal('${id}')` : `openElitePlanCalendarioModal('${id}','${escQ(ym)}')`;
 
-  // Items ya asignados
+  // Items ya asignados — con botón editar (lápiz) para rutinas del sistema
   const assignedHtml = currentItems.length ? `<div style="margin-bottom:12px;">
     <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Asignado</div>
-    ${currentItems.map(item=>`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--primary-light);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
-      <span style="font-size:13px;font-weight:700;color:var(--primary);">${esc(item)}</span>
-      <button onclick="_togglePlanFechaItem('${escQ(item)}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);line-height:1;"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>
-    </div>`).join('')}
+    ${currentItems.map(item=>{
+      const isRutina = todasRutinas.includes(item);
+      return `<div style="display:flex;align-items:center;gap:8px;background:var(--primary-light);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+        <span onclick="${isRutina?`_editarRutinaDelDia('${escQ(item)}')`:'void 0'}" style="font-size:13px;font-weight:700;color:var(--primary);flex:1;cursor:${isRutina?'pointer':'default'};">${esc(item)}</span>
+        ${isRutina?`<button onclick="_editarRutinaDelDia('${escQ(item)}')" style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--text2);line-height:1;flex-shrink:0;" title="Editar ejercicios"><i class="ti ti-pencil" style="font-size:14px;pointer-events:none;"></i></button>`:''}
+        <button onclick="_togglePlanFechaItem('${escQ(item)}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);line-height:1;flex-shrink:0;"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>
+      </div>`;
+    }).join('')}
   </div>` : '';
 
   openModal(`<div class="modal-head">
@@ -6474,6 +6478,187 @@ function _guardarSeleccionRutinaParaDia(rname){
   d.planNotas[fecha][rname] = { nota: nota.trim(), ejs };
 
   persist();
+  openEliteAsignarDiaModal(id, fecha, ym);
+}
+
+// ── Editor de rutina por día: reordenar + modificar ejercicios ──────
+let _editDragOrder = []; // orden actual durante el drag
+
+function _editarRutinaDelDia(rname){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  const d = eliteById(id);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!r) return;
+
+  const planNota = ((d.planNotas||{})[fecha]||{})[rname]||{};
+  const overrides = planNota.ejs||{};
+  const savedOrder = planNota.ejsOrder||[];
+  // Construir orden: primero los guardados, luego los nuevos
+  const baseEjs = r.ejs||[];
+  const ordered = [
+    ...savedOrder.map(n=>baseEjs.find(e=>e.n===n)).filter(Boolean),
+    ...baseEjs.filter(e=>!savedOrder.includes(e.n))
+  ];
+  _editDragOrder = ordered.map(e=>e.n);
+
+  _renderEditarRutinaDelDia(rname, ordered, overrides, planNota.nota||'');
+}
+
+function _renderEditarRutinaDelDia(rname, ordered, overrides, nota){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  const ejRows = ordered.map((e,i)=>{
+    const ov = overrides[e.n]||{};
+    const _s = ov.s || String(e.s||'');
+    const _r = ov.r || String(e.r||'');
+    const _kg = ov.kg || '';
+    return `<div id="editEjRow_${i}" data-ejname="${escQ(e.n)}" style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border2);touch-action:none;">
+      <div class="drag-handle" data-idx="${i}" style="padding:10px 6px;cursor:grab;color:var(--border);flex-shrink:0;touch-action:none;">
+        <i class="ti ti-grip-vertical" style="font-size:20px;pointer-events:none;"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">${i+1}. ${esc(e.n)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          ${e.modo!=='tiempo'?`
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Series</label>
+            <input type="number" min="1" max="10" id="eds_${i}" value="${esc(_s)}" placeholder="${e.s||'—'}" style="width:56px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+          </div>
+          <span style="font-size:18px;color:var(--text2);padding-bottom:6px;">×</span>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Reps</label>
+            <input type="text" id="edr_${i}" value="${esc(_r)}" placeholder="${e.r||'—'}" style="width:64px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+          </div>`:''}
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Kg</label>
+            <input type="text" id="edk_${i}" value="${esc(_kg)}" placeholder="${e.kg||'—'}" style="width:72px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  openModal(`<div class="modal-head">
+    <h3 style="font-size:14px;font-weight:700;">${esc(rname)}</h3>
+    <button onclick="openEliteAsignarDiaModal('${id}','${fecha}','${escQ(ym)}')">←</button>
+  </div>
+  <div style="padding:0 16px 16px;overflow-y:auto;max-height:78vh;">
+    <p style="font-size:11px;color:var(--text2);margin:0 0 12px;"><i class="ti ti-grip-vertical"></i> Arrastrá para reordenar · Editá series, reps y kg</p>
+    <div id="editEjContainer">${ejRows}</div>
+    <div style="margin-top:14px;">
+      <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Nota del día</label>
+      <textarea id="editNota" rows="2" style="width:100%;font-size:13px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);resize:none;box-sizing:border-box;">${esc(nota)}</textarea>
+    </div>
+    <button onclick="_guardarEdicionRutinaDelDia('${escQ(rname)}')" style="width:100%;margin-top:14px;background:var(--primary);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Guardar cambios</button>
+  </div>`,'wide');
+
+  setTimeout(()=>_initDragEjercicios(), 80);
+}
+
+function _initDragEjercicios(){
+  const container = document.getElementById('editEjContainer');
+  if(!container) return;
+  let dragEl=null, dragIdx=-1, placeholder=null, startY=0, offsetY=0;
+
+  container.querySelectorAll('.drag-handle').forEach(handle=>{
+    handle.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      const row = handle.closest('[id^="editEjRow_"]');
+      if(!row) return;
+      dragIdx = parseInt(handle.dataset.idx);
+      dragEl = row;
+      startY = e.touches[0].clientY;
+      const rect = row.getBoundingClientRect();
+      offsetY = startY - rect.top;
+
+      // Placeholder
+      placeholder = document.createElement('div');
+      placeholder.style.cssText = `height:${rect.height}px;background:var(--border2);border-radius:8px;opacity:.4;flex-shrink:0;`;
+      row.parentNode.insertBefore(placeholder, row.nextSibling);
+
+      // Fijar el elemento
+      row.style.cssText += `;position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:300;background:var(--bg);box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:12px;opacity:.96;transition:none;`;
+    },{passive:false});
+
+    handle.addEventListener('touchmove', e=>{
+      if(!dragEl) return;
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      dragEl.style.top = (y - offsetY)+'px';
+
+      // Detectar sobre qué row está
+      const rows = [...container.querySelectorAll('[id^="editEjRow_"]')].filter(r=>r!==dragEl);
+      for(const r of rows){
+        const rect = r.getBoundingClientRect();
+        const mid = rect.top + rect.height/2;
+        if(y < mid){
+          container.insertBefore(placeholder, r);
+          break;
+        } else if(r === rows[rows.length-1]){
+          container.appendChild(placeholder);
+        }
+      }
+    },{passive:false});
+
+    handle.addEventListener('touchend', e=>{
+      if(!dragEl) return;
+      // Restaurar estilo
+      dragEl.style.position='';dragEl.style.left='';dragEl.style.top='';
+      dragEl.style.width='';dragEl.style.zIndex='';dragEl.style.boxShadow='';dragEl.style.opacity='';
+      container.insertBefore(dragEl, placeholder);
+      placeholder.remove();
+
+      // Leer nuevo orden del DOM
+      _editDragOrder = [...container.querySelectorAll('[id^="editEjRow_"]')].map(r=>r.dataset.ejname);
+
+      // Re-numerar índices y labels
+      container.querySelectorAll('[id^="editEjRow_"]').forEach((r,ni)=>{
+        r.id = 'editEjRow_'+ni;
+        const h = r.querySelector('.drag-handle'); if(h) h.dataset.idx=ni;
+        const lbl = r.querySelector('div > div:nth-child(1)');
+        if(lbl) lbl.textContent = (ni+1)+'. '+(_editDragOrder[ni]||'');
+        // re-id inputs
+        ['eds','edr','edk'].forEach(pfx=>{
+          const inp = r.querySelector(`[id^="${pfx}_"]`); if(inp) inp.id=pfx+'_'+ni;
+        });
+      });
+
+      dragEl=null; dragIdx=-1;
+      // Re-bind handles
+      _initDragEjercicios();
+    });
+  });
+}
+
+function _guardarEdicionRutinaDelDia(rname){
+  const {id, fecha, ym} = _asignarDiaCtx;
+  const d = eliteById(id);
+  if(!d) return;
+  const r = RUTINAS.find(x=>x.n===rname);
+
+  // Leer overrides de inputs (por índice actual)
+  const container = document.getElementById('editEjContainer');
+  const rows = container ? [...container.querySelectorAll('[id^="editEjRow_"]')] : [];
+  const ejs = {};
+  rows.forEach((row,i)=>{
+    const ejn = row.dataset.ejname;
+    const s = (document.getElementById(`eds_${i}`)||{}).value||'';
+    const rep = (document.getElementById(`edr_${i}`)||{}).value||'';
+    const kg = (document.getElementById(`edk_${i}`)||{}).value||'';
+    if(s||rep||kg) ejs[ejn]={s,r:rep,kg};
+  });
+
+  const nota = (document.getElementById('editNota')||{}).value||'';
+
+  if(!d.planNotas) d.planNotas={};
+  if(!d.planNotas[fecha]) d.planNotas[fecha]={};
+  d.planNotas[fecha][rname] = {
+    nota: nota.trim(),
+    ejs,
+    ejsOrder: _editDragOrder.length ? _editDragOrder : (r&&r.ejs||[]).map(e=>e.n)
+  };
+  persist();
+  showToast('Cambios guardados','ok');
   openEliteAsignarDiaModal(id, fecha, ym);
 }
 
