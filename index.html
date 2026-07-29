@@ -5989,20 +5989,20 @@ function openEliteEntrenamientosModal(id){
       // Click en el día: si es dueño abre asignar, sino abre detalle
       const clickFn = `openEliteAsignarDiaModal('${id}','${ds}','${_weekMonday ? '' : ''}')`;
 
-      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex:1;min-width:0;border:1.5px solid ${borderColor};border-radius:10px;padding:7px 5px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
-        <div style="font-size:9px;font-weight:700;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;">${diaLabel}</div>
-        <div style="font-size:14px;font-weight:800;color:${isToday?'var(--primary)':'var(--text)'};">${dt.getDate()}</div>
-        <div style="font-size:10px;font-weight:600;margin-top:4px;min-height:14px;line-height:1.2;overflow:hidden;">${label}</div>
-        ${stateIcon ? `<div style="margin-top:4px;display:flex;justify-content:center;gap:2px;">${stateIcon}</div>` : ''}
+      return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex:1;min-width:0;border:2px solid ${borderColor};border-radius:12px;padding:8px 4px 6px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,box-shadow .12s ease;" onmousedown="this.style.transform='scale(.95)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(.95)'" ontouchend="this.style.transform=''">
+        <div style="font-size:10px;font-weight:800;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">${diaLabel}</div>
+        <div style="font-size:16px;font-weight:900;color:${isToday?'var(--primary)':'var(--text)'};line-height:1;">${dt.getDate()}</div>
+        <div style="font-size:10px;font-weight:700;margin-top:5px;min-height:28px;line-height:1.3;overflow:hidden;word-break:break-word;color:${isToday?'var(--primary)':hasPlan?'var(--text)':'var(--text2)'};">${label}</div>
+        ${stateIcon ? `<div style="margin-top:4px;display:flex;justify-content:center;gap:2px;">${stateIcon}</div>` : '<div style="height:15px;"></div>'}
       </div>`;
     }).join('');
 
-    return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
-      <div style="padding:9px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;">
+    return `<div style="margin-bottom:14px;border:1px solid var(--border2);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+      <div style="padding:10px 16px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);">
         <span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Semana</span>
-        <span style="font-size:12px;font-weight:700;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
+        <span style="font-size:13px;font-weight:800;">${fmtDate(wkMon)} – ${fmtDate(wkEndStr)}</span>
       </div>
-      <div style="display:flex;gap:4px;padding:10px 10px;">
+      <div style="display:flex;gap:5px;padding:12px;">
         ${dayCells}
       </div>
     </div>`;
@@ -6154,6 +6154,10 @@ function openElitePlanCalendarioModal(id, ym){
   const prevYM = month===1?`${year-1}-12`:`${year}-${String(month-1).padStart(2,'0')}`;
   const nextYM = month===12?`${year+1}-01`:`${year}-${String(month+1).padStart(2,'0')}`;
 
+  // Mapa de competencias por fecha para este mes
+  const compMap = {};
+  (d.competencias||[]).forEach(c=>{ if(c.f && c.f.startsWith(curYM)) compMap[c.f] = c; });
+
   const headerCells = DIAS_H.map(h=>`<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:5px 0;">${h}</div>`).join('');
 
   let cells = '';
@@ -6165,10 +6169,10 @@ function openElitePlanCalendarioModal(id, ym){
     const hasPlanItem = planItems.length > 0;
     const isToday = ds===todayStr;
     const isPast = ds<todayStr;
+    const comp = compMap[ds];
 
     let done = false;
     if(hasPlanItem){
-      // done si al menos el primer item está completo
       const firstPlan = planItems[0];
       const r = RUTINAS.find(x=>x.n===firstPlan);
       const ejs = r?r.ejs||[]:[];
@@ -6181,18 +6185,40 @@ function openElitePlanCalendarioModal(id, ym){
       return ejs.some(e=>(rh[rname]||{})[e.n]===ds);
     });
 
-    const bg = done?'rgba(5,150,105,.13)':hasPlanItem&&!isPast?'rgba(59,130,201,.1)':hasPlanItem&&isPast?'rgba(220,38,38,.07)':'transparent';
-    const border = isToday?'2px solid var(--primary)':done?'1.5px solid rgba(5,150,105,.4)':'1.5px solid transparent';
-    const numColor = isToday?'var(--primary)':isPast?'var(--text2)':'var(--text)';
-    const txtColor = done?'var(--green)':isPast&&hasPlanItem?'var(--red)':'var(--primary)';
-    const _fp = planItems[0]||'';
-    const shortName = _fp.length>8?_fp.slice(0,7)+'…':_fp;
-    const extraLabel = planItems.length>1?` +${planItems.length-1}`:'';
+    let bg, border, numColor, txtColor, bottomIcon='';
+    if(comp){
+      bg = 'rgba(251,191,36,.18)';
+      border = '2px solid rgba(251,191,36,.6)';
+      numColor = '#b45309';
+      txtColor = '#b45309';
+      bottomIcon = `<div style="font-size:9px;">🏆</div>`;
+    } else if(isToday){
+      bg = 'var(--primary-light)'; border = '2px solid var(--primary)';
+      numColor = 'var(--primary)'; txtColor = 'var(--primary)';
+    } else if(done){
+      bg = 'rgba(5,150,105,.13)'; border = '1.5px solid rgba(5,150,105,.4)';
+      numColor = 'var(--text2)'; txtColor = 'var(--green)';
+    } else if(hasPlanItem && !isPast){
+      bg = 'rgba(59,130,201,.1)'; border = '1.5px solid transparent';
+      numColor = 'var(--text)'; txtColor = 'var(--primary)';
+    } else if(hasPlanItem && isPast){
+      bg = 'rgba(220,38,38,.07)'; border = '1.5px solid transparent';
+      numColor = 'var(--text2)'; txtColor = 'var(--red)';
+    } else {
+      bg = 'transparent'; border = '1.5px solid transparent';
+      numColor = isPast?'var(--text2)':'var(--text)'; txtColor = 'var(--primary)';
+    }
 
-    cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:48px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+    const _fp = comp ? (comp.n.length>8?comp.n.slice(0,7)+'…':comp.n) : (planItems[0]||'');
+    const shortName = _fp.length>8?_fp.slice(0,7)+'…':_fp;
+    const extraLabel = !comp && planItems.length>1?` +${planItems.length-1}`:'';
+    const showLabel = comp || hasPlanItem;
+
+    cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:52px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
-      ${hasPlanItem?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}${extraLabel?`<span style="font-size:8px;">${esc(extraLabel)}</span>`:''}</div>`:''}
-      ${hasAnyActivity&&!hasPlanItem?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
+      ${showLabel?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}${extraLabel?`<span style="font-size:8px;">${esc(extraLabel)}</span>`:''}</div>`:''}
+      ${hasAnyActivity&&!hasPlanItem&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
+      ${bottomIcon}
     </div>`;
   }
 
@@ -6209,10 +6235,11 @@ function openElitePlanCalendarioModal(id, ym){
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
       ${headerCells}${cells}
     </div>
-    <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text2);">
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text2);">
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(59,130,201,.15);flex-shrink:0;"></span>Planificado</span>
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(5,150,105,.18);flex-shrink:0;"></span>Completado</span>
       <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(220,38,38,.1);flex-shrink:0;"></span>No realizado</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(251,191,36,.25);flex-shrink:0;border:1.5px solid rgba(251,191,36,.6);"></span>Competencia 🏆</span>
     </div>
   </div>`);
 }
