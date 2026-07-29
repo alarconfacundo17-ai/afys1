@@ -6652,11 +6652,11 @@ function eliteToggleEjercicio(rname, ejName, ejIdx){
   const todosHechos = ejs.length>0 && hechos===ejs.length;
   const prog = document.getElementById('eliteRutDetProg');
   if(prog) prog.textContent = `${hechos}/${ejs.length} ejercicios`;
-  const btn = document.getElementById('eliteRutDetBtn');
-  if(btn){
+  const btnFin = document.getElementById('eliteRutDetBtn');
+  if(btnFin){
     const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
     if(!yaHizoPost){
-      btn.innerHTML = todosHechos
+      btnFin.innerHTML = todosHechos
         ? `<i class="ti ti-player-stop-filled"></i> Finalizar y registrar`
         : `<i class="ti ti-check"></i> Completar entrenamiento`;
     }
