@@ -7083,7 +7083,7 @@ function elitePageInicio(d){
         if(comp)            {circleColor='#f59e0b'; circleBg='rgba(251,191,36,.15)'; circleBorder='2px solid #f59e0b'; dotIcon='🏆';}
         else if(todosCompletos){circleColor='var(--green)'; circleBg='rgba(5,150,105,.12)'; circleBorder='2px solid var(--green)'; dotIcon='✓';}
         else if(algunoParcial){circleColor='var(--primary)'; circleBg='var(--primary-light)'; circleBorder='2px solid var(--primary)'; dotIcon='·';}
-        else if(tieneRutina&&isPast){circleColor='rgba(220,38,38,.5)'; circleBg='rgba(220,38,38,.06)'; circleBorder='2px solid rgba(220,38,38,.3)'; dotIcon='✕';}
+        else if(tieneRutina&&isPast){circleColor='var(--text2)'; circleBg='var(--bg2)'; circleBorder='2px solid var(--border2)'; dotIcon='✕';}
         else if(tieneRutina){circleColor='var(--primary)'; circleBg='var(--primary-light)'; circleBorder='2px dashed var(--primary)'; dotIcon='';}
         else                {circleColor='var(--border2)'; circleBg='var(--bg2)'; circleBorder='2px solid var(--border2)'; dotIcon='';}
 
@@ -7113,7 +7113,7 @@ function elitePageInicio(d){
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border2);">
           <span style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block;"></span>Completo</span>
           <span style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--primary);display:inline-block;"></span>En progreso</span>
-          <span style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:rgba(220,38,38,.4);display:inline-block;"></span>Sin completar</span>
+          <span style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--border2);display:inline-block;"></span>Sin completar</span>
           <span style="font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;border:2px dashed var(--primary);display:inline-block;"></span>Planificado</span>
         </div>
       </div>`;
