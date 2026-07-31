@@ -6003,7 +6003,7 @@ function openEliteEntrenamientosModal(id){
       <span id="eliteWkLabel" style="font-size:14px;font-weight:800;text-align:center;flex:1;transition:opacity .18s;">${wkLabel}</span>
       ${nextBtn}
     </div>
-    <div id="eliteWkSlider" style="display:flex;flex-direction:column;gap:7px;">
+    <div id="eliteWkSlider" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;">
       ${dayCells}
     </div>
   </div>`,'wide');
@@ -6049,134 +6049,77 @@ function _eliteWkNav(dir){
 function _eliteDayCell(id, ds, wkMon, todayStr){
   const d = eliteById(id);
   if(!d) return '';
-  const DIAS_L  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const DIAS_ABR = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const MESES_C  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const dt = new Date(ds+'T12:00:00');
   const rh = d.rsHechos||{};
-  const pse = d.pse||[];
   const planItems = getPlanItems(d, ds);
   const comp = (d.competencias||[]).find(c=>c.f===ds);
 
-  // Rutinas completadas ese día
   const rutDia = (d.rs||[]).map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
     const ejs = r ? r.ejs||[] : [];
     const rhR = rh[rname]||{};
     const hechos = ejs.filter(e=>rhR[e.n]===ds).length;
     if(!hechos) return null;
-    return {rname, ejs, hechos, total:ejs.length, completo: hechos===ejs.length && ejs.length>0};
+    return {rname, hechos, total:ejs.length, completo:hechos===ejs.length&&ejs.length>0};
   }).filter(Boolean);
-
-  // PSE
-  const psePre  = pse.find(p=>p.f===ds && p.tipo==='pre');
-  const psePost = pse.find(p=>p.f===ds && p.tipo==='post');
 
   const hasPlan     = planItems.length > 0;
   const hasActivity = rutDia.length > 0;
   const isToday     = ds === todayStr;
   const isPast      = ds < todayStr;
-  const isFuture    = ds > todayStr;
 
-  // Colores por estado
-  let accentColor, bg, borderL;
-  if(isToday)        { accentColor='var(--primary)';   bg='var(--primary-light)'; borderL='4px solid var(--primary)'; }
-  else if(comp)      { accentColor='#f59e0b';           bg='rgba(251,191,36,.08)'; borderL='4px solid #f59e0b'; }
-  else if(hasActivity && rutDia.every(r=>r.completo)){ accentColor='var(--green)'; bg='rgba(5,150,105,.07)'; borderL='4px solid var(--green)'; }
-  else if(hasActivity){ accentColor='var(--primary)';  bg='rgba(59,130,201,.06)'; borderL='4px solid var(--primary)'; }
-  else if(hasPlan && isPast){ accentColor='var(--red)'; bg='rgba(220,38,38,.05)'; borderL='4px solid var(--red)'; }
-  else               { accentColor='var(--border)';    bg='var(--bg2)';           borderL='4px solid var(--border2)'; }
+  // Colores
+  let topBar, bg, border;
+  if(isToday)       {topBar='var(--primary)';  bg='var(--primary-light)'; border='2px solid var(--primary)';}
+  else if(comp)     {topBar='#f59e0b';          bg='rgba(251,191,36,.09)'; border='2px solid rgba(251,191,36,.5)';}
+  else if(hasActivity && rutDia.every(r=>r.completo)){topBar='var(--green)'; bg='rgba(5,150,105,.07)'; border='2px solid rgba(5,150,105,.3)';}
+  else if(hasActivity){topBar='var(--primary)'; bg='rgba(59,130,201,.06)'; border='2px solid var(--border2)';}
+  else if(hasPlan && isPast){topBar='var(--red)'; bg='rgba(220,38,38,.05)'; border='2px solid rgba(220,38,38,.2)';}
+  else              {topBar='var(--border2)';   bg='var(--bg2)';           border='2px solid var(--border2)';}
 
-  // Badge de estado
-  let badge = '';
-  if(comp) badge = `<span style="font-size:16px;">🏆</span>`;
-  else if(hasActivity && rutDia.every(r=>r.completo)) badge = `<i class="ti ti-circle-check-filled" style="font-size:18px;color:var(--green);"></i>`;
-  else if(hasActivity) badge = `<i class="ti ti-circle-half-2" style="font-size:18px;color:var(--primary);"></i>`;
-  else if(hasPlan && isPast) badge = `<i class="ti ti-circle-x" style="font-size:17px;color:var(--red);opacity:.7;"></i>`;
-  else if(hasPlan && isFuture) badge = `<i class="ti ti-clock" style="font-size:16px;color:var(--text2);opacity:.5;"></i>`;
+  // Badge estado
+  let badge='';
+  if(comp) badge=`<span style="font-size:14px;line-height:1;">🏆</span>`;
+  else if(hasActivity&&rutDia.every(r=>r.completo)) badge=`<i class="ti ti-circle-check-filled" style="font-size:15px;color:var(--green);"></i>`;
+  else if(hasActivity) badge=`<i class="ti ti-circle-half-2" style="font-size:15px;color:var(--primary);"></i>`;
+  else if(hasPlan&&isPast) badge=`<i class="ti ti-circle-x" style="font-size:14px;color:var(--red);opacity:.6;"></i>`;
 
-  // Bloque de competencia
-  const compHTML = comp ? `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);border-radius:8px;padding:4px 9px;margin-bottom:6px;">
-    <span style="font-size:13px;">🏆</span>
-    <span style="font-size:12px;font-weight:700;color:#b45309;">${esc(comp.n)}</span>
-    ${comp.l?`<span style="font-size:11px;color:#92400e;opacity:.8;">· ${esc(comp.l)}</span>`:''}
-  </div>` : '';
-
-  // Bloque de rutinas planificadas con ejercicios
-  const allPlan = planItems; // nombres de rutina planificados para el día
-  const rutinasHTML = allPlan.length ? allPlan.map(rname=>{
+  // Chips de rutinas — cada una tappable para abrir el día
+  const rutChips = planItems.map(rname=>{
     const rutObj = rutDia.find(r=>r.rname===rname);
-    const r = RUTINAS.find(x=>x.n===rname);
-    const ejs = (r ? r.ejs||[] : []);
-    const pct = rutObj ? Math.round(rutObj.hechos/rutObj.total*100) : 0;
-    const done = rutObj ? rutObj.hechos : 0;
-    const total = ejs.length;
-    const completo = rutObj && rutObj.completo;
-    const tieneActividad = !!rutObj;
-
-    // Ejercicios individuales
-    const ejsHTML = ejs.length ? `<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px;">
-      ${ejs.map(e=>{
-        const hecho = rutObj && (rh[rname]||{})[e.n]===ds;
-        return `<div style="display:flex;align-items:center;gap:7px;">
-          <div style="width:14px;height:14px;border-radius:4px;border:1.5px solid ${hecho?'var(--green)':'var(--border2)'};background:${hecho?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            ${hecho?`<i class="ti ti-check" style="font-size:9px;color:#fff;"></i>`:''}
-          </div>
-          <span style="font-size:12px;color:${hecho?'var(--text)':'var(--text2)'};${hecho?'':'opacity:.7;'}">${esc(e.n)}</span>
-          ${e.s?`<span style="font-size:11px;color:var(--text2);opacity:.6;margin-left:auto;">${esc(e.s)}</span>`:''}
-        </div>`;
-      }).join('')}
-    </div>` : '';
-
-    return `<div style="border:1.5px solid ${tieneActividad?(completo?'rgba(5,150,105,.3)':'var(--border2)'):'var(--border2)'};border-radius:10px;padding:9px 11px;background:${tieneActividad?(completo?'rgba(5,150,105,.05)':'var(--bg)'):'var(--bg)'};margin-bottom:5px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <div style="display:flex;align-items:center;gap:7px;min-width:0;">
-          <i class="ti ti-barbell" style="font-size:14px;color:${tieneActividad?(completo?'var(--green)':'var(--primary)'):'var(--text2)'};flex-shrink:0;"></i>
-          <span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</span>
-        </div>
-        <span style="font-size:11px;color:${completo?'var(--green)':tieneActividad?'var(--primary)':'var(--text2)'};font-weight:700;white-space:nowrap;flex-shrink:0;">${tieneActividad?`${done}/${total}`:(isFuture?'':'—')}</span>
-      </div>
-      ${tieneActividad && total>0 ? `<div style="margin-top:6px;background:var(--border2);border-radius:4px;height:4px;overflow:hidden;"><div style="background:${completo?'var(--green)':'var(--primary)'};width:${pct}%;height:100%;border-radius:4px;transition:width .3s;"></div></div>` : ''}
-      ${ejsHTML}
+    const completo = rutObj&&rutObj.completo;
+    const parcial  = rutObj&&!completo;
+    const pct = rutObj ? Math.round(rutObj.hechos/rutObj.total*100) : null;
+    const chipBg    = completo ? 'rgba(5,150,105,.1)' : parcial ? 'var(--primary-light)' : 'var(--bg)';
+    const chipBorder= completo ? 'rgba(5,150,105,.35)' : parcial ? 'var(--primary)' : 'var(--border2)';
+    const textColor = completo ? 'var(--green)' : parcial ? 'var(--primary)' : 'var(--text)';
+    return `<div onclick="event.stopPropagation();openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="background:${chipBg};border:1.5px solid ${chipBorder};border-radius:8px;padding:5px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <div style="font-size:11px;font-weight:700;color:${textColor};line-height:1.25;word-break:break-word;">${esc(rname)}</div>
+      ${pct!==null ? `<div style="margin-top:4px;background:var(--border2);border-radius:3px;height:3px;overflow:hidden;"><div style="background:${completo?'var(--green)':'var(--primary)'};width:${pct}%;height:100%;border-radius:3px;"></div></div>` : ''}
     </div>`;
-  }).join('') : '';
+  }).join('');
 
-  // Bloque PSE
-  const pseHTML = (psePre||psePost) ? `<div style="margin-top:4px;border:1.5px solid var(--border2);border-radius:10px;padding:8px 11px;background:var(--bg);">
-    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Bienestar</div>
-    ${psePre ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:${psePost?'6px':'0'};">
-      ${psePre.r.energia!=null&&psePre.r.energia!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">⚡ Energía <b>${psePre.r.energia}</b></span>`:''}
-      ${psePre.r.sueno!=null&&psePre.r.sueno!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">😴 Sueño <b>${psePre.r.sueno}</b></span>`:''}
-      ${psePre.r.dolor!=null&&psePre.r.dolor!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">🩹 Dolor <b>${psePre.r.dolor}</b></span>`:''}
-      ${psePre.r.animo!=null&&psePre.r.animo!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">😊 Ánimo <b>${psePre.r.animo}</b></span>`:''}
-    </div>` : ''}
-    ${psePost ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${psePost.r.rpe!=null&&psePost.r.rpe!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">🔥 RPE <b>${psePost.r.rpe}/10</b></span>`:''}
-      ${psePost.r.carga!=null&&psePost.r.carga!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">📊 Carga <b>${psePost.r.carga}</b></span>`:''}
-      ${psePost.r.recuperacion!=null&&psePost.r.recuperacion!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">💤 Rec. <b>${psePost.r.recuperacion}</b></span>`:''}
-      ${psePost.r.satisfaccion!=null&&psePost.r.satisfaccion!==''?`<span style="font-size:11px;background:var(--bg2);border-radius:6px;padding:2px 7px;">✅ Conf. <b>${psePost.r.satisfaccion}</b></span>`:''}
-    </div>` : ''}
+  // Chip competencia
+  const compChip = comp ? `<div style="background:rgba(251,191,36,.14);border:1.5px solid rgba(251,191,36,.45);border-radius:8px;padding:5px 8px;">
+    <div style="font-size:11px;font-weight:700;color:#b45309;line-height:1.25;">🏆 ${esc(comp.n)}</div>
   </div>` : '';
 
-  // Sin contenido
-  const sinContenidoHTML = (!hasPlan && !hasActivity && !comp) ? `<span style="font-size:12px;color:var(--text2);opacity:.5;font-style:italic;">Sin actividad</span>` : '';
+  const noContent = !hasPlan&&!comp ? `<div style="font-size:11px;color:var(--border);font-style:italic;padding:4px 0;">—</div>` : '';
 
-  return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="border-radius:14px;overflow:hidden;cursor:pointer;background:${bg};border-left:${borderL};box-shadow:0 1px 4px rgba(0,0,0,.06);-webkit-tap-highlight-color:transparent;transition:box-shadow .15s;">
-    <div style="display:flex;align-items:flex-start;gap:0;">
-      <!-- Columna izquierda: fecha -->
-      <div style="width:58px;flex-shrink:0;padding:12px 0 12px 13px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
-        <div style="font-size:10px;font-weight:800;color:${isToday?accentColor:'var(--text2)'};text-transform:uppercase;letter-spacing:.4px;">${DIAS_L[dt.getDay()].slice(0,3)}</div>
-        <div style="font-size:22px;font-weight:900;color:${isToday?accentColor:'var(--text)'};line-height:1;">${dt.getDate()}</div>
-        <div style="font-size:10px;color:var(--text2);font-weight:600;">${MESES_C[dt.getMonth()]}</div>
-        <div style="margin-top:5px;">${badge}</div>
+  return `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${wkMon}')" style="flex-shrink:0;width:148px;border:${border};border-radius:14px;overflow:hidden;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background .15s;">
+    <div style="height:4px;background:${topBar};"></div>
+    <div style="padding:10px 10px 12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;font-weight:800;color:${isToday?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.4px;">${DIAS_ABR[dt.getDay()]}</div>
+          <div style="font-size:20px;font-weight:900;color:${isToday?'var(--primary)':'var(--text)'};line-height:1.1;">${dt.getDate()} <span style="font-size:11px;font-weight:600;color:var(--text2);">${MESES_C[dt.getMonth()]}</span></div>
+        </div>
+        ${badge}
       </div>
-      <!-- Divisor -->
-      <div style="width:1px;background:var(--border2);margin:10px 0;align-self:stretch;flex-shrink:0;"></div>
-      <!-- Columna derecha: contenido -->
-      <div style="flex:1;min-width:0;padding:11px 13px 12px;">
-        ${compHTML}
-        ${rutinasHTML}
-        ${pseHTML}
-        ${sinContenidoHTML}
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        ${compChip}${rutChips}${noContent}
       </div>
     </div>
   </div>`;
@@ -7018,26 +6961,71 @@ function elitePageInicio(d){
       const lunesOffset = diaSemana===0 ? -6 : 1-diaSemana;
       const lunes = new Date(hoy); lunes.setDate(hoy.getDate()+lunesOffset);
       const DIAS_ABR = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      const MESES_C2 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
       const semCells = Array.from({length:7},(_,i)=>{
         const dd = new Date(lunes); dd.setDate(lunes.getDate()+i);
         const ds = dd.toISOString().slice(0,10);
         const isHoy = ds===todayStr;
+        const isPast = ds<todayStr;
         const items = getPlanItems(d, ds);
+        const comp = (d.competencias||[]).find(c=>c.f===ds);
         const tieneRutina = items.length>0;
-        const rh = items.length ? (d.rsHechos?.[items[0]]||{}) : {};
-        const r0 = items.length ? RUTINAS.find(x=>x.n===items[0]) : null;
-        const ejsTotal = r0 ? (r0.ejs||[]).length : 0;
-        const ejsHechos = r0 ? (r0.ejs||[]).filter(e=>rh[e.n]===ds).length : 0;
-        const completo = ejsTotal>0 && ejsHechos===ejsTotal;
-        const bg = isHoy ? 'var(--primary-light)' : tieneRutina ? 'var(--bg2)' : 'transparent';
-        const border = isHoy ? '1.5px solid var(--primary)' : '1px solid var(--border2)';
-        const extraLabel = items.length>1 ? ` +${items.length-1}` : '';
-        const label = items.length ? (items[0].length>8 ? items[0].slice(0,7)+'…' : items[0]) : '';
-        return `<div onclick="eliteVerDiaSemana('${ds}')" style="flex:1;min-width:0;border:${border};border-radius:10px;padding:7px 4px;text-align:center;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
-          <div style="font-size:9px;font-weight:700;color:${isHoy?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.3px;">${DIAS_ABR[(lunes.getDay()+i)%7]}</div>
-          <div style="font-size:14px;font-weight:800;color:${isHoy?'var(--primary)':'var(--text)'};">${dd.getDate()}</div>
-          ${tieneRutina ? `<div style="font-size:8px;font-weight:700;color:${completo?'var(--green)':isHoy?'var(--primary)':'var(--text2)'};margin-top:2px;line-height:1.2;overflow:hidden;">${esc(label)}${extraLabel?`<span style="font-size:7px;">${extraLabel}</span>`:''}</div>` : '<div style="height:16px;"></div>'}
-          ${completo ? `<i class="ti ti-check" style="font-size:10px;color:var(--green);"></i>` : ''}
+
+        // Estado de cada rutina del día
+        const rutStatus = items.map(rname=>{
+          const rhR = d.rsHechos?.[rname]||{};
+          const r0 = RUTINAS.find(x=>x.n===rname);
+          const ejs = r0?r0.ejs||[]:[];
+          const hechos = ejs.filter(e=>rhR[e.n]===ds).length;
+          const completo2 = ejs.length>0&&hechos===ejs.length;
+          const parcial = hechos>0&&!completo2;
+          return {rname,hechos,total:ejs.length,completo:completo2,parcial};
+        });
+        const todosCompletos = rutStatus.length>0&&rutStatus.every(r=>r.completo);
+        const algunoParcial  = rutStatus.some(r=>r.parcial);
+
+        // Colores de tarjeta
+        let topBar,bg,border2;
+        if(isHoy)         {topBar='var(--primary)'; bg='var(--primary-light)'; border2='2px solid var(--primary)';}
+        else if(comp)     {topBar='#f59e0b'; bg='rgba(251,191,36,.09)'; border2='2px solid rgba(251,191,36,.4)';}
+        else if(todosCompletos){topBar='var(--green)'; bg='rgba(5,150,105,.07)'; border2='2px solid rgba(5,150,105,.3)';}
+        else if(algunoParcial){topBar='var(--primary)'; bg='rgba(59,130,201,.06)'; border2='2px solid var(--border2)';}
+        else if(tieneRutina&&isPast){topBar='var(--red)'; bg='rgba(220,38,38,.04)'; border2='2px solid rgba(220,38,38,.2)';}
+        else              {topBar='var(--border2)'; bg='var(--bg2)'; border2='2px solid var(--border2)';}
+
+        // Badge
+        let badge='';
+        if(comp) badge=`<span style="font-size:12px;">🏆</span>`;
+        else if(todosCompletos) badge=`<i class="ti ti-circle-check-filled" style="font-size:13px;color:var(--green);"></i>`;
+        else if(algunoParcial)  badge=`<i class="ti ti-circle-half-2" style="font-size:13px;color:var(--primary);"></i>`;
+        else if(tieneRutina&&isPast) badge=`<i class="ti ti-circle-x" style="font-size:12px;color:var(--red);opacity:.6;"></i>`;
+
+        // Chips de rutinas
+        const chips = rutStatus.map(({rname,completo:c2,parcial:p2})=>{
+          const chipBg = c2?'rgba(5,150,105,.12)':p2?'var(--primary-light)':'var(--bg)';
+          const chipBorder = c2?'rgba(5,150,105,.3)':p2?'var(--primary)':'var(--border2)';
+          const chipColor  = c2?'var(--green)':p2?'var(--primary)':'var(--text)';
+          return `<div onclick="event.stopPropagation();eliteVerDiaSemana('${ds}')" style="background:${chipBg};border:1.5px solid ${chipBorder};border-radius:6px;padding:3px 6px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+            <div style="font-size:10px;font-weight:700;color:${chipColor};line-height:1.25;word-break:break-word;">${esc(rname)}</div>
+          </div>`;
+        }).join('');
+        const compChip = comp ? `<div style="background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.4);border-radius:6px;padding:3px 6px;">
+          <div style="font-size:10px;font-weight:700;color:#b45309;line-height:1.25;">🏆 ${esc(comp.n.length>12?comp.n.slice(0,11)+'…':comp.n)}</div>
+        </div>` : '';
+        const noContent = !tieneRutina&&!comp ? `<div style="font-size:10px;color:var(--border);font-style:italic;">—</div>` : '';
+
+        return `<div onclick="eliteVerDiaSemana('${ds}')" style="flex-shrink:0;width:130px;border:${border2};border-radius:13px;overflow:hidden;cursor:pointer;background:${bg};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+          <div style="height:3px;background:${topBar};"></div>
+          <div style="padding:9px 9px 11px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+              <div>
+                <div style="font-size:9px;font-weight:800;color:${isHoy?'var(--primary)':'var(--text2)'};text-transform:uppercase;letter-spacing:.4px;">${DIAS_ABR[(lunes.getDay()+i)%7]}</div>
+                <div style="font-size:18px;font-weight:900;color:${isHoy?'var(--primary)':'var(--text)'};line-height:1.1;">${dd.getDate()} <span style="font-size:10px;font-weight:600;color:var(--text2);">${MESES_C2[dd.getMonth()]}</span></div>
+              </div>
+              ${badge}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">${compChip}${chips}${noContent}</div>
+          </div>
         </div>`;
       }).join('');
 
@@ -7049,8 +7037,8 @@ function elitePageInicio(d){
         <p style="margin:0;font-size:14px;">No hay rutina asignada para hoy.</p>
       </div>`}
       <div style="margin-top:18px;">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Esta semana</div>
-        <div style="display:flex;gap:4px;">${semCells}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Esta semana</div>
+        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;">${semCells}</div>
       </div>`;
     })()}
   </div>`;
