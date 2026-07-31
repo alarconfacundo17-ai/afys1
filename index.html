@@ -5848,7 +5848,7 @@ function openEliteEntrenamientosModal(id){
   const rh = d.rsHechos||{};
   const pse = d.pse||[];
 
-  // Recolectar todas las fechas con actividad
+  // Recolectar todas las fechas con actividad o plan
   const dateSet = new Set();
   for(const rname of Object.keys(rh)){
     for(const val of Object.values(rh[rname])){
@@ -5856,6 +5856,8 @@ function openEliteEntrenamientosModal(id){
     }
   }
   pse.forEach(p=>{ if(p.f) dateSet.add(p.f); });
+  // Incluir fechas del plan (planFechas) para que aparezcan aunque no haya ejercicios completados
+  Object.keys(d.planFechas||{}).forEach(ds=>{ if((d.planFechas||{})[ds]) dateSet.add(ds); });
 
   if(!dateSet.size){
     openModal(`<div class="modal-head"><h3 style="font-size:15px;"><i class="ti ti-calendar-stats"></i> Entrenamientos — ${esc(d.n)}</h3><button onclick="closeModal()">✕</button></div>
@@ -8411,6 +8413,7 @@ function socioCuenta(){
 
     await mergeRemoteIntoLocal(data);
     if((currentRole==='dueno' || currentRole==='profesor' || currentRole==='admin') && !document.querySelector('.modal-overlay')) renderStaff();
+    if(currentEliteId && !document.querySelector('.modal-overlay')) renderElitePanel();
 
     // Si el local tenía datos que el remoto perdió (race condition), re-persistir para recuperarlos
     if(localAheadOfRemote) persist();
