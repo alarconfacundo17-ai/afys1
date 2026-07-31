@@ -5960,12 +5960,8 @@ function openEliteEntrenamientosModal(id){
 
   // Botones de navegación con slide animation
   const btnStyle = `all:unset;width:36px;height:36px;border-radius:12px;background:var(--bg);border:1.5px solid var(--border2);font-size:20px;font-weight:700;color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;`;
-  const prevBtn = wkIdx > 0
-    ? `<button style="${btnStyle}" onclick="_eliteWkNav(-1)" id="eliteWkPrev">‹</button>`
-    : `<button style="${btnStyle}opacity:.25;pointer-events:none;" id="eliteWkPrev" disabled>‹</button>`;
-  const nextBtn = wkIdx < weeks.length-1
-    ? `<button style="${btnStyle}" onclick="_eliteWkNav(1)" id="eliteWkNext">›</button>`
-    : `<button style="${btnStyle}opacity:.25;pointer-events:none;" id="eliteWkNext" disabled>›</button>`;
+  const prevBtn = `<button style="${btnStyle}${wkIdx===0?'opacity:.25;pointer-events:none;':''}" id="eliteWkPrev" onclick="_eliteWkNav(-1)"${wkIdx===0?' disabled':''}>‹</button>`;
+  const nextBtn = `<button style="${btnStyle}${wkIdx>=weeks.length-1?'opacity:.25;pointer-events:none;':''}" id="eliteWkNext" onclick="_eliteWkNav(1)"${wkIdx>=weeks.length-1?' disabled':''}>›</button>`;
 
   const DIAS_ABR2 = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
