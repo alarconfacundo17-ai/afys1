@@ -7594,7 +7594,10 @@ function toggleHistorialPago(idx, year, m, mpKey){
 function bindStaffEvents(){}
 
 /* ============ MODAL ============ */
+let _closeModalTimer = null;
 function openModal(html, size){
+  // Cancelar cualquier timer pendiente de close para que no borre este nuevo modal
+  if(_closeModalTimer){ clearTimeout(_closeModalTimer); _closeModalTimer=null; }
   const prevBox = document.querySelector('.modal-box');
   const prevBoxTop = prevBox ? prevBox.scrollTop : 0;
   const prevList = document.getElementById('modalScrollList');
@@ -7622,7 +7625,7 @@ function closeModal(){
   if(overlay && box){
     overlay.classList.add('closing');
     box.classList.add('closing');
-    setTimeout(()=>{ $('#modalHost').innerHTML=''; }, 170);
+    _closeModalTimer = setTimeout(()=>{ _closeModalTimer=null; $('#modalHost').innerHTML=''; }, 170);
   } else {
     $('#modalHost').innerHTML='';
   }
