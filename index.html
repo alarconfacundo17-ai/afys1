@@ -6869,13 +6869,127 @@ function renderElitePanel(){
 
 function elitePageInicio(d){
   const todayStr = todayISO();
+  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const DIAS_N  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   const proxComp = Array.isArray(d.competencias) ? d.competencias.filter(c=>c.f>=todayStr).sort((a,b)=>a.f.localeCompare(b.f))[0] : null;
-  const rutinas = (d.rs||[]).filter(n=>RUTINAS.some(r=>r.n===n));
-  const hechosHoy = rutinas.filter(rname=>{
-    const rh = d.rsHechos?.[rname]||{};
-    return Object.values(rh).some(f=>f===todayStr);
-  });
-  const diasEntreno = new Set((d.pse||[]).filter(p=>p.tipo==='post').map(p=>p.f)).size;
+
+  // ── Bloque B: Próxima sesión ──────────────────────────────────────────────
+  // Buscar el próximo día con plan desde hoy en adelante (máx 30 días)
+  let proximaSesionHTML = '';
+  {
+    let found = null;
+    for(let i=0; i<=30; i++){
+      const dt = new Date(todayStr+'T12:00:00'); dt.setDate(dt.getDate()+i);
+      const ds = dt.toISOString().slice(0,10);
+      const items = getPlanItems(d, ds);
+      if(items.length){ found = {ds, dt, items, diasFaltan:i}; break; }
+    }
+    if(found){
+      const {ds, dt, items, diasFaltan} = found;
+      const esHoy = diasFaltan === 0;
+      const esMañana = diasFaltan === 1;
+      const countdownLabel = esHoy
+        ? `<span style="background:var(--primary);color:#fff;border-radius:8px;padding:2px 10px;font-size:11px;font-weight:800;letter-spacing:.3px;">HOY</span>`
+        : esMañana
+          ? `<span style="background:rgba(59,130,201,.15);color:var(--primary);border-radius:8px;padding:2px 10px;font-size:11px;font-weight:800;">Mañana</span>`
+          : `<span style="font-size:12px;color:var(--text2);font-weight:600;">En ${diasFaltan} días · ${DIAS_N[dt.getDay()]}</span>`;
+      const fechaStr = `${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
+      // Progreso de la sesión de hoy si es hoy
+      const chipRutinas = items.map(rname=>{
+        const r = RUTINAS.find(x=>x.n===rname);
+        const ejs = r?r.ejs||[]:[];
+        const rhR = d.rsHechos?.[rname]||{};
+        const hechos = ejs.filter(e=>rhR[e.n]===ds).length;
+        const completo = ejs.length>0&&hechos===ejs.length;
+        const parcial  = hechos>0&&!completo;
+        return `<div onclick="eliteAbrirRutina('${escQ(rname)}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${completo?'rgba(5,150,105,.07)':parcial?'var(--primary-light)':'var(--bg2)'};border:1.5px solid ${completo?'rgba(5,150,105,.3)':parcial?'var(--primary)':'var(--border2)'};border-radius:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+          <i class="ti ti-barbell" style="font-size:16px;color:${completo?'var(--green)':parcial?'var(--primary)':'var(--text2)'};flex-shrink:0;"></i>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
+            ${ejs.length?`<div style="font-size:11px;color:var(--text2);">${hechos}/${ejs.length} ejercicios</div>`:''}
+          </div>
+          ${completo
+            ? `<i class="ti ti-circle-check-filled" style="font-size:18px;color:var(--green);flex-shrink:0;"></i>`
+            : `<i class="ti ti-chevron-right" style="font-size:16px;color:var(--text2);flex-shrink:0;"></i>`}
+        </div>`;
+      }).join('');
+      proximaSesionHTML = `<div class="card" style="padding:16px;border-radius:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Próxima sesión</div>
+            <div style="font-size:15px;font-weight:800;">${fechaStr}</div>
+          </div>
+          ${countdownLabel}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;">${chipRutinas}</div>
+      </div>`;
+    } else {
+      proximaSesionHTML = `<div class="card" style="padding:16px;border-radius:16px;margin-bottom:14px;text-align:center;color:var(--text2);">
+        <i class="ti ti-calendar-off" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3;"></i>
+        <div style="font-size:13px;">No hay sesiones planificadas próximamente.</div>
+      </div>`;
+    }
+  }
+
+  // ── Bloque E: Progreso de la semana ──────────────────────────────────────
+  let progresoSemanaHTML = '';
+  {
+    const hoy = new Date(todayStr+'T12:00:00');
+    const dow = hoy.getDay();
+    const lunesOff = dow===0?-6:1-dow;
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate()+lunesOff);
+    let sesionesPlan=0, sesionesCompletas=0, sesionesParc=0;
+    const dotDias = Array.from({length:7},(_,i)=>{
+      const dd=new Date(lunes); dd.setDate(lunes.getDate()+i);
+      const ds=dd.toISOString().slice(0,10);
+      const items=getPlanItems(d,ds);
+      const isHoy=ds===todayStr; const isPast=ds<todayStr; const isFut=ds>todayStr;
+      if(!items.length) return {ds,tipo:'libre',isHoy};
+      sesionesPlan++;
+      const allStatus = items.map(rname=>{
+        const r=RUTINAS.find(x=>x.n===rname); const ejs=r?r.ejs||[]:[];
+        const rhR=d.rsHechos?.[rname]||{};
+        const hechos=ejs.filter(e=>rhR[e.n]===ds).length;
+        return ejs.length>0&&hechos===ejs.length;
+      });
+      const completo=allStatus.every(Boolean)&&allStatus.length>0;
+      const parcial=allStatus.some(Boolean)&&!completo;
+      if(completo) sesionesCompletas++;
+      else if(parcial) sesionesParc++;
+      return {ds,tipo:completo?'completo':parcial?'parcial':isPast?'faltó':isHoy?'hoy':'plan',isHoy};
+    });
+    const pct = sesionesPlan>0 ? Math.round(sesionesCompletas/sesionesPlan*100) : 0;
+    const colorBarra = pct===100?'var(--green)':pct>=50?'var(--primary)':'var(--primary)';
+    const DIAS_DOT = ['L','M','X','J','V','S','D'];
+    const dotsHTML = dotDias.map(({tipo,isHoy},i)=>{
+      const dotColor = tipo==='completo'?'var(--green)':tipo==='parcial'?'var(--primary)':tipo==='faltó'?'rgba(220,38,38,.5)':tipo==='hoy'?'var(--primary)':'var(--border2)';
+      const dotBg   = tipo==='completo'?'var(--green)':tipo==='parcial'?'var(--primary)':tipo==='hoy'?'transparent':'transparent';
+      const dotBorder = isHoy?`2px solid var(--primary)`:`2px solid ${dotColor}`;
+      const fill = (tipo==='completo'||tipo==='parcial')?'background:'+dotBg+';':tipo==='hoy'?'background:var(--primary-light);':'';
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="width:28px;height:28px;border-radius:50%;border:${dotBorder};${fill}display:flex;align-items:center;justify-content:center;">
+          ${tipo==='completo'?`<i class="ti ti-check" style="font-size:13px;color:#fff;"></i>`:
+            tipo==='parcial'?`<i class="ti ti-minus" style="font-size:12px;color:#fff;"></i>`:
+            tipo==='faltó'?`<i class="ti ti-x" style="font-size:11px;color:rgba(220,38,38,.6);"></i>`:''}
+        </div>
+        <div style="font-size:9px;font-weight:${isHoy?'800':'600'};color:${isHoy?'var(--primary)':'var(--text2)'};">${DIAS_DOT[i]}</div>
+      </div>`;
+    }).join('');
+    progresoSemanaHTML = `<div class="card" style="padding:16px;border-radius:16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Progreso esta semana</div>
+        <div style="font-size:13px;font-weight:800;color:${pct===100?'var(--green)':'var(--primary)'};">${sesionesCompletas}/${sesionesPlan} sesiones</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px;">${dotsHTML}</div>
+      ${sesionesPlan>0?`<div style="background:var(--border2);border-radius:6px;height:6px;overflow:hidden;">
+        <div style="background:${colorBarra};width:${pct}%;height:100%;border-radius:6px;transition:width .4s;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <div style="font-size:11px;color:var(--text2);">${pct===100?'¡Semana perfecta! 🔥':pct>=50?'Vas muy bien, seguí así 💪':'¡Dale, a entrenar!'}</div>
+        <div style="font-size:11px;font-weight:700;color:${colorBarra};">${pct}%</div>
+      </div>`:'<div style="font-size:12px;color:var(--text2);text-align:center;">Sin sesiones planificadas esta semana.</div>'}
+    </div>`;
+  }
 
   return `
   <div>
@@ -6900,20 +7014,8 @@ function elitePageInicio(d){
       </div>
     </div>`:''}
 
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
-      <div class="metric" style="text-align:center;border-radius:14px;">
-        <div class="num" style="font-size:24px;">${rutinas.length}</div>
-        <div class="lbl">Rutinas</div>
-      </div>
-      <div class="metric" style="text-align:center;border-radius:14px;">
-        <div class="num" style="font-size:24px;color:${hechosHoy.length>0?'var(--green)':'var(--text)'};">${hechosHoy.length}</div>
-        <div class="lbl">Hechos hoy</div>
-      </div>
-      <div class="metric" style="text-align:center;border-radius:14px;">
-        <div class="num" style="font-size:24px;">${diasEntreno}</div>
-        <div class="lbl">Días entreno</div>
-      </div>
-    </div>
+    ${proximaSesionHTML}
+    ${progresoSemanaHTML}
 
     ${(()=>{
       const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
