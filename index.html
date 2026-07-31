@@ -7121,35 +7121,115 @@ function elitePageInicio(d){
   </div>`;
 }
 
+let _elitePlanYM = '';
+
 function elitePageRutinas(d){
-  const rutinas = (d.rs||[]).filter(n=>RUTINAS.some(r=>r.n===n));
-  if(!rutinas.length) return `<div class="card" style="text-align:center;padding:40px 20px;color:var(--text2);border-radius:14px;">
-    <i class="ti ti-barbell" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
-    <p style="margin:0;font-size:14px;">No tenés rutinas asignadas todavía.</p>
-  </div>`;
+  const now = new Date();
+  const ym = _elitePlanYM || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  _elitePlanYM = ym;
+  const [year, month] = ym.split('-').map(Number);
+  const firstDay = new Date(year, month-1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startDow = (firstDay.getDay()+6)%7;
+  const planFechas = d.planFechas||{};
+  const rh = d.rsHechos||{};
+  const rutinas = d.rs||[];
   const todayStr = todayISO();
-  return rutinas.map((rname, idx)=>{
-    const r = RUTINAS.find(x=>x.n===rname);
-    const rh = d.rsHechos?.[rname]||{};
-    const ejs = (r?r.ejs:[]);
-    const ejsHechos = ejs.filter(e=>rh[e.n]===todayStr).length;
-    const completo = ejs.length>0 && ejsHechos===ejs.length;
-    const parcial = ejsHechos>0 && !completo;
-    return `<div class="card" style="padding:0;margin-bottom:10px;border-radius:14px;overflow:hidden;animation:eliteFadeIn .22s ease both;animation-delay:${idx*0.06}s;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteAbrirRutina('${escQ(rname)}')">
-      <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;">
-        <div style="width:42px;height:42px;border-radius:10px;background:${completo?'rgba(5,150,105,.12)':parcial?'rgba(59,130,201,.1)':'var(--bg2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s;">
-          <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':parcial?'var(--primary)':'var(--text2)'};"></i>
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:1px;">${esc(r?.t||'')} · ${ejs.length} ejercicios${parcial?` · <span style="color:var(--primary);font-weight:600;">${ejsHechos}/${ejs.length} hechos</span>`:''}${completo?' · <span style="color:var(--green);font-weight:600;">Completada hoy</span>':''}</div>
-        </div>
-        <i class="ti ti-chevron-right" style="font-size:18px;color:var(--text2);flex-shrink:0;"></i>
-      </div>
-      ${completo?`<div style="height:3px;background:linear-gradient(90deg,var(--green),rgba(5,150,105,.3));"></div>`:''}
-      ${parcial?`<div style="height:3px;background:linear-gradient(90deg,var(--primary) ${Math.round(ejsHechos/ejs.length*100)}%,var(--border2) ${Math.round(ejsHechos/ejs.length*100)}%);"></div>`:''}
+  const MESES_N = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_H = ['L','M','X','J','V','S','D'];
+  const prevYM = month===1?`${year-1}-12`:`${year}-${String(month-1).padStart(2,'0')}`;
+  const nextYM = month===12?`${year+1}-01`:`${year}-${String(month+1).padStart(2,'0')}`;
+
+  const compMap = {};
+  (d.competencias||[]).forEach(c=>{ if(c.f&&c.f.startsWith(ym)) compMap[c.f]=c; });
+
+  const headerCells = DIAS_H.map(h=>`<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:6px 0;">${h}</div>`).join('');
+
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells+='<div></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const ds=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const planItems=getPlanItems({planFechas},ds);
+    const hasPlan=planItems.length>0;
+    const isToday=ds===todayStr;
+    const isPast=ds<todayStr;
+    const comp=compMap[ds];
+
+    // Estado de completado: todas las rutinas del día completadas
+    const allDone = hasPlan && planItems.every(rname=>{
+      const r=RUTINAS.find(x=>x.n===rname);
+      const ejs=r?r.ejs||[]:[];
+      return ejs.length>0&&ejs.every(e=>(rh[rname]||{})[e.n]===ds);
+    });
+    const someDone = hasPlan && !allDone && planItems.some(rname=>{
+      const r=RUTINAS.find(x=>x.n===rname);
+      const ejs=r?r.ejs||[]:[];
+      return ejs.some(e=>(rh[rname]||{})[e.n]===ds);
+    });
+    const hasActivity = rutinas.some(rname=>{
+      const r=RUTINAS.find(x=>x.n===rname);
+      const ejs=r?r.ejs||[]:[];
+      return ejs.some(e=>(rh[rname]||{})[e.n]===ds);
+    });
+
+    let bg,border,numColor,txtColor,bottomIcon='';
+    if(comp){
+      bg='rgba(251,191,36,.18)'; border='2px solid rgba(251,191,36,.55)';
+      numColor='#b45309'; txtColor='#b45309'; bottomIcon=`<div style="font-size:10px;line-height:1;margin-top:1px;">🏆</div>`;
+    } else if(isToday){
+      bg='var(--primary-light)'; border='2px solid var(--primary)';
+      numColor='var(--primary)'; txtColor='var(--primary)';
+    } else if(allDone){
+      bg='rgba(5,150,105,.12)'; border='1.5px solid rgba(5,150,105,.35)';
+      numColor='var(--text2)'; txtColor='var(--green)';
+    } else if(someDone){
+      bg='rgba(59,130,201,.08)'; border='1.5px solid var(--primary)';
+      numColor='var(--text)'; txtColor='var(--primary)';
+    } else if(hasPlan&&!isPast){
+      bg='rgba(59,130,201,.07)'; border='1.5px solid transparent';
+      numColor='var(--text)'; txtColor='var(--primary)';
+    } else if(hasPlan&&isPast){
+      bg='var(--bg2)'; border='1.5px solid transparent';
+      numColor='var(--text2)'; txtColor='var(--text2)';
+    } else {
+      bg='transparent'; border='1.5px solid transparent';
+      numColor=isPast?'var(--text2)':'var(--text)'; txtColor='var(--primary)';
+    }
+
+    const _fp = comp?(comp.n.length>7?comp.n.slice(0,6)+'…':comp.n):(planItems[0]||'');
+    const shortName = _fp.length>7?_fp.slice(0,6)+'…':_fp;
+    const extraBadge = !comp&&planItems.length>1?`<span style="font-size:7px;font-weight:800;color:${txtColor};"> +${planItems.length-1}</span>`:'';
+
+    cells+=`<div onclick="eliteVerDiaSemana('${ds}')" style="min-height:56px;padding:5px 4px 4px;border-radius:9px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;">
+      <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
+      ${comp||hasPlan?`<div style="font-size:8.5px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.2;overflow:hidden;flex:1;">${esc(shortName)}${extraBadge}</div>`:''}
+      ${hasActivity&&!hasPlan&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:auto;opacity:.4;"></div>`:''}
+      ${bottomIcon}
     </div>`;
-  }).join('');
+  }
+
+  return `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <button onclick="_elitePlanNavMes('${prevYM}')" style="all:unset;width:38px;height:38px;border-radius:12px;background:var(--bg2);border:1.5px solid var(--border2);font-size:20px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+      <span style="font-size:17px;font-weight:800;">${MESES_N[month-1]} ${year}</span>
+      <button onclick="_elitePlanNavMes('${nextYM}')" style="all:unset;width:38px;height:38px;border-radius:12px;background:var(--bg2);border:1.5px solid var(--border2);font-size:20px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border2);border-radius:16px;padding:10px;">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+        ${headerCells}${cells}
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text2);">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(59,130,201,.12);flex-shrink:0;"></span>Planificado</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(5,150,105,.18);flex-shrink:0;"></span>Completado</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(251,191,36,.25);border:1.5px solid rgba(251,191,36,.5);flex-shrink:0;"></span>Competencia 🏆</span>
+    </div>
+  </div>`;
+}
+
+function _elitePlanNavMes(ym){
+  _elitePlanYM = ym;
+  renderElitePanel();
 }
 
 function elitePageCompetencias(d){
@@ -7597,7 +7677,7 @@ function renderEliteShell(){
     <div id="eliteContent" style="flex:1;padding:16px;max-width:600px;width:100%;margin:0 auto;box-sizing:border-box;padding-bottom:88px;"></div>
     <div class="bottom-nav" style="display:flex;justify-content:space-around;align-items:center;padding:0 8px;">
       <button class="elite-nav-item" data-page="inicio" onclick="eliteNav('inicio')"><i class="ti ti-home"></i><span>Inicio</span></button>
-      <button class="elite-nav-item" data-page="rutinas" onclick="eliteNav('rutinas')"><i class="ti ti-barbell"></i><span>Rutinas</span></button>
+      <button class="elite-nav-item" data-page="rutinas" onclick="eliteNav('rutinas')"><i class="ti ti-calendar-month"></i><span>Planificación</span></button>
       <button class="elite-nav-item" data-page="competencias" onclick="eliteNav('competencias')"><i class="ti ti-medal"></i><span>Competencias</span></button>
     </div>`;
   document.body.appendChild(div);
