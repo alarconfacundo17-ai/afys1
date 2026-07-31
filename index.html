@@ -5578,14 +5578,14 @@ function _eliteDeportistaModalHTML(id){
   const link = eliteLoginLink(d);
   const todayStr = todayISO();
 
-  const competencias = Array.isArray(d.competencias) ? d.competencias : [];
-  const compRows = competencias.sort((a,b)=>a.f.localeCompare(b.f)).map((c,ci)=>`
+  const competencias = Array.isArray(d.competencias) ? d.competencias.slice().sort((a,b)=>a.f.localeCompare(b.f)) : [];
+  const compRows = competencias.map((c)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);">
       <span style="font-size:12px;color:var(--text2);flex-shrink:0;">${esc(c.f)}</span>
       <span style="font-size:13px;font-weight:600;flex:1;">${esc(c.n)}</span>
       <span style="font-size:12px;color:var(--text2);">${esc(c.lugar||'')}</span>
       ${c.resultado?`<span style="font-size:11px;background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 8px;">${esc(c.resultado)}</span>`:''}
-      <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}',${ci})"><i class="ti ti-x"></i></button>
+      <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}','${escQ(c.f+'|'+c.n)}')"><i class="ti ti-x"></i></button>
     </div>`).join('');
 
   const pseCount = Array.isArray(d.pse) ? d.pse.length : 0;
@@ -6521,7 +6521,7 @@ function _renderEditarRutinaDelDia(rname, ordered, overrides, nota){
         <i class="ti ti-grip-vertical" style="font-size:20px;pointer-events:none;"></i>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">${i+1}. ${esc(e.n)}</div>
+        <div class="ej-label" style="font-size:13px;font-weight:700;margin-bottom:8px;">${i+1}. ${esc(e.n)}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           ${e.modo!=='tiempo'?`
           <div style="display:flex;flex-direction:column;gap:3px;">
@@ -6561,81 +6561,81 @@ function _renderEditarRutinaDelDia(rname, ordered, overrides, nota){
 
 function _initDragEjercicios(){
   const container = document.getElementById('editEjContainer');
-  if(!container) return;
-  let dragEl=null, dragIdx=-1, placeholder=null, startY=0, offsetY=0;
+  if(!container || container._dragBound) return;
+  container._dragBound = true; // evitar bind múltiple
 
-  container.querySelectorAll('.drag-handle').forEach(handle=>{
-    handle.addEventListener('touchstart', e=>{
-      e.preventDefault();
-      const row = handle.closest('[id^="editEjRow_"]');
-      if(!row) return;
-      dragIdx = parseInt(handle.dataset.idx);
-      dragEl = row;
-      startY = e.touches[0].clientY;
-      const rect = row.getBoundingClientRect();
-      offsetY = startY - rect.top;
+  let dragEl=null, placeholder=null, savedCssText='', offsetY=0;
 
-      // Placeholder
-      placeholder = document.createElement('div');
-      placeholder.style.cssText = `height:${rect.height}px;background:var(--primary-light);border:2px dashed var(--primary);border-radius:8px;flex-shrink:0;`;
-      row.parentNode.insertBefore(placeholder, row.nextSibling);
+  // Event delegation sobre el container — un solo set de listeners
+  container.addEventListener('touchstart', e=>{
+    const handle = e.target.closest('.drag-handle');
+    if(!handle) return;
+    const row = handle.closest('[id^="editEjRow_"]');
+    if(!row) return;
+    e.preventDefault();
 
-      // Feedback visual en el handle y la fila
-      handle.style.color = 'var(--primary)';
-      // Fijar el elemento
-      row.style.cssText += `;position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:300;background:var(--bg);box-shadow:0 12px 32px rgba(0,0,0,.22);border-radius:12px;opacity:.97;transition:none;border:2px solid var(--primary);`;
-    },{passive:false});
+    dragEl = row;
+    const touch = e.touches[0];
+    const rect = row.getBoundingClientRect();
+    offsetY = touch.clientY - rect.top;
+    savedCssText = row.style.cssText; // guardar para restaurar limpio
 
-    handle.addEventListener('touchmove', e=>{
-      if(!dragEl) return;
-      e.preventDefault();
-      const y = e.touches[0].clientY;
-      dragEl.style.top = (y - offsetY)+'px';
+    // Placeholder
+    placeholder = document.createElement('div');
+    placeholder.style.cssText = `height:${rect.height}px;background:var(--primary-light);border:2px dashed var(--primary);border-radius:8px;flex-shrink:0;margin:0;`;
+    row.parentNode.insertBefore(placeholder, row.nextSibling);
 
-      // Detectar sobre qué row está
-      const rows = [...container.querySelectorAll('[id^="editEjRow_"]')].filter(r=>r!==dragEl);
-      for(const r of rows){
-        const rect = r.getBoundingClientRect();
-        const mid = rect.top + rect.height/2;
-        if(y < mid){
-          container.insertBefore(placeholder, r);
-          break;
-        } else if(r === rows[rows.length-1]){
-          container.appendChild(placeholder);
-        }
-      }
-    },{passive:false});
+    // Fijar elemento con feedback visual
+    handle.style.color = 'var(--primary)';
+    row.style.cssText = savedCssText + `;position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:300;background:var(--bg);box-shadow:0 12px 32px rgba(0,0,0,.22);opacity:.97;transition:none;border:2px solid var(--primary);border-radius:12px;`;
+  },{passive:false});
 
-    handle.addEventListener('touchend', e=>{
-      if(!dragEl) return;
-      // Restaurar estilo
-      dragEl.style.position='';dragEl.style.left='';dragEl.style.top='';
-      dragEl.style.width='';dragEl.style.zIndex='';dragEl.style.boxShadow='';dragEl.style.opacity='';
-      dragEl.style.border='';
-      handle.style.color='';
-      container.insertBefore(dragEl, placeholder);
-      placeholder.remove();
+  container.addEventListener('touchmove', e=>{
+    if(!dragEl) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    dragEl.style.top = (y - offsetY)+'px';
 
-      // Leer nuevo orden del DOM
-      _editDragOrder = [...container.querySelectorAll('[id^="editEjRow_"]')].map(r=>r.dataset.ejname);
+    // Mover placeholder al lugar correcto
+    const rows = [...container.querySelectorAll('[id^="editEjRow_"]')].filter(r=>r!==dragEl);
+    let placed = false;
+    for(const r of rows){
+      const mid = r.getBoundingClientRect().top + r.getBoundingClientRect().height/2;
+      if(y < mid){ container.insertBefore(placeholder, r); placed=true; break; }
+    }
+    if(!placed && rows.length) container.appendChild(placeholder);
+  },{passive:false});
 
-      // Re-numerar índices y labels
-      container.querySelectorAll('[id^="editEjRow_"]').forEach((r,ni)=>{
-        r.id = 'editEjRow_'+ni;
-        const h = r.querySelector('.drag-handle'); if(h) h.dataset.idx=ni;
-        const lbl = r.querySelector('div > div:nth-child(1)');
-        if(lbl) lbl.textContent = (ni+1)+'. '+(_editDragOrder[ni]||'');
-        // re-id inputs
-        ['eds','edr','edk'].forEach(pfx=>{
-          const inp = r.querySelector(`[id^="${pfx}_"]`); if(inp) inp.id=pfx+'_'+ni;
-        });
+  container.addEventListener('touchend', e=>{
+    if(!dragEl) return;
+
+    // Restaurar cssText original limpio
+    dragEl.style.cssText = savedCssText;
+    const handle = dragEl.querySelector('.drag-handle');
+    if(handle) handle.style.color = '';
+
+    // Colocar en la posición del placeholder
+    container.insertBefore(dragEl, placeholder);
+    placeholder.remove();
+    placeholder = null;
+
+    // Leer nuevo orden del DOM
+    const allRows = [...container.querySelectorAll('[id^="editEjRow_"]')];
+    _editDragOrder = allRows.map(r=>r.dataset.ejname);
+
+    // Re-numerar sin tocar los listeners (siguen adjuntos a los mismos elementos)
+    allRows.forEach((r,ni)=>{
+      r.id = 'editEjRow_'+ni;
+      const h = r.querySelector('.drag-handle'); if(h) h.dataset.idx=ni;
+      const lbl = r.querySelector('.ej-label');
+      if(lbl) lbl.textContent = (ni+1)+'. '+(_editDragOrder[ni]||'');
+      ['eds','edr','edk'].forEach(pfx=>{
+        const inp = r.querySelector(`[id^="${pfx}_"]`); if(inp) inp.id=pfx+'_'+ni;
       });
-
-      dragEl=null; dragIdx=-1;
-      // Re-bind handles
-      _initDragEjercicios();
     });
-  });
+
+    dragEl = null;
+  },{passive:false});
 }
 
 function _guardarEdicionRutinaDelDia(rname){
@@ -6741,16 +6741,14 @@ function guardarCompetenciaElite(id){
   showToast('Competencia guardada','ok');
 }
 
-function eliminarCompetenciaElite(id, ci){
+function eliminarCompetenciaElite(id, key){
   const d = eliteById(id);
   if(!d||!Array.isArray(d.competencias)) return;
-  const comp = d.competencias[ci];
-  if(!comp) return;
-  // Guardar tombstone para que el merge no la restaure
+  const idx = d.competencias.findIndex(c=>(c.f+'|'+c.n)===key);
+  if(idx<0) return;
   if(!Array.isArray(d.competenciasRemoved)) d.competenciasRemoved = [];
-  const key = comp.f+'|'+comp.n;
   if(!d.competenciasRemoved.includes(key)) d.competenciasRemoved.push(key);
-  d.competencias.splice(ci,1);
+  d.competencias.splice(idx,1);
   persist();
   refreshEliteDeportistaModal(id);
 }
