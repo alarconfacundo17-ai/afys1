@@ -8151,6 +8151,20 @@ function guardarPse(){
   if(d.pse.length>200) d.pse = d.pse.slice(-200);
   persist();
   closeModal();
+  setTimeout(()=>{
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9990;display:flex;align-items:flex-end;justify-content:center;padding:24px;pointer-events:none;';
+    ov.innerHTML = `<div style="pointer-events:auto;background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(99,179,237,.10));border:1.5px solid rgba(59,130,246,.35);border-radius:18px;padding:16px 18px;max-width:380px;width:100%;display:flex;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);backdrop-filter:blur(8px);">
+      <div style="font-size:30px;flex-shrink:0;">💧</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:3px;">¡Recordá mantenerte bien hidratado!</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.4;">Tomá agua antes, durante y después del entrenamiento. Tu rendimiento y recuperación dependen de eso.</div>
+      </div>
+      <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;font-size:18px;color:var(--text2);cursor:pointer;flex-shrink:0;padding:4px;">✕</button>
+    </div>`;
+    document.body.appendChild(ov);
+    setTimeout(()=>{ if(ov.parentElement) ov.remove(); }, 6000);
+  }, _pseMode==='pre' ? 250 : 0);
   if(_pseMode==='pre'){
     setTimeout(()=>openEliteRutinaDetalleModal(_pseRutinaName), 200);
   } else {
