@@ -6890,15 +6890,34 @@ function elitePagePerfil(d){
   const seccionesHTML = Object.keys(secciones).map(sec=>{
     const rows = secciones[sec].map(c=>{
       const val = vals[c.id]!==undefined ? vals[c.id] : '';
-      const displayVal = val!==''&&val!==null&&val!==undefined ? esc(String(val)) : '<span style="color:var(--text2);">—</span>';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2);">
-        <div style="flex:1;">
+      const hasVal = val!==''&&val!==null&&val!==undefined;
+      let displayVal = '';
+      if(!hasVal){
+        displayVal = '<span style="color:var(--text2);">—</span>';
+      } else if(c.tipo==='foto'){
+        const src = String(val);
+        displayVal = src.startsWith('http')||src.startsWith('data:')
+          ? `<img src="${escQ(src)}" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;" onerror="this.style.display='none'">`
+          : `<span style="color:var(--text2);">—</span>`;
+      } else if(c.tipo==='link'){
+        displayVal = `<a href="${escQ(String(val))}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(String(val))}</a>`;
+      } else if(c.tipo==='video'){
+        const url = String(val);
+        const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
+        displayVal = ytMatch
+          ? `<div style="margin-top:8px;border-radius:10px;overflow:hidden;"><iframe width="100%" height="180" src="https://www.youtube.com/embed/${ytMatch[1]}" frameborder="0" allowfullscreen style="display:block;"></iframe></div>`
+          : `<a href="${escQ(url)}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(url)}</a>`;
+      } else {
+        displayVal = `<span style="font-size:14px;font-weight:500;">${esc(String(val))}</span>`;
+      }
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${esc(c.label)}</div>
-          <div style="font-size:14px;font-weight:500;margin-top:2px;">${displayVal}</div>
+          <button style="background:none;border:none;cursor:pointer;color:var(--text2);padding:4px;flex-shrink:0;" onclick="eliteEditarCampoExtra('${escQ(d.id)}','${escQ(c.id)}')">
+            <i class="ti ti-pencil" style="font-size:15px;"></i>
+          </button>
         </div>
-        <button style="background:none;border:none;cursor:pointer;color:var(--text2);padding:6px;" onclick="eliteEditarCampoExtra('${escQ(d.id)}','${escQ(c.id)}')">
-          <i class="ti ti-pencil" style="font-size:16px;"></i>
-        </button>
+        <div style="margin-top:4px;">${displayVal}</div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:18px;">
@@ -7000,11 +7019,28 @@ function eliteEditarCampoExtra(id, campoId){
   const val = vals[campoId]!==undefined ? vals[campoId] : '';
   let inputHTML = '';
   if(c.tipo==='textarea'){
-    inputHTML = `<textarea id="pf_cval" style="width:100%;min-height:80px;resize:vertical;" placeholder="Escribí aquí...">${esc(val)}</textarea>`;
+    inputHTML = `<textarea id="pf_cval" style="width:100%;min-height:100px;resize:vertical;" placeholder="Escribí aquí...">${esc(val)}</textarea>`;
   } else if(c.tipo==='numero'){
     inputHTML = `<input type="number" id="pf_cval" value="${escQ(String(val))}" style="width:100%;">`;
   } else if(c.tipo==='fecha'){
     inputHTML = `<input type="date" id="pf_cval" value="${escQ(String(val))}" style="width:100%;">`;
+  } else if(c.tipo==='link'||c.tipo==='video'){
+    inputHTML = `<input type="url" id="pf_cval" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">
+    ${val?`<div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:10px;word-break:break-all;font-size:12px;color:var(--primary);">
+      <a href="${escQ(String(val))}" target="_blank" style="color:var(--primary);">${esc(String(val))}</a>
+    </div>`:''}`;
+  } else if(c.tipo==='foto'){
+    inputHTML = `
+    <div style="margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Pegá un link de imagen (URL) o subí desde tu dispositivo</label>
+      <input type="url" id="pf_cval" value="${escQ(String(val))}" style="width:100%;" placeholder="https://... o subí una foto abajo" oninput="_pfFotoPreview()">
+    </div>
+    <div style="margin-bottom:10px;">
+      <input type="file" id="pf_foto_file" accept="image/*" style="width:100%;" onchange="_pfFotoFileChange()">
+    </div>
+    ${val?`<div id="pf_foto_preview" style="margin-top:10px;text-align:center;">
+      <img src="${escQ(String(val))}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;" onerror="this.style.display='none'">
+    </div>`:`<div id="pf_foto_preview"></div>`}`;
   } else {
     inputHTML = `<input type="text" id="pf_cval" value="${escQ(String(val))}" style="width:100%;" placeholder="Escribí aquí...">`;
   }
@@ -7031,6 +7067,30 @@ function guardarValorCampoExtra(id, campoId){
   closeModal();
   renderElitePanel();
   showToast('Guardado','ok');
+}
+
+function _pfFotoPreview(){
+  const inp = $('#pf_cval');
+  const prev = $('#pf_foto_preview');
+  if(!inp||!prev) return;
+  const url = inp.value.trim();
+  prev.innerHTML = url ? `<img src="${escQ(url)}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;" onerror="this.style.display='none'">` : '';
+}
+
+function _pfFotoFileChange(){
+  const fileInp = $('#pf_foto_file');
+  if(!fileInp||!fileInp.files||!fileInp.files[0]) return;
+  const file = fileInp.files[0];
+  if(file.size > 3*1024*1024){ showToast('La imagen no puede superar 3 MB','warn'); fileInp.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    const inp = $('#pf_cval');
+    if(inp) inp.value = b64;
+    const prev = $('#pf_foto_preview');
+    if(prev) prev.innerHTML = `<img src="${b64}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;">`;
+  };
+  reader.readAsDataURL(file);
 }
 
 /* --- Owner: modal perfil completo --- */
@@ -7133,35 +7193,37 @@ function guardarPerfilOwner(id){
   showToast('Perfil guardado','ok');
 }
 
+const CAMPO_TIPOS = [
+  {v:'texto',    icon:'ti-text-size',     label:'Texto'},
+  {v:'numero',   icon:'ti-number',        label:'Número'},
+  {v:'fecha',    icon:'ti-calendar',      label:'Fecha'},
+  {v:'textarea', icon:'ti-notes',         label:'Nota larga'},
+  {v:'foto',     icon:'ti-photo',         label:'Foto'},
+  {v:'link',     icon:'ti-link',          label:'Link / URL'},
+  {v:'video',    icon:'ti-brand-youtube', label:'Video'},
+];
+
 function openAgregarCampoExtraModal(id){
-  const SECCIONES_PREDEFINIDAS = ['Datos antropométricos','Lesiones','Observaciones'];
-  const opcionesSec = SECCIONES_PREDEFINIDAS.map(s=>`<option value="${escQ(s)}">${esc(s)}</option>`).join('');
+  const tiposHTML = CAMPO_TIPOS.map(t=>`
+    <button type="button" onclick="_selCeTipo('${t.v}')" id="ceTipo_${t.v}"
+      style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;-webkit-tap-highlight-color:transparent;flex:1;min-width:68px;">
+      <i class="ti ${t.icon}" style="font-size:20px;color:var(--text2);"></i>
+      <span style="font-size:10px;font-weight:600;color:var(--text2);">${t.label}</span>
+    </button>`).join('');
   openModal(`
     <div class="modal-head">
       <h3 style="font-size:15px;"><i class="ti ti-plus"></i> Agregar campo</h3>
       <button onclick="closeModal()">✕</button>
     </div>
     <div style="padding:0 16px 20px;overflow-y:auto;max-height:80vh;">
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Sección</label>
-        <select id="ce_seccion" style="width:100%;" onchange="_ceSeccionChange(this)">
-          ${opcionesSec}
-          <option value="__custom__">Otra (escribir...)</option>
-        </select>
-        <input type="text" id="ce_seccionCustom" placeholder="Nombre de la sección" style="width:100%;margin-top:6px;display:none;">
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Nombre del campo</label>
-        <input type="text" id="ce_label" style="width:100%;" placeholder="Ej: Peso corporal, Altura, etc.">
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;">Sección</label>
+        <input type="text" id="ce_seccion" style="width:100%;" placeholder="Ej: Datos antropométricos, Lesiones...">
       </div>
       <div style="margin-bottom:16px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Tipo</label>
-        <select id="ce_tipo" style="width:100%;">
-          <option value="texto">Texto</option>
-          <option value="numero">Número</option>
-          <option value="fecha">Fecha</option>
-          <option value="textarea">Nota larga</option>
-        </select>
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px;">Tipo de campo</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="ceTipoOpts">${tiposHTML}</div>
+        <input type="hidden" id="ce_tipo" value="">
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="guardarCampoExtra('${escQ(id)}')">
         <i class="ti ti-check"></i> Agregar
@@ -7169,19 +7231,27 @@ function openAgregarCampoExtraModal(id){
     </div>`);
 }
 
-function _ceSeccionChange(sel){
-  const custom = $('#ce_seccionCustom');
-  if(custom) custom.style.display = sel.value==='__custom__' ? '' : 'none';
+function _selCeTipo(v){
+  document.querySelectorAll('#ceTipoOpts button').forEach(b=>{
+    const sel = b.id==='ceTipo_'+v;
+    b.style.background = sel ? 'var(--primary-light)' : 'var(--bg2)';
+    b.style.borderColor = sel ? 'var(--primary)' : 'var(--border2)';
+    b.querySelector('i').style.color = sel ? 'var(--primary)' : 'var(--text2)';
+    b.querySelector('span').style.color = sel ? 'var(--primary)' : 'var(--text2)';
+  });
+  const inp = document.getElementById('ce_tipo');
+  if(inp) inp.value = v;
 }
 
 function guardarCampoExtra(id){
   const d = eliteById(id);
   if(!d) return;
-  const secSel = ($('#ce_seccion')||{}).value||'';
-  const seccion = secSel==='__custom__' ? (($('#ce_seccionCustom')||{}).value?.trim()||'Otros') : secSel;
-  const label = ($('#ce_label')||{}).value?.trim();
-  const tipo = ($('#ce_tipo')||{}).value||'texto';
-  if(!label){ showToast('Escribí un nombre para el campo','warn'); return; }
+  const seccion = ($('#ce_seccion')||{}).value?.trim();
+  const tipo = ($('#ce_tipo')||{}).value?.trim();
+  if(!seccion){ showToast('Escribí el nombre de la sección','warn'); return; }
+  if(!tipo){ showToast('Seleccioná el tipo de campo','warn'); return; }
+  const tipoInfo = CAMPO_TIPOS.find(t=>t.v===tipo);
+  const label = tipoInfo ? tipoInfo.label : tipo;
   if(!Array.isArray(d.camposExtra)) d.camposExtra=[];
   const campoId = 'ce_'+Date.now();
   d.camposExtra.push({id:campoId, seccion, label, tipo});
