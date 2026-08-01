@@ -6890,27 +6890,29 @@ function elitePagePerfil(d){
         displayVal = '<span style="color:var(--text2);">—</span>';
       } else if(c.tipo==='foto'){
         displayVal = hasVal
-          ? `<img data-pfimg="${escQ(c.id)}" onclick="_verFotoFull('${escQ(c.id)}')" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;cursor:zoom-in;">`
+          ? `<button onclick="_verFotoFull('${escQ(c.id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button>`
           : `<span style="color:var(--text2);">—</span>`;
       } else if(c.tipo==='link'){
-        displayVal = `<a href="${escQ(String(val))}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(String(val))}</a>`;
+        displayVal = hasVal
+          ? `<a href="${escQ(String(val))}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;text-decoration:none;"><i class="ti ti-link" style="font-size:14px;"></i> Abrir link</a>`
+          : `<span style="color:var(--text2);">—</span>`;
       } else if(c.tipo==='video'){
         const url = String(val);
         const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
-        displayVal = ytMatch
-          ? `<div style="margin-top:8px;border-radius:10px;overflow:hidden;"><iframe width="100%" height="180" src="https://www.youtube.com/embed/${ytMatch[1]}" frameborder="0" allowfullscreen style="display:block;"></iframe></div>`
-          : `<a href="${escQ(url)}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(url)}</a>`;
+        displayVal = hasVal
+          ? `<button onclick="_verVideoModal('${escQ(c.id)}','${escQ(url)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;"><i class="ti ti-brand-youtube" style="font-size:14px;"></i> Ver video</button>`
+          : `<span style="color:var(--text2);">—</span>`;
       } else {
-        displayVal = `<span style="font-size:14px;font-weight:500;">${esc(String(val))}</span>`;
+        displayVal = hasVal ? `<span style="font-size:14px;font-weight:500;">${esc(String(val))}</span>` : `<span style="color:var(--text2);">—</span>`;
       }
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${esc(c.label)}</div>
+          <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${esc(c.seccion||'')} · ${esc(c.label)}</div>
           <button style="background:none;border:none;cursor:pointer;color:var(--text2);padding:4px;flex-shrink:0;" onclick="eliteEditarCampoExtra('${escQ(d.id)}','${escQ(c.id)}')">
             <i class="ti ti-pencil" style="font-size:15px;"></i>
           </button>
         </div>
-        <div style="margin-top:4px;">${displayVal}</div>
+        <div style="margin-top:6px;">${displayVal}</div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:18px;">
@@ -7079,6 +7081,25 @@ function _verFotoFull(campoId){
   img.src = src;
   img.style.cssText = 'max-width:95vw;max-height:92vh;border-radius:12px;object-fit:contain;box-shadow:0 4px 40px rgba(0,0,0,.6);';
   ov.appendChild(img);
+  document.body.appendChild(ov);
+}
+
+function _verVideoModal(campoId, url){
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out;';
+  ov.onclick = ()=>ov.remove();
+  if(ytMatch){
+    ov.innerHTML = `<div style="width:100%;max-width:540px;border-radius:14px;overflow:hidden;cursor:default;" onclick="event.stopPropagation()">
+      <iframe width="100%" height="300" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1" frameborder="0" allow="autoplay;fullscreen" allowfullscreen style="display:block;"></iframe>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="display:block;width:100%;padding:10px;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:13px;cursor:pointer;">Cerrar</button>
+    </div>`;
+  } else {
+    // link genérico — abrir en nueva pestaña
+    ov.remove();
+    window.open(url, '_blank');
+    return;
+  }
   document.body.appendChild(ov);
 }
 
