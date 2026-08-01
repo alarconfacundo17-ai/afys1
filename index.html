@@ -7065,16 +7065,25 @@ function guardarValorCampoExtra(id, campoId){
   if(!d) return;
   if(!d.perfilValores) d.perfilValores={};
   d.perfilValores[campoId] = ($('#pf_cval')||{}).value?.trim()||'';
+  if(d.perfilValores[campoId] && Array.isArray(d.perfilValoresRemoved))
+    d.perfilValoresRemoved = d.perfilValoresRemoved.filter(k=>k!==campoId);
   persist();
   closeModal();
   renderElitePanel();
   showToast('Guardado','ok');
 }
 
+function _eliminarPerfilValor(d, campoId){
+  if(!d) return;
+  if(d.perfilValores) delete d.perfilValores[campoId];
+  if(!Array.isArray(d.perfilValoresRemoved)) d.perfilValoresRemoved=[];
+  if(!d.perfilValoresRemoved.includes(campoId)) d.perfilValoresRemoved.push(campoId);
+}
+
 function eliminarValorCampoExtra(id, campoId){
   const d = eliteById(id);
   if(!d) return;
-  if(d.perfilValores) delete d.perfilValores[campoId];
+  _eliminarPerfilValor(d, campoId);
   persist();
   closeModal();
   renderElitePanel();
@@ -7084,7 +7093,7 @@ function eliminarValorCampoExtra(id, campoId){
 function eliminarFotoOwner(atlId, campoId){
   const d = eliteById(atlId);
   if(!d) return;
-  if(d.perfilValores) delete d.perfilValores[campoId];
+  _eliminarPerfilValor(d, campoId);
   persist();
   openElitePerfilOwnerModal(atlId);
   showToast('Foto eliminada','ok');
@@ -7310,7 +7319,12 @@ function guardarPerfilOwner(id){
   if(!d.perfilValores) d.perfilValores={};
   campos.forEach(c=>{
     const el = document.getElementById('ope_'+c.id);
-    if(el) d.perfilValores[c.id] = el.value?.trim()||'';
+    if(el){
+      const v = el.value?.trim()||'';
+      d.perfilValores[c.id] = v;
+      if(v && Array.isArray(d.perfilValoresRemoved))
+        d.perfilValoresRemoved = d.perfilValoresRemoved.filter(k=>k!==c.id);
+    }
   });
   persist();
   closeModal();
@@ -8380,10 +8394,16 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
         if(!ld.perfilDatos) ld.perfilDatos={};
         Object.keys(rd.perfilDatos).forEach(k=>{ if(!ld.perfilDatos[k]) ld.perfilDatos[k]=rd.perfilDatos[k]; });
       }
-      // merge perfilValores (objeto: remoto gana si local no tiene la clave)
+      // merge perfilValores (objeto: remoto gana si local no tiene la clave, tombstone previene restaurar eliminados)
       if(rd.perfilValores&&typeof rd.perfilValores==='object'){
         if(!ld.perfilValores) ld.perfilValores={};
-        Object.keys(rd.perfilValores).forEach(k=>{ if(!ld.perfilValores[k]) ld.perfilValores[k]=rd.perfilValores[k]; });
+        const pvRemoved = new Set(ld.perfilValoresRemoved||[]);
+        Object.keys(rd.perfilValores).forEach(k=>{ if(!ld.perfilValores[k]&&!pvRemoved.has(k)) ld.perfilValores[k]=rd.perfilValores[k]; });
+      }
+      if(Array.isArray(rd.perfilValoresRemoved)&&rd.perfilValoresRemoved.length){
+        if(!Array.isArray(ld.perfilValoresRemoved)) ld.perfilValoresRemoved=[];
+        const lk=new Set(ld.perfilValoresRemoved);
+        rd.perfilValoresRemoved.forEach(k=>{ if(!lk.has(k)){ ld.perfilValoresRemoved.push(k); lk.add(k); } });
       }
       // campos simples: tomar remoto si el local no tiene
       ['n','dni','disciplina','tel','email','ob'].forEach(k=>{ if(rd[k]&&!ld[k]) ld[k]=rd[k]; });
