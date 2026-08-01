@@ -7046,7 +7046,8 @@ function eliteEditarCampoExtra(id, campoId){
     <div style="padding:0 16px 20px;">
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${esc(c.seccion||'')}</div>
       ${inputHTML}
-      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;" onclick="guardarValorCampoExtra('${escQ(id)}','${escQ(campoId)}')">
+      ${c.tipo==='foto'&&val?`<button type="button" onclick="eliminarValorCampoExtra('${escQ(id)}','${escQ(campoId)}')" style="width:100%;padding:10px;background:none;border:1.5px solid var(--red);border-radius:12px;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="ti ti-trash"></i> Eliminar foto</button>`:''}
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" onclick="guardarValorCampoExtra('${escQ(id)}','${escQ(campoId)}')">
         <i class="ti ti-check"></i> Guardar
       </button>
     </div>`);
@@ -7068,6 +7069,25 @@ function guardarValorCampoExtra(id, campoId){
   closeModal();
   renderElitePanel();
   showToast('Guardado','ok');
+}
+
+function eliminarValorCampoExtra(id, campoId){
+  const d = eliteById(id);
+  if(!d) return;
+  if(d.perfilValores) delete d.perfilValores[campoId];
+  persist();
+  closeModal();
+  renderElitePanel();
+  showToast('Foto eliminada','ok');
+}
+
+function eliminarFotoOwner(atlId, campoId){
+  const d = eliteById(atlId);
+  if(!d) return;
+  if(d.perfilValores) delete d.perfilValores[campoId];
+  persist();
+  openElitePerfilOwnerModal(atlId);
+  showToast('Foto eliminada','ok');
 }
 
 function _verFotoFull(campoId){
@@ -7173,7 +7193,7 @@ function openElitePerfilOwnerModal(id){
       } else if(c.tipo==='fecha'){
         inputEl = `<input type="date" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
       } else if(c.tipo==='foto'){
-        inputEl = `<div><div style="display:flex;align-items:center;gap:8px;">${val?`<button type="button" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button>`:`<span style="font-size:12px;color:var(--text2);">Sin foto</span>`}<button type="button" onclick="_opeFotoToggle('${escQ(c.id)}')" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:18px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Cambiar foto"><i class="ti ti-plus" style="font-size:15px;"></i></button></div><div id="opeFotoForm_${escQ(c.id)}" style="display:none;margin-top:10px;padding:12px;background:var(--bg2);border-radius:12px;"><input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:6px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div></div>`;
+        inputEl = `<div><div style="display:flex;align-items:center;gap:8px;">${val?`<button type="button" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button>`:`<span style="font-size:12px;color:var(--text2);">Sin foto</span>`}<button type="button" onclick="_opeFotoToggle('${escQ(c.id)}')" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:18px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Cambiar foto"><i class="ti ti-plus" style="font-size:15px;"></i></button>${val?`<button type="button" onclick="eliminarFotoOwner('${escQ(id)}','${escQ(c.id)}')" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--red);background:transparent;color:var(--red);cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Eliminar foto"><i class="ti ti-trash" style="font-size:15px;"></i></button>`:''}</div><div id="opeFotoForm_${escQ(c.id)}" style="display:none;margin-top:10px;padding:12px;background:var(--bg2);border-radius:12px;"><input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:6px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div></div>`;
       } else if(c.tipo==='link'||c.tipo==='video'){
         inputEl = `<input type="url" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">`;
       } else {
