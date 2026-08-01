@@ -6895,9 +6895,8 @@ function elitePagePerfil(d){
       if(!hasVal){
         displayVal = '<span style="color:var(--text2);">—</span>';
       } else if(c.tipo==='foto'){
-        const src = String(val);
-        displayVal = src.startsWith('http')||src.startsWith('data:')
-          ? `<img src="${escQ(src)}" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;" onerror="this.style.display='none'">`
+        displayVal = hasVal
+          ? `<img data-pfimg="${escQ(c.id)}" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;">`
           : `<span style="color:var(--text2);">—</span>`;
       } else if(c.tipo==='link'){
         displayVal = `<a href="${escQ(String(val))}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(String(val))}</a>`;
@@ -7033,14 +7032,12 @@ function eliteEditarCampoExtra(id, campoId){
     inputHTML = `
     <div style="margin-bottom:10px;">
       <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Pegá un link de imagen (URL) o subí desde tu dispositivo</label>
-      <input type="url" id="pf_cval" value="${escQ(String(val))}" style="width:100%;" placeholder="https://... o subí una foto abajo" oninput="_pfFotoPreview()">
+      <input type="url" id="pf_cval" style="width:100%;" placeholder="https://... o subí una foto abajo" oninput="_pfFotoPreview()">
     </div>
     <div style="margin-bottom:10px;">
       <input type="file" id="pf_foto_file" accept="image/*" style="width:100%;" onchange="_pfFotoFileChange()">
     </div>
-    ${val?`<div id="pf_foto_preview" style="margin-top:10px;text-align:center;">
-      <img src="${escQ(String(val))}" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;" onerror="this.style.display='none'">
-    </div>`:`<div id="pf_foto_preview"></div>`}`;
+    <div id="pf_foto_preview" style="margin-top:10px;text-align:center;">${val?`<img id="pf_foto_preview_img" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;">`:''}</div>`;
   } else {
     inputHTML = `<input type="text" id="pf_cval" value="${escQ(String(val))}" style="width:100%;" placeholder="Escribí aquí...">`;
   }
@@ -7056,6 +7053,13 @@ function eliteEditarCampoExtra(id, campoId){
         <i class="ti ti-check"></i> Guardar
       </button>
     </div>`);
+  // Para fotos: asignar src y valor del input sin pasar por template
+  if(c.tipo==='foto' && val){
+    const inp = document.getElementById('pf_cval');
+    if(inp) inp.value = val;
+    const img = document.getElementById('pf_foto_preview_img');
+    if(img) img.src = val;
+  }
 }
 
 function guardarValorCampoExtra(id, campoId){
@@ -7114,6 +7118,10 @@ function openElitePerfilOwnerModal(id){
         inputEl = `<input type="number" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
       } else if(c.tipo==='fecha'){
         inputEl = `<input type="date" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
+      } else if(c.tipo==='foto'){
+        inputEl = `<div>${val?`<img data-pfimg-owner="${escQ(c.id)}" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;display:block;margin-bottom:6px;">`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
+      } else if(c.tipo==='link'||c.tipo==='video'){
+        inputEl = `<input type="url" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">`;
       } else {
         inputEl = `<input type="text" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="—">`;
       }
@@ -7172,6 +7180,24 @@ function openElitePerfilOwnerModal(id){
         <i class="ti ti-plus"></i> Agregar campo
       </button>
     </div>`);
+  // Asignar src de fotos sin pasar base64 por template
+  const pv = d.perfilValores||{};
+  document.querySelectorAll('img[data-pfimg-owner]').forEach(img=>{ const src=pv[img.dataset.pfimgOwner]; if(src) img.src=src; });
+}
+
+function _opeFileChange(input, campoId){
+  if(!input.files||!input.files[0]) return;
+  const file = input.files[0];
+  if(file.size > 3*1024*1024){ showToast('La imagen no puede superar 3 MB','warn'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    const urlInp = document.getElementById('ope_'+campoId);
+    if(urlInp) urlInp.value = b64;
+    const img = document.querySelector(`img[data-pfimg-owner="${campoId}"]`);
+    if(img){ img.src = b64; img.style.display='block'; }
+  };
+  reader.readAsDataURL(file);
 }
 
 function guardarPerfilOwner(id){
@@ -7289,6 +7315,8 @@ function renderElitePanel(){
     c.innerHTML = html;
     c.style.opacity = '';
     c.style.transform = '';
+    // Asignar src de fotos del perfil (evita corrupción de base64 en template literals)
+    if(elitePage==='perfil'){ const pv=d.perfilValores||{}; c.querySelectorAll('img[data-pfimg]').forEach(img=>{ const src=pv[img.dataset.pfimg]; if(src) img.src=src; }); }
     // nav activo
     $all('.elite-nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===elitePage));
   };
