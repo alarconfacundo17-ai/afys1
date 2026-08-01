@@ -6902,15 +6902,15 @@ function elitePageInicio(d){
         const hechos = ejs.filter(e=>rhR[e.n]===ds).length;
         const completo = ejs.length>0&&hechos===ejs.length;
         const parcial  = hechos>0&&!completo;
-        return `<div onclick="eliteAbrirRutina('${escQ(rname)}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${completo?'rgba(5,150,105,.07)':parcial?'var(--primary-light)':'var(--bg2)'};border:1.5px solid ${completo?'rgba(5,150,105,.3)':parcial?'var(--primary)':'var(--border2)'};border-radius:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
-          <i class="ti ti-barbell" style="font-size:16px;color:${completo?'var(--green)':parcial?'var(--primary)':'var(--text2)'};flex-shrink:0;"></i>
+        return `<div ${esHoy?`onclick="eliteAbrirRutina('${escQ(rname)}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${completo?'rgba(5,150,105,.07)':parcial?'var(--primary-light)':'var(--bg2)'};border:1.5px solid ${completo?'rgba(5,150,105,.3)':parcial?'var(--primary)':'var(--border2)'};border-radius:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;"`:`style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:11px;"`}>
+          <i class="ti ti-barbell" style="font-size:16px;color:${esHoy?(completo?'var(--green)':parcial?'var(--primary)':'var(--text2)'):'var(--text2)'};flex-shrink:0;"></i>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-            ${ejs.length?`<div style="font-size:11px;color:var(--text2);">${hechos}/${ejs.length} ejercicios</div>`:''}
+            ${ejs.length?`<div style="font-size:11px;color:var(--text2);">${ejs.length} ejercicios</div>`:''}
           </div>
-          ${completo
+          ${esHoy?(completo
             ? `<i class="ti ti-circle-check-filled" style="font-size:18px;color:var(--green);flex-shrink:0;"></i>`
-            : `<i class="ti ti-chevron-right" style="font-size:16px;color:var(--text2);flex-shrink:0;"></i>`}
+            : `<i class="ti ti-chevron-right" style="font-size:16px;color:var(--text2);flex-shrink:0;"></i>`):''}
         </div>`;
       }).join('');
       proximaSesionHTML = `<div class="card" style="padding:16px;border-radius:16px;margin-bottom:14px;">
