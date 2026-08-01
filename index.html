@@ -7118,6 +7118,15 @@ function _verFotoFullOwner(campoId, atlId){
   document.body.appendChild(ov);
 }
 
+function _opeFotoToggle(campoId){
+  const form = document.getElementById('opeFotoForm_'+campoId);
+  if(!form) return;
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  const btn = form.previousElementSibling && form.previousElementSibling.querySelector('button[onclick*="_opeFotoToggle"]');
+  if(btn){ const icon = btn.querySelector('i'); if(icon) icon.className = open ? 'ti ti-x' : 'ti ti-plus'; }
+}
+
 function _pfFotoPreview(){
   const inp = $('#pf_cval');
   const prev = $('#pf_foto_preview');
@@ -7164,7 +7173,7 @@ function openElitePerfilOwnerModal(id){
       } else if(c.tipo==='fecha'){
         inputEl = `<input type="date" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
       } else if(c.tipo==='foto'){
-        inputEl = `<div>${val?`<button type="button" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:8px;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button><br>`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
+        inputEl = `<div><div style="display:flex;align-items:center;gap:8px;">${val?`<button type="button" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button>`:`<span style="font-size:12px;color:var(--text2);">Sin foto</span>`}<button type="button" onclick="_opeFotoToggle('${escQ(c.id)}')" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:18px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0;" title="Cambiar foto"><i class="ti ti-plus" style="font-size:15px;"></i></button></div><div id="opeFotoForm_${escQ(c.id)}" style="display:none;margin-top:10px;padding:12px;background:var(--bg2);border-radius:12px;"><input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:6px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div></div>`;
       } else if(c.tipo==='link'||c.tipo==='video'){
         inputEl = `<input type="url" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">`;
       } else {
