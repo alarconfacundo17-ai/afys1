@@ -5621,17 +5621,11 @@ function _eliteDeportistaModalHTML(id){
       ${competencias.length ? compRows : `<p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin competencias.</p>`}
       <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openAgregarCompetenciaModal('${id}')"><i class="ti ti-plus"></i> Agregar</button>
 
-      <!-- Ficha / Perfil -->
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Ficha / Perfil</div>
-      <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="openElitePerfilOwnerModal('${id}')">
-        <i class="ti ti-user-circle"></i> Ver y editar perfil
-      </button>
-
       <!-- Acciones -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border2);">
         <button class="btn btn-outline btn-sm" onclick="copiarEliteLink('${id}')"><i class="ti ti-copy"></i> Copiar link</button>
         <div style="flex:1;"></div>
-        <button class="btn btn-outline btn-sm" onclick="openEliteNuevoModal('${id}')"><i class="ti ti-edit"></i> Editar</button>
+        <button class="btn btn-outline btn-sm" onclick="openElitePerfilOwnerModal('${id}')"><i class="ti ti-edit"></i> Editar ficha</button>
         <button class="btn btn-outline btn-sm" style="color:${d.activo!==false?'var(--red)':'var(--green)'};" onclick="toggleActivoElite('${id}')">${d.activo!==false?'<i class="ti ti-user-off"></i> Dar de baja':'<i class="ti ti-user-check"></i> Reactivar'}</button>
       </div>
     </div>`;
@@ -6896,7 +6890,7 @@ function elitePagePerfil(d){
         displayVal = '<span style="color:var(--text2);">—</span>';
       } else if(c.tipo==='foto'){
         displayVal = hasVal
-          ? `<img data-pfimg="${escQ(c.id)}" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;">`
+          ? `<img data-pfimg="${escQ(c.id)}" onclick="_verFotoFull('${escQ(c.id)}')" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:cover;margin-top:6px;cursor:zoom-in;">`
           : `<span style="color:var(--text2);">—</span>`;
       } else if(c.tipo==='link'){
         displayVal = `<a href="${escQ(String(val))}" target="_blank" style="color:var(--primary);font-size:13px;word-break:break-all;">${esc(String(val))}</a>`;
@@ -7073,6 +7067,35 @@ function guardarValorCampoExtra(id, campoId){
   showToast('Guardado','ok');
 }
 
+function _verFotoFull(campoId){
+  const d = eliteById(currentEliteId);
+  const src = (d&&d.perfilValores) ? d.perfilValores[campoId] : null;
+  if(!src) return;
+  // Overlay fullscreen
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  ov.onclick = ()=>ov.remove();
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95vw;max-height:92vh;border-radius:12px;object-fit:contain;box-shadow:0 4px 40px rgba(0,0,0,.6);';
+  ov.appendChild(img);
+  document.body.appendChild(ov);
+}
+
+function _verFotoFullOwner(campoId, atlId){
+  const d = eliteById(atlId);
+  const src = (d&&d.perfilValores) ? d.perfilValores[campoId] : null;
+  if(!src) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  ov.onclick = ()=>ov.remove();
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95vw;max-height:92vh;border-radius:12px;object-fit:contain;box-shadow:0 4px 40px rgba(0,0,0,.6);';
+  ov.appendChild(img);
+  document.body.appendChild(ov);
+}
+
 function _pfFotoPreview(){
   const inp = $('#pf_cval');
   const prev = $('#pf_foto_preview');
@@ -7119,7 +7142,7 @@ function openElitePerfilOwnerModal(id){
       } else if(c.tipo==='fecha'){
         inputEl = `<input type="date" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
       } else if(c.tipo==='foto'){
-        inputEl = `<div>${val?`<img data-pfimg-owner="${escQ(c.id)}" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;display:block;margin-bottom:6px;">`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
+        inputEl = `<div>${val?`<img data-pfimg-owner="${escQ(c.id)}" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;display:block;margin-bottom:6px;cursor:zoom-in;">`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
       } else if(c.tipo==='link'||c.tipo==='video'){
         inputEl = `<input type="url" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">`;
       } else {
@@ -7145,42 +7168,59 @@ function openElitePerfilOwnerModal(id){
     <div class="modal-head">
       <div style="display:flex;align-items:center;gap:10px;">
         ${eliteAvatarSVG(d.n,32)}
-        <div style="font-size:15px;font-weight:800;">Perfil — ${esc(d.n)}</div>
+        <div>
+          <div style="font-size:15px;font-weight:800;">${esc(d.n)}</div>
+          <div style="font-size:11px;color:var(--text2);">${esc(d.disciplina||'—')}</div>
+        </div>
       </div>
       <button onclick="closeModal()">✕</button>
     </div>
     <div style="padding:0 16px 20px;overflow-y:auto;max-height:78vh;-webkit-overflow-scrolling:touch;">
-      <!-- Datos básicos -->
-      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px;">Datos personales</div>
-      <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;">
-        <span style="color:var(--text2);">DNI:</span> <strong>${esc(d.dni||'—')}</strong>
-        &nbsp;·&nbsp; <span style="color:var(--text2);">Disciplina:</span> <strong>${esc(d.disciplina||'—')}</strong>
+
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;">Datos del deportista</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Nombre completo</label>
+          <input id="ope_nombre" value="${escQ(d.n||'')}" style="width:100%;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">DNI</label>
+          <input id="ope_dni" type="number" value="${escQ(d.dni||'')}" style="width:100%;">
+        </div>
       </div>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Fecha de nacimiento</label>
-        <input type="date" id="ope_fechaNac" value="${escQ(pd.fechaNac||'')}" style="width:100%;">
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Disciplina</label>
+        <input id="ope_disciplina" value="${escQ(d.disciplina||'')}" placeholder="Ej: Atletismo, Ciclismo..." style="width:100%;">
       </div>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Teléfono</label>
-        <input type="tel" id="ope_tel" value="${escQ(pd.tel||'')}" style="width:100%;" placeholder="+54 9 11 1234-5678">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Fecha de nac.</label>
+          <input type="date" id="ope_fechaNac" value="${escQ(pd.fechaNac||'')}" style="width:100%;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Teléfono</label>
+          <input type="tel" id="ope_tel" value="${escQ(pd.tel||d.tel||'')}" style="width:100%;" placeholder="+54 9 11...">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Email</label>
+        <input type="email" id="ope_email" value="${escQ(pd.email||d.email||'')}" style="width:100%;" placeholder="email@ejemplo.com">
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Email</label>
-        <input type="email" id="ope_email" value="${escQ(pd.email||'')}" style="width:100%;" placeholder="email@ejemplo.com">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Observaciones</label>
+        <textarea id="ope_ob" style="width:100%;min-height:60px;resize:vertical;" placeholder="Notas, objetivos...">${esc(d.ob||'')}</textarea>
       </div>
 
       <!-- Campos custom -->
-      ${campos.length ? `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">Campos personalizados</div>${camposHTML}` : ''}
+      ${campos.length ? `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 10px;padding-top:12px;border-top:1px solid var(--border2);">Campos personalizados</div>${camposHTML}` : ''}
 
-      <!-- Guardar datos básicos + valores -->
-      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="guardarPerfilOwner('${escQ(id)}')">
-        <i class="ti ti-check"></i> Guardar datos
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="guardarPerfilOwner('${escQ(id)}')">
+        <i class="ti ti-check"></i> Guardar
       </button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="openAgregarCampoExtraModal('${escQ(id)}')">
         <i class="ti ti-plus"></i> Agregar campo
       </button>
     </div>`);
-  // Asignar src de fotos sin pasar base64 por template
   const pv = d.perfilValores||{};
   document.querySelectorAll('img[data-pfimg-owner]').forEach(img=>{ const src=pv[img.dataset.pfimgOwner]; if(src) img.src=src; });
 }
@@ -7203,6 +7243,14 @@ function _opeFileChange(input, campoId){
 function guardarPerfilOwner(id){
   const d = eliteById(id);
   if(!d) return;
+  const nombre = ($('#ope_nombre')||{}).value?.trim();
+  const dni = ($('#ope_dni')||{}).value?.trim();
+  if(!nombre||!dni){ showToast('Nombre y DNI son obligatorios','warn'); return; }
+  const existe = eliteByDni(dni);
+  if(existe && existe.id !== id){ showToast('Ya existe un deportista con ese DNI','warn'); return; }
+  d.n = nombre; d.dni = dni;
+  d.disciplina = ($('#ope_disciplina')||{}).value?.trim()||'';
+  d.ob = ($('#ope_ob')||{}).value?.trim()||'';
   if(!d.perfilDatos) d.perfilDatos={};
   d.perfilDatos.fechaNac = ($('#ope_fechaNac')||{}).value||'';
   d.perfilDatos.tel = ($('#ope_tel')||{}).value?.trim()||'';
@@ -7210,13 +7258,13 @@ function guardarPerfilOwner(id){
   const campos = Array.isArray(d.camposExtra) ? d.camposExtra : [];
   if(!d.perfilValores) d.perfilValores={};
   campos.forEach(c=>{
-    const el = $(`#ope_${c.id}`);
+    const el = document.getElementById('ope_'+c.id);
     if(el) d.perfilValores[c.id] = el.value?.trim()||'';
   });
   persist();
   closeModal();
   refreshEliteDeportistaModal(id);
-  showToast('Perfil guardado','ok');
+  showToast('Ficha guardada','ok');
 }
 
 const CAMPO_TIPOS = [
@@ -7290,11 +7338,12 @@ function guardarCampoExtra(id){
 function eliminarCampoExtra(id, campoId){
   const d = eliteById(id);
   if(!d||!Array.isArray(d.camposExtra)) return;
-  if(!confirm('¿Eliminar este campo? Se perderá su valor.')) return;
+  // tombstone para que el merge no lo restaure
+  if(!Array.isArray(d.camposExtraRemoved)) d.camposExtraRemoved=[];
+  if(!d.camposExtraRemoved.includes(campoId)) d.camposExtraRemoved.push(campoId);
   d.camposExtra = d.camposExtra.filter(c=>c.id!==campoId);
   if(d.perfilValores) delete d.perfilValores[campoId];
   persist();
-  closeModal();
   openElitePerfilOwnerModal(id);
   showToast('Campo eliminado','ok');
 }
@@ -8246,11 +8295,17 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
         const lk=new Set(ld.rs);
         rd.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ld.rs.push(r);lk.add(r);}});
       }
-      // merge camposExtra (additivo por id, no tombstone)
+      // merge camposExtra (additivo por id, con tombstone)
       if(Array.isArray(rd.camposExtra)&&rd.camposExtra.length){
         if(!Array.isArray(ld.camposExtra)) ld.camposExtra=[];
+        const removed=new Set(ld.camposExtraRemoved||[]);
         const lk=new Set(ld.camposExtra.map(c=>c.id));
-        rd.camposExtra.forEach(c=>{ if(c.id&&!lk.has(c.id)){ ld.camposExtra.push(c); lk.add(c.id); } });
+        rd.camposExtra.forEach(c=>{ if(c.id&&!lk.has(c.id)&&!removed.has(c.id)){ ld.camposExtra.push(c); lk.add(c.id); } });
+      }
+      if(Array.isArray(rd.camposExtraRemoved)&&rd.camposExtraRemoved.length){
+        if(!Array.isArray(ld.camposExtraRemoved)) ld.camposExtraRemoved=[];
+        const lk=new Set(ld.camposExtraRemoved);
+        rd.camposExtraRemoved.forEach(k=>{ if(!lk.has(k)){ ld.camposExtraRemoved.push(k); lk.add(k); } });
       }
       // merge perfilDatos (objeto: remoto gana si local no tiene la clave)
       if(rd.perfilDatos&&typeof rd.perfilDatos==='object'){
