@@ -7164,7 +7164,7 @@ function openElitePerfilOwnerModal(id){
       } else if(c.tipo==='fecha'){
         inputEl = `<input type="date" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;">`;
       } else if(c.tipo==='foto'){
-        inputEl = `<div>${val?`<img data-pfimg-owner="${escQ(c.id)}" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="max-width:100%;max-height:140px;border-radius:10px;object-fit:cover;display:block;margin-bottom:6px;cursor:zoom-in;">`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
+        inputEl = `<div>${val?`<button type="button" onclick="_verFotoFullOwner('${escQ(c.id)}','${escQ(id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:8px;-webkit-tap-highlight-color:transparent;"><i class="ti ti-photo" style="font-size:14px;"></i> Ver foto</button><br>`:''}<input type="url" id="ope_${escQ(c.id)}" placeholder="URL de imagen o subí abajo" style="width:100%;margin-bottom:4px;"><input type="file" accept="image/*" onchange="_opeFileChange(this,'${escQ(c.id)}')" style="width:100%;font-size:12px;"></div>`;
       } else if(c.tipo==='link'||c.tipo==='video'){
         inputEl = `<input type="url" id="ope_${escQ(c.id)}" value="${escQ(String(val))}" style="width:100%;" placeholder="https://...">`;
       } else {
