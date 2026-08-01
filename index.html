@@ -6790,33 +6790,66 @@ function toggleActivoElite(id){
   showToast(d.activo ? 'Deportista reactivado' : 'Deportista dado de baja', 'ok');
 }
 
+const COMP_TIPOS = ['Partido','Carrera','Amistoso','Prueba','Torneo','Exhibición','Otro'];
+
+function _compFormHTML(idGuardar, conResultado){
+  return `
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre *</label>
+    <input id="compNombre" placeholder="Ej: Maratón de Buenos Aires" style="width:100%;margin-bottom:10px;">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Tipo de competencia *</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="compTipoOpts">
+      ${COMP_TIPOS.map(t=>`<button type="button" onclick="_selCompTipo('${t}')" id="compTipo_${t}" style="padding:6px 12px;border-radius:20px;border:1.5px solid var(--border2);background:var(--bg2);font-size:12px;font-weight:600;cursor:pointer;">${t}</button>`).join('')}
+    </div>
+    <input id="compTipoVal" type="hidden" value="">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Fecha *</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="compFecha" type="date" style="flex:1;" value="${todayISO()}">
+      <input id="compHora" type="time" style="width:100px;" placeholder="Hora">
+    </div>
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Localidad / Lugar</label>
+    <input id="compLugar" placeholder="Ej: Buenos Aires, Córdoba..." style="width:100%;margin-bottom:${conResultado?'10px':'16px'};">
+    ${conResultado?`<label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Resultado (si ya pasó)</label>
+    <input id="compResultado" placeholder="Ej: 1° puesto, 3:45:00..." style="width:100%;margin-bottom:16px;">`:``}
+    <button class="btn btn-primary" style="width:100%;" onclick="${idGuardar}">Guardar competencia</button>`;
+}
+
+function _selCompTipo(t){
+  document.querySelectorAll('#compTipoOpts button').forEach(b=>{
+    const sel = b.id==='compTipo_'+t;
+    b.style.background = sel ? 'var(--primary)' : 'var(--bg2)';
+    b.style.color = sel ? '#fff' : '';
+    b.style.borderColor = sel ? 'var(--primary)' : 'var(--border2)';
+  });
+  const v = document.getElementById('compTipoVal');
+  if(v) v.value = t;
+}
+
 function openAgregarCompetenciaModal(id){
   openModal(`
     <div class="modal-head">
       <h3 style="font-size:16px;">Agregar competencia</h3>
       <button onclick="closeModal()">✕</button>
     </div>
-    <div style="padding:0 16px 16px;">
-      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre *</label>
-      <input id="compNombre" placeholder="Ej: Maratón de Buenos Aires" style="width:100%;margin-bottom:10px;">
-      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Fecha *</label>
-      <input id="compFecha" type="date" style="width:100%;margin-bottom:10px;" value="${todayISO()}">
-      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Lugar</label>
-      <input id="compLugar" placeholder="Ej: Buenos Aires, Córdoba..." style="width:100%;margin-bottom:10px;">
-      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Resultado (si ya pasó)</label>
-      <input id="compResultado" placeholder="Ej: 1° puesto, 3:45:00..." style="width:100%;margin-bottom:14px;">
-      <button class="btn btn-primary" style="width:100%;" onclick="guardarCompetenciaElite('${id}')">Guardar</button>
+    <div style="padding:0 16px 16px;overflow-y:auto;max-height:80vh;">
+      ${_compFormHTML(`guardarCompetenciaElite('${id}')`, true)}
     </div>`);
 }
 
 function guardarCompetenciaElite(id){
   const n = ($('#compNombre')||{}).value?.trim();
   const f = ($('#compFecha')||{}).value?.trim();
+  const tipo = ($('#compTipoVal')||{}).value?.trim();
   if(!n||!f){ showToast('Nombre y fecha son obligatorios','warn'); return; }
+  if(!tipo){ showToast('Seleccioná el tipo de competencia','warn'); return; }
   const d = eliteById(id);
   if(!d) return;
   if(!Array.isArray(d.competencias)) d.competencias = [];
-  d.competencias.push({n, f, lugar:($('#compLugar')||{}).value?.trim()||'', resultado:($('#compResultado')||{}).value?.trim()||''});
+  d.competencias.push({
+    n, f, tipo,
+    hora: ($('#compHora')||{}).value?.trim()||'',
+    lugar: ($('#compLugar')||{}).value?.trim()||'',
+    resultado: ($('#compResultado')||{}).value?.trim()||''
+  });
   persist();
   refreshEliteDeportistaModal(id);
   showToast('Competencia guardada','ok');
@@ -7198,8 +7231,9 @@ function elitePageCompetencias(d){
       <i class="ti ti-medal" style="font-size:20px;color:#d97706;"></i>
     </div>
     <div style="flex:1;min-width:0;">
+      ${c.tipo?`<div style="font-size:10px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">${esc(c.tipo)}</div>`:''}
       <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.n)}</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:2px;">${fmtF(c.f)}${c.lugar?' · '+esc(c.lugar):''}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px;">${fmtF(c.f)}${c.hora?' · '+esc(c.hora)+' hs':''}${c.lugar?' · '+esc(c.lugar):''}</div>
       ${c.resultado?`<div style="margin-top:6px;"><span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:600;">${esc(c.resultado)}</span></div>`:''}
     </div>
   </div>`;
@@ -7220,29 +7254,34 @@ function elitePageCompetencias(d){
 }
 
 function eliteAgregarCompetenciaModal(){
-  showModal(`<div style="padding:4px 0 8px;">
-    <div style="font-size:16px;font-weight:800;margin-bottom:16px;">Nueva competencia</div>
-    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre *</label>
-    <input id="eliteCompNombre" placeholder="Ej: Maratón de Buenos Aires" style="width:100%;margin-bottom:12px;">
-    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Fecha *</label>
-    <input id="eliteCompFecha" type="date" style="width:100%;margin-bottom:12px;" value="${todayISO()}">
-    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Lugar</label>
-    <input id="eliteCompLugar" placeholder="Ej: Buenos Aires, Córdoba..." style="width:100%;margin-bottom:16px;">
-    <button class="btn btn-primary" style="width:100%;" onclick="eliteGuardarCompetenciaDeportista()">Guardar competencia</button>
-  </div>`);
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:16px;">Nueva competencia</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 16px;overflow-y:auto;max-height:80vh;">
+      ${_compFormHTML('eliteGuardarCompetenciaDeportista()', false)}
+    </div>`);
 }
 
 function eliteGuardarCompetenciaDeportista(){
-  const n = ($('#eliteCompNombre')||{}).value?.trim();
-  const f = ($('#eliteCompFecha')||{}).value?.trim();
+  const n = ($('#compNombre')||{}).value?.trim();
+  const f = ($('#compFecha')||{}).value?.trim();
+  const tipo = ($('#compTipoVal')||{}).value?.trim();
   if(!n||!f){ showToast('Nombre y fecha son obligatorios','warn'); return; }
+  if(!tipo){ showToast('Seleccioná el tipo de competencia','warn'); return; }
   if(f < todayISO()){ showToast('Solo podés agregar competencias futuras','warn'); return; }
   const d = eliteById(currentEliteId);
   if(!d) return;
   if(!Array.isArray(d.competencias)) d.competencias = [];
   const key = f+'|'+n;
   if(d.competencias.some(c=>(c.f+'|'+c.n)===key)){ showToast('Ya existe esa competencia','warn'); return; }
-  d.competencias.push({n, f, lugar:($('#eliteCompLugar')||{}).value?.trim()||'', resultado:''});
+  d.competencias.push({
+    n, f, tipo,
+    hora: ($('#compHora')||{}).value?.trim()||'',
+    lugar: ($('#compLugar')||{}).value?.trim()||'',
+    resultado: ''
+  });
   persist();
   closeModal();
   renderElitePanel();
@@ -7277,18 +7316,42 @@ function eliteVerDiaSemana(ds){
   const d = eliteById(currentEliteId);
   if(!d) return;
   const items = getPlanItems(d, ds);
+  const comp = (d.competencias||[]).find(c=>c.f===ds);
   const dt = new Date(ds+'T12:00:00');
   const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
   const todayStr = todayISO();
 
-  if(!items.length){
+  // Bloque de competencia
+  const compHTML = comp ? `<div style="background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.06));border:1.5px solid rgba(251,191,36,.4);border-radius:14px;padding:16px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:${(comp.hora||comp.lugar||comp.resultado)?'12px':'0'};">
+      <div style="background:rgba(251,191,36,.2);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-medal" style="font-size:22px;color:#d97706;"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">${esc(comp.tipo||'Competencia')}</div>
+        <div style="font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(comp.n)}</div>
+      </div>
+    </div>
+    ${comp.hora||comp.lugar||comp.resultado ? `<div style="display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid rgba(251,191,36,.25);">
+      ${comp.hora?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-clock" style="font-size:15px;color:#d97706;"></i><span>${esc(comp.hora)} hs</span></div>`:''}
+      ${comp.lugar?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-map-pin" style="font-size:15px;color:#d97706;"></i><span>${esc(comp.lugar)}</span></div>`:''}
+      ${comp.resultado?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-trophy" style="font-size:15px;color:#d97706;"></i><span style="font-weight:700;">${esc(comp.resultado)}</span></div>`:''}
+    </div>` : ''}
+  </div>` : '';
+
+  if(!items.length && !comp){
     openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
     <div style="text-align:center;padding:40px 20px;color:var(--text2);">
       <i class="ti ti-calendar-off" style="font-size:36px;display:block;margin-bottom:10px;opacity:.3;"></i>
-      <p style="margin:0;font-size:14px;">Sin rutina asignada para este día.</p>
+      <p style="margin:0;font-size:14px;">Sin actividad asignada para este día.</p>
     </div>`);
+    return;
+  }
+  if(!items.length && comp){
+    openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
+    <div style="padding:16px;">${compHTML}</div>`);
     return;
   }
 
@@ -7324,6 +7387,7 @@ function eliteVerDiaSemana(ds){
 
   openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
   <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
+    ${compHTML}
     ${rows}
     ${ds===todayStr ? '<p style="font-size:12px;color:var(--text2);text-align:center;margin:0;">Tocá una rutina para ver los ejercicios</p>' : ''}
   </div>`);
