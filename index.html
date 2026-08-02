@@ -3902,19 +3902,44 @@ function openEliteRutinasModal(id){
   const rs = Array.isArray(d.rs) ? d.rs : [];
   const rows = rs.length ? rs.map(rname=>{
     const hasOv = d.rsOverride && d.rsOverride[rname];
-    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border2);">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--border2);">
       <div style="flex:1;min-width:0;">
         <div style="font-size:14px;font-weight:600;">${esc(rname)}</div>
         ${hasOv?`<div style="font-size:11px;color:var(--primary);margin-top:2px;"><i class="ti ti-pencil" style="font-size:11px;"></i> Personalizado</div>`:''}
       </div>
-      <button class="btn btn-outline btn-sm" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')"><i class="ti ti-edit"></i> Editar</button>
+      <button class="btn btn-outline btn-sm" style="padding:6px 8px;" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')" title="Editar ejercicios"><i class="ti ti-pencil" style="font-size:15px;"></i></button>
+      <button class="btn btn-outline btn-sm" style="padding:6px 8px;color:var(--red);border-color:var(--red);" onclick="confirmarQuitarRutinaElite('${escQ(id)}','${escQ(rname)}')" title="Quitar rutina"><i class="ti ti-x" style="font-size:15px;"></i></button>
     </div>`;
-  }).join('') : `<p style="font-size:13px;color:var(--text2);margin:8px 0;">Sin rutinas asignadas. Podés asignarle rutinas desde la ficha del deportista.</p>`;
+  }).join('') : `<p style="font-size:13px;color:var(--text2);margin:8px 0;">Sin rutinas asignadas.</p>`;
   openModal(`
     <div class="modal-head"><h3><i class="ti ti-barbell" style="margin-right:6px;"></i>Rutinas — ${esc(d.n)}</h3><button onclick="openEliteDeportistaModal('${escQ(id)}')">✕</button></div>
     <div>${rows}</div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="openEliteDeportistaModal('${escQ(id)}')">Volver</button></div>
   `);
+}
+function confirmarQuitarRutinaElite(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  openModal(`
+    <div class="modal-head"><h3>Quitar rutina</h3><button onclick="openEliteRutinasModal('${escQ(id)}')">✕</button></div>
+    <p style="font-size:14px;margin:8px 0 20px;">¿Deseás quitar la rutina <b>${esc(rname)}</b> asignada a <b>${esc(d.n)}</b>?</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="openEliteRutinasModal('${escQ(id)}')">Cancelar</button>
+      <button class="btn btn-outline" style="color:var(--red);" onclick="quitarRutinaElite('${escQ(id)}','${escQ(rname)}')">Quitar</button>
+    </div>
+  `);
+}
+function quitarRutinaElite(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  d.rs = (d.rs||[]).filter(r=>r!==rname);
+  if(!d.rsRemoved) d.rsRemoved = [];
+  if(!d.rsRemoved.includes(rname)) d.rsRemoved.push(rname);
+  if(d.rsOverride) delete d.rsOverride[rname];
+  if(d.planSemanal) delete d.planSemanal[rname];
+  persist();
+  showToast('Rutina quitada');
+  openEliteRutinasModal(id);
 }
 
 // --- Elite: edición de ejercicios de rutina asignada (owner) ---
