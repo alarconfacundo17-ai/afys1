@@ -410,6 +410,27 @@ h3{font-size:15px;margin-bottom:10px;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
 .cal-event{position:absolute;left:1px;border-radius:3px;font-size:10px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
 
+/* ── CLASES SOCIO ──────────────────────────────────────────────────── */
+.clase-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:10px;transition:box-shadow .2s ease,transform .14s ease;background:var(--bg);}
+.clase-card:active{transform:scale(.985);}
+.clase-card-inner{display:flex;align-items:stretch;}
+.clase-card-accent{width:5px;flex-shrink:0;}
+.clase-card-body{flex:1;padding:14px 14px 12px;}
+.clase-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+.clase-card-nombre{font-size:15px;font-weight:700;letter-spacing:.2px;}
+.clase-card-hora{font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0;}
+.clase-card-meta{font-size:12.5px;color:var(--text2);margin-bottom:10px;}
+.clase-cupo-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-bottom:8px;}
+.clase-cupo-fill{height:100%;border-radius:3px;transition:width .4s cubic-bezier(.22,1,.36,1);}
+.clase-card-footer{display:flex;justify-content:space-between;align-items:center;}
+.clase-cupo-txt{font-size:12px;font-weight:600;color:var(--text2);}
+.clase-day-head{display:flex;align-items:center;gap:10px;margin:20px 0 10px;}
+.clase-day-head-line{flex:1;height:1px;background:var(--border);}
+.clase-day-head-label{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;}
+.clase-day-head.hoy .clase-day-head-label{color:var(--primary);}
+.clase-color-pick{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.clase-color-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .15s,border-color .15s;}
+.clase-color-dot.selected{border-color:var(--text);transform:scale(1.15);}
 /* ── QR PAGE ───────────────────────────────────────────────────────── */
 .qr-chip{padding:9px 18px;border-radius:24px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .18s ease,color .18s ease,border-color .18s ease,transform .14s cubic-bezier(.34,1.56,.64,1);}
 .qr-chip:active{transform:scale(.94);}
@@ -661,6 +682,17 @@ let gymHoursOk = false;
 let PENDING_INVITES = [];
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const CLASE_COLORES = [
+  {id:'naranja', hex:'#f97316'},
+  {id:'verde',   hex:'#22c55e'},
+  {id:'azul',    hex:'#3b82f6'},
+  {id:'violeta', hex:'#a855f7'},
+  {id:'rojo',    hex:'#ef4444'},
+  {id:'cyan',    hex:'#06b6d4'},
+  {id:'amarillo',hex:'#eab308'},
+  {id:'gris',    hex:'#6b7280'},
+];
+function claseColor(c){ return (c&&c.clr) ? (CLASE_COLORES.find(x=>x.id===c.clr)||CLASE_COLORES[0]).hex : '#6b7280'; }
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 // cada día tiene una lista de tramos horarios (se pueden agregar tantos como se necesite, ej: mañana, tarde, noche)
 let GYM_HOURS = {
@@ -4112,6 +4144,12 @@ function openClaseModal(idx){
     <div class="field"><label>Hora</label>${timeSelectHTML('cl_h', c?c.h:'08:00')}</div>
     <div class="field"><label>Cupo</label><input id="cl_c" type="number" value="${cupoMax}"></div>
     <div class="field"><label>Duración (minutos)</label><input id="cl_dur" type="number" step="5" value="${c?(c.dur||60):60}"></div>
+    <div class="field"><label>Color de la clase</label>
+      <div class="clase-color-pick">
+        ${CLASE_COLORES.map(col=>`<div class="clase-color-dot${(c?c.clr:null)===col.id||(!c&&col.id==='naranja')?' selected':''}" data-clr="${col.id}" style="background:${col.hex};" onclick="selectClaseColor('${col.id}')"></div>`).join('')}
+      </div>
+      <input type="hidden" id="cl_clr" value="${c&&c.clr?c.clr:'naranja'}">
+    </div>
     <div class="field"><label>Profesor a cargo</label>
       <select id="cl_ins" onchange="$('#cl_ins_otro_wrap').classList.toggle('hidden', this.value!=='__otro__')">
         ${profes.map(p=>`<option value="${esc(p.id)}" ${c&&(c.insId?c.insId===p.id:c.ins===p.n)?'selected':''}>${esc(p.n)}</option>`).join('')}
@@ -4132,19 +4170,25 @@ function saveClase(){
   if(insSel==='__otro__'){ ins = $('#cl_ins_otro').value.trim()||'Sin asignar'; insId = null; }
   else { const p = STAFF.find(s=>s.id===insSel); ins = p?p.n:'Sin asignar'; insId = p?p.id:null; }
   const cupo = $('#cl_c').value||12;
+  const clr = $('#cl_clr')?.value||'naranja';
   let c;
   if(editClaseIdx!==null){
     c = CLASES_HOY[editClaseIdx];
     const entradas = ((c.cu||'0/12').split('/')[0])||0;
-    Object.assign(c, {n,d,h,dur,ins,insId,cu:`${entradas}/${cupo}`});
+    Object.assign(c, {n,d,h,dur,ins,insId,clr,cu:`${entradas}/${cupo}`});
   } else {
-    c = {n,d,h,dur,ins,insId,cu:`0/${cupo}`,cId:newClaseId()};
+    c = {n,d,h,dur,ins,insId,clr,cu:`0/${cupo}`,cId:newClaseId()};
     CLASES_HOY.push(c);
   }
   syncClaseTurno(c);
   persist();
   showToast('Guardado');
   closeModal(); renderStaff();
+}
+function selectClaseColor(id){
+  document.querySelectorAll('.clase-color-dot').forEach(el=>el.classList.toggle('selected', el.dataset.clr===id));
+  const inp = document.getElementById('cl_clr');
+  if(inp) inp.value = id;
 }
 function deleteClase(idx){
   const c = CLASES_HOY[idx];
@@ -9186,23 +9230,74 @@ function socioClases(){
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
   const idxHoy = DIAS_SEMANA.indexOf(diaHoy);
-  const clasesSemana = CLASES_HOY.map((c,i)=>({c,i})).filter(({c})=>DIAS_SEMANA.indexOf(c.d)>=idxHoy);
-  if(!clasesSemana.length) return `<h2>Clases disponibles</h2>${emptyState('ti-calendar-plus','No hay clases programadas para el resto de esta semana.')}`;
-  return `
-  <h2>Clases disponibles</h2>
-  ${clasesSemana.map(({c,i})=>{
-    const act = inscriptosClase(c).length;
-    const tot = Number((c.cu||'0/12').split('/')[1])||12;
-    const full = act>=tot;
-    const booked = !!misReservas[claseKey(c)];
-    const esHoy = c.d===diaHoy;
-    return `<div class="class-card" style="${booked?'border:2px solid var(--green);background:rgba(34,197,94,.08);':''}">
-      <div style="display:flex;align-items:center;gap:10px;">
-        ${booked?`<span style="width:30px;height:30px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-check" style="font-size:18px;"></i></span>`:''}
-        <div><b>${esc(c.n)}</b><div style="font-size:13px;color:var(--text2);">${esHoy?'<b style="color:var(--primary);">Hoy</b>':esc(c.d)} · ${c.h} · ${esc(c.ins)} · ${cupoClaseTexto(c)}</div></div>
-      </div>
-      <button class="btn btn-sm ${booked?'btn-outline':full?'btn-outline':'btn-primary'}" style="${booked?'color:var(--green);border-color:var(--green);':''}" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${booked?'✓ Reservada':full?'Sin cupo':'Reservar'}</button>
-    </div>`;
+  const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const hoy = new Date();
+
+  // Agrupar por día, solo desde hoy en adelante
+  const porDia = {};
+  CLASES_HOY.forEach((c,i)=>{
+    if(DIAS_SEMANA.indexOf(c.d) >= idxHoy) {
+      if(!porDia[c.d]) porDia[c.d] = [];
+      porDia[c.d].push({c,i});
+    }
+  });
+  const diasOrdenados = DIAS_SEMANA.filter(d=>porDia[d]);
+  if(!diasOrdenados.length) return `<h2 style="margin-bottom:14px;">Clases</h2>${emptyState('ti-calendar-plus','No hay clases programadas para el resto de esta semana.')}`;
+
+  // Fecha de cada día de la semana actual
+  function fechaDia(nombreDia){
+    const idx = DIAS_SEMANA.indexOf(nombreDia);
+    const hoyIdx = DIAS_SEMANA.indexOf(diaHoy);
+    const d = new Date(hoy);
+    d.setDate(d.getDate() + (idx - hoyIdx));
+    return `${d.getDate()} ${MESES_C[d.getMonth()]}`;
+  }
+
+  return `<h2 style="margin-bottom:4px;">Clases</h2>
+  ${diasOrdenados.map(dia=>{
+    const esHoy = dia===diaHoy;
+    const fecha = fechaDia(dia);
+    const clasesDelDia = porDia[dia].sort((a,b)=>a.c.h.localeCompare(b.c.h));
+    return `
+    <div class="clase-day-head${esHoy?' hoy':''}">
+      <div class="clase-day-head-line"></div>
+      <div class="clase-day-head-label">${esHoy?`HOY · ${dia.toUpperCase()} ${fecha}`:dia.toUpperCase()+' '+fecha}</div>
+      <div class="clase-day-head-line"></div>
+    </div>
+    ${clasesDelDia.map(({c,i})=>{
+      const color = claseColor(c);
+      const act = inscriptosClase(c).length;
+      const tot = Number((c.cu||'0/12').split('/')[1])||12;
+      const pct = tot>0 ? Math.min(100,Math.round(act/tot*100)) : 0;
+      const full = act>=tot;
+      const booked = !!misReservas[claseKey(c)];
+      const bgTint = color+'18';
+      const borderColor = booked ? 'var(--green)' : color+'44';
+      const btnLabel = booked ? '<i class="ti ti-check"></i> Anotada' : full ? 'Sin cupo' : 'Reservar';
+      const btnStyle = booked
+        ? `background:var(--green);color:#fff;border-color:var(--green);`
+        : full ? `opacity:.55;` : `background:${color};color:#fff;border:none;`;
+      return `
+      <div class="clase-card" style="border-color:${borderColor};${booked?`background:${bgTint};`:''}">
+        <div class="clase-card-inner">
+          <div class="clase-card-accent" style="background:${color};"></div>
+          <div class="clase-card-body">
+            <div class="clase-card-top">
+              <div class="clase-card-nombre">${esc(c.n)}</div>
+              <div class="clase-card-hora">${c.h}</div>
+            </div>
+            <div class="clase-card-meta"><i class="ti ti-user" style="font-size:11px;"></i> ${esc(c.ins)}${c.dur?` · ${c.dur} min`:''}</div>
+            <div class="clase-cupo-bar">
+              <div class="clase-cupo-fill pbar-fill" style="width:${pct}%;background:${color};"></div>
+            </div>
+            <div class="clase-card-footer">
+              <div class="clase-cupo-txt">${act}/${tot} ${full?'· <span style="color:var(--red);">Completa</span>':booked?'· <span style="color:var(--green);">Tu lugar está reservado</span>':''}</div>
+              <button class="btn btn-sm" style="${btnStyle}padding:7px 14px;" ${full&&!booked?'disabled':''} onclick="toggleReserva(${i})">${btnLabel}</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
   }).join('')}`;
 }
 function toggleReserva(i){
