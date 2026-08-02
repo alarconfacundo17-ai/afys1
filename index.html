@@ -6324,7 +6324,7 @@ function openElitePlanCalendarioModal(id, ym){
     const extraLabel = !comp && planItems.length>1?` +${planItems.length-1}`:'';
     const showLabel = comp || hasPlanItem;
 
-    cells += `<div onclick="${comp?`verDetalleCompetenciaOwner('${id}','${escQ(comp.f+'|'+comp.n)}')`:`openEliteAsignarDiaModal('${id}','${ds}','${curYM}')`}" style="min-height:52px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+    cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:52px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
       ${showLabel?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}${extraLabel?`<span style="font-size:8px;">${esc(extraLabel)}</span>`:''}</div>`:''}
       ${hasAnyActivity&&!hasPlanItem&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
@@ -6448,11 +6448,23 @@ function openEliteAsignarDiaModal(id, fecha, ym){
     }).join('')}
   </div>` : '';
 
+  const compDia = (d.competencias||[]).find(c=>c.f===fecha);
+  const compDiaHTML = compDia ? `<div onclick="verDetalleCompetenciaOwner('${id}','${escQ(compDia.f+'|'+compDia.n)}')" style="background:linear-gradient(135deg,rgba(251,191,36,.16),rgba(251,191,36,.05));border:1.5px solid rgba(251,191,36,.45);border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:12px;">
+    <div style="background:rgba(251,191,36,.22);border-radius:9px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-medal" style="font-size:19px;color:#d97706;"></i></div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:10px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.4px;">${esc(compDia.tipo||'Competencia')}</div>
+      <div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(compDia.n)}</div>
+      ${compDia.hora||compDia.lugar?`<div style="font-size:11px;color:#b45309;margin-top:1px;">${[compDia.hora?compDia.hora+' hs':'',compDia.lugar].filter(Boolean).join(' · ')}</div>`:''}
+    </div>
+    <i class="ti ti-chevron-right" style="font-size:16px;color:#d97706;flex-shrink:0;"></i>
+  </div>` : '';
+
   openModal(`<div class="modal-head">
     <h3 style="font-size:14px;font-weight:700;">${fechaTxt}</h3>
     <button onclick="${backFn}">✕</button>
   </div>
   <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
+    ${compDiaHTML}
     ${assignedHtml}
     <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buscar rutina</div>
     <input id="eliteBuscaRutina" type="text" placeholder="Escribí para buscar..." autocomplete="off"
@@ -7742,7 +7754,7 @@ function elitePageRutinas(d){
     const shortName = _fp.length>7?_fp.slice(0,6)+'…':_fp;
     const extraBadge = !comp&&planItems.length>1?`<span style="font-size:7px;font-weight:800;color:${txtColor};"> +${planItems.length-1}</span>`:'';
 
-    cells+=`<div onclick="${comp?`eliteVerDetalleCompetencia('${escQ(comp.f+'|'+comp.n)}')`:`eliteVerDiaSemana('${ds}')`}" style="min-height:56px;padding:5px 4px 4px;border-radius:9px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;">
+    cells+=`<div onclick="eliteVerDiaSemana('${ds}')" style="min-height:56px;padding:5px 4px 4px;border-radius:9px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
       ${comp||hasPlan?`<div style="font-size:8.5px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.2;overflow:hidden;flex:1;">${esc(shortName)}${extraBadge}</div>`:''}
       ${hasActivity&&!hasPlan&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:auto;opacity:.4;"></div>`:''}
@@ -7985,8 +7997,9 @@ function eliteVerDiaSemana(ds){
   const fechaTxt = `${DIAS_N[dt.getDay()]} ${dt.getDate()} de ${MESES_N[dt.getMonth()]}`;
   const todayStr = todayISO();
 
-  // Bloque de competencia
-  const compHTML = comp ? `<div style="background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.06));border:1.5px solid rgba(251,191,36,.4);border-radius:14px;padding:16px;margin-bottom:14px;">
+  // Bloque de competencia (clickeable para editar)
+  const _compKey = comp ? escQ(comp.f+'|'+comp.n) : '';
+  const compHTML = comp ? `<div onclick="eliteVerDetalleCompetencia('${_compKey}')" style="background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.06));border:1.5px solid rgba(251,191,36,.4);border-radius:14px;padding:16px;margin-bottom:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:${(comp.hora||comp.lugar||comp.resultado)?'12px':'0'};">
       <div style="background:rgba(251,191,36,.2);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         <i class="ti ti-medal" style="font-size:22px;color:#d97706;"></i>
@@ -7995,12 +8008,14 @@ function eliteVerDiaSemana(ds){
         <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">${esc(comp.tipo||'Competencia')}</div>
         <div style="font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(comp.n)}</div>
       </div>
+      <i class="ti ti-chevron-right" style="font-size:18px;color:#d97706;flex-shrink:0;opacity:.7;"></i>
     </div>
     ${comp.hora||comp.lugar||comp.resultado ? `<div style="display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid rgba(251,191,36,.25);">
       ${comp.hora?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-clock" style="font-size:15px;color:#d97706;"></i><span>${esc(comp.hora)} hs</span></div>`:''}
       ${comp.lugar?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-map-pin" style="font-size:15px;color:#d97706;"></i><span>${esc(comp.lugar)}</span></div>`:''}
       ${comp.resultado?`<div style="display:flex;align-items:center;gap:8px;font-size:13px;"><i class="ti ti-trophy" style="font-size:15px;color:#d97706;"></i><span style="font-weight:700;">${esc(comp.resultado)}</span></div>`:''}
     </div>` : ''}
+    <div style="font-size:11px;color:#b45309;margin-top:8px;font-weight:600;">Tocá para ver y editar →</div>
   </div>` : '';
 
   if(!items.length && !comp){
