@@ -6104,7 +6104,7 @@ function _eliteDayCell(id, ds, wkMon, todayStr){
   }).join('');
 
   // Chip competencia
-  const compChip = comp ? `<div style="background:rgba(251,191,36,.14);border:1.5px solid rgba(251,191,36,.45);border-radius:8px;padding:5px 8px;">
+  const compChip = comp ? `<div onclick="event.stopPropagation();verDetalleCompetenciaOwner('${id}','${escQ(comp.f+'|'+comp.n)}')" style="background:rgba(251,191,36,.14);border:1.5px solid rgba(251,191,36,.45);border-radius:8px;padding:5px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
     <div style="font-size:11px;font-weight:700;color:#b45309;line-height:1.25;">🏆 ${esc(comp.n)}</div>
   </div>` : '';
 
@@ -6324,7 +6324,7 @@ function openElitePlanCalendarioModal(id, ym){
     const extraLabel = !comp && planItems.length>1?` +${planItems.length-1}`:'';
     const showLabel = comp || hasPlanItem;
 
-    cells += `<div onclick="openEliteAsignarDiaModal('${id}','${ds}','${curYM}')" style="min-height:52px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
+    cells += `<div onclick="${comp?`verDetalleCompetenciaOwner('${id}','${escQ(comp.f+'|'+comp.n)}')`:`openEliteAsignarDiaModal('${id}','${ds}','${curYM}')`}" style="min-height:52px;padding:4px 3px;border-radius:8px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
       ${showLabel?`<div style="font-size:9px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.25;overflow:hidden;">${esc(shortName)}${extraLabel?`<span style="font-size:8px;">${esc(extraLabel)}</span>`:''}</div>`:''}
       ${hasAnyActivity&&!hasPlanItem&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:4px;opacity:.35;"></div>`:''}
@@ -7742,7 +7742,7 @@ function elitePageRutinas(d){
     const shortName = _fp.length>7?_fp.slice(0,6)+'…':_fp;
     const extraBadge = !comp&&planItems.length>1?`<span style="font-size:7px;font-weight:800;color:${txtColor};"> +${planItems.length-1}</span>`:'';
 
-    cells+=`<div onclick="eliteVerDiaSemana('${ds}')" style="min-height:56px;padding:5px 4px 4px;border-radius:9px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;">
+    cells+=`<div onclick="${comp?`eliteVerDetalleCompetencia('${escQ(comp.f+'|'+comp.n)}')`:`eliteVerDiaSemana('${ds}')`}" style="min-height:56px;padding:5px 4px 4px;border-radius:9px;cursor:pointer;background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;">
       <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
       ${comp||hasPlan?`<div style="font-size:8.5px;font-weight:700;color:${txtColor};margin-top:2px;line-height:1.2;overflow:hidden;flex:1;">${esc(shortName)}${extraBadge}</div>`:''}
       ${hasActivity&&!hasPlan&&!comp?`<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin-top:auto;opacity:.4;"></div>`:''}
@@ -7808,35 +7808,37 @@ function elitePageCompetencias(d){
     </div>`:''}`;
 }
 
-function _compDetalleModal(c, onEliminar){
-  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const [y,m,dd] = c.f.split('-');
-  const fechaFmt = `${dd} de ${MESES_N[+m-1]} de ${y}`;
-  const filas = [
-    c.tipo    ? ['Tipo',     c.tipo]                     : null,
-    c.f       ? ['Fecha',    fechaFmt]                   : null,
-    c.hora    ? ['Hora',     c.hora + ' hs']             : null,
-    c.lugar   ? ['Lugar',    c.lugar]                    : null,
-    c.resultado?['Resultado',c.resultado]                : null,
-  ].filter(Boolean);
+function _compDetalleModal(c, onGuardar, onEliminar){
+  const COMP_TIPOS_LIST = ['Partido','Carrera','Amistoso','Prueba','Torneo','Exhibición','Otro'];
+  const tiposHTML = COMP_TIPOS_LIST.map(t=>`<button type="button" onclick="_selCompTipo('${t}')" id="compTipo_${t}" style="padding:6px 12px;border-radius:20px;border:1.5px solid var(--border2);background:${c.tipo===t?'var(--primary)':'var(--bg2)'};color:${c.tipo===t?'#fff':''};font-size:12px;font-weight:600;cursor:pointer;">${t}</button>`).join('');
   openModal(`
     <div class="modal-head">
       <h3 style="font-size:15px;">${esc(c.n)}</h3>
       <button onclick="closeModal()">✕</button>
     </div>
-    <div style="padding:0 16px 20px;">
-      <div style="display:flex;align-items:center;justify-content:center;margin:12px 0 18px;">
-        <div style="background:rgba(251,191,36,.18);border-radius:16px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;">
-          <i class="ti ti-medal" style="font-size:28px;color:#d97706;"></i>
+    <div style="padding:0 16px 20px;overflow-y:auto;max-height:80vh;">
+      <div style="display:flex;align-items:center;justify-content:center;margin:10px 0 16px;">
+        <div style="background:rgba(251,191,36,.18);border-radius:16px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+          <i class="ti ti-medal" style="font-size:24px;color:#d97706;"></i>
         </div>
       </div>
-      <div style="background:var(--bg2);border-radius:14px;padding:4px 0;margin-bottom:16px;">
-        ${filas.map(([k,v],i)=>`
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;${i<filas.length-1?'border-bottom:1px solid var(--border2);':''}">
-            <span style="font-size:12px;color:var(--text2);font-weight:600;">${esc(k)}</span>
-            <span style="font-size:13px;font-weight:700;text-align:right;max-width:60%;">${esc(v)}</span>
-          </div>`).join('')}
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Nombre *</label>
+      <input id="compNombre" value="${escQ(c.n)}" placeholder="Ej: Maratón de Buenos Aires" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Tipo de competencia *</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;" id="compTipoOpts">${tiposHTML}</div>
+      <input id="compTipoVal" type="hidden" value="${escQ(c.tipo||'')}">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Fecha *</label>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="compFecha" type="date" style="flex:1;" value="${escQ(c.f)}">
+        <input id="compHora" type="time" style="width:100px;" value="${escQ(c.hora||'')}">
       </div>
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Localidad / Lugar</label>
+      <input id="compLugar" value="${escQ(c.lugar||'')}" placeholder="Ej: Buenos Aires..." style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Resultado</label>
+      <input id="compResultado" value="${escQ(c.resultado||'')}" placeholder="Ej: 1° puesto, 3:45:00..." style="width:100%;margin-bottom:14px;">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="${onGuardar}">
+        <i class="ti ti-check"></i> Guardar cambios
+      </button>
       <button onclick="${onEliminar}" style="width:100%;padding:10px;background:none;border:1.5px solid var(--red);border-radius:12px;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
         <i class="ti ti-trash"></i> Eliminar competencia
       </button>
@@ -7848,7 +7850,27 @@ function eliteVerDetalleCompetencia(key){
   if(!d) return;
   const c = (d.competencias||[]).find(x=>(x.f+'|'+x.n)===key);
   if(!c) return;
-  _compDetalleModal(c, `eliminarCompetenciaDeportista('${escQ(key)}')`);
+  _compDetalleModal(c, `editarCompetenciaDeportista('${escQ(key)}')`, `eliminarCompetenciaDeportista('${escQ(key)}')`);
+}
+
+function editarCompetenciaDeportista(oldKey){
+  const d = eliteById(currentEliteId);
+  if(!d||!Array.isArray(d.competencias)) return;
+  const n = ($('#compNombre')||{}).value?.trim();
+  const f = ($('#compFecha')||{}).value?.trim();
+  const tipo = ($('#compTipoVal')||{}).value?.trim();
+  if(!n||!f){ showToast('Nombre y fecha son obligatorios','warn'); return; }
+  if(!tipo){ showToast('Seleccioná el tipo','warn'); return; }
+  const idx = d.competencias.findIndex(c=>(c.f+'|'+c.n)===oldKey);
+  if(idx<0) return;
+  const newKey = f+'|'+n;
+  if(newKey!==oldKey && d.competencias.some(c=>(c.f+'|'+c.n)===newKey)){ showToast('Ya existe esa competencia','warn'); return; }
+  if(newKey!==oldKey){
+    if(!Array.isArray(d.competenciasRemoved)) d.competenciasRemoved=[];
+    if(!d.competenciasRemoved.includes(oldKey)) d.competenciasRemoved.push(oldKey);
+  }
+  d.competencias[idx] = { n, f, tipo, hora:($('#compHora')||{}).value?.trim()||'', lugar:($('#compLugar')||{}).value?.trim()||'', resultado:($('#compResultado')||{}).value?.trim()||'' };
+  persist(); closeModal(); renderElitePanel(); showToast('Competencia actualizada','ok');
 }
 
 function eliminarCompetenciaDeportista(key){
@@ -7870,7 +7892,27 @@ function verDetalleCompetenciaOwner(atlId, key){
   if(!d) return;
   const c = (d.competencias||[]).find(x=>(x.f+'|'+x.n)===key);
   if(!c) return;
-  _compDetalleModal(c, `eliminarCompetenciaElite('${escQ(atlId)}','${escQ(key)}')`);
+  _compDetalleModal(c, `editarCompetenciaOwner('${escQ(atlId)}','${escQ(key)}')`, `eliminarCompetenciaElite('${escQ(atlId)}','${escQ(key)}')`);
+}
+
+function editarCompetenciaOwner(atlId, oldKey){
+  const d = eliteById(atlId);
+  if(!d||!Array.isArray(d.competencias)) return;
+  const n = ($('#compNombre')||{}).value?.trim();
+  const f = ($('#compFecha')||{}).value?.trim();
+  const tipo = ($('#compTipoVal')||{}).value?.trim();
+  if(!n||!f){ showToast('Nombre y fecha son obligatorios','warn'); return; }
+  if(!tipo){ showToast('Seleccioná el tipo','warn'); return; }
+  const idx = d.competencias.findIndex(c=>(c.f+'|'+c.n)===oldKey);
+  if(idx<0) return;
+  const newKey = f+'|'+n;
+  if(newKey!==oldKey && d.competencias.some(c=>(c.f+'|'+c.n)===newKey)){ showToast('Ya existe esa competencia','warn'); return; }
+  if(newKey!==oldKey){
+    if(!Array.isArray(d.competenciasRemoved)) d.competenciasRemoved=[];
+    if(!d.competenciasRemoved.includes(oldKey)) d.competenciasRemoved.push(oldKey);
+  }
+  d.competencias[idx] = { n, f, tipo, hora:($('#compHora')||{}).value?.trim()||'', lugar:($('#compLugar')||{}).value?.trim()||'', resultado:($('#compResultado')||{}).value?.trim()||'' };
+  persist(); closeModal(); refreshEliteDeportistaModal(atlId); showToast('Competencia actualizada','ok');
 }
 
 function eliteAgregarCompetenciaModal(){
