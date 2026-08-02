@@ -12,6 +12,8 @@
   --bg:#fff; --bg2:#f9fafb; --border:#e5e7eb; --border2:#f0f0f0;
   --text:#111; --text2:#6b7280;
   --card-shadow:0 1px 3px rgba(0,0,0,.06);
+  --r-sm:10px; --r-md:14px; --r-lg:20px;
+  --modal-pad:20px;
 }
 /* ── DARK MODE ─────────────────────────────────────────────────────── */
 [data-theme="dark"]{
@@ -75,7 +77,7 @@
 /* badges */
 [data-theme="dark"] .b-ok  { background:rgba(52,211,153,.12); color:#6ee7b7; }
 [data-theme="dark"] .b-warn{ background:rgba(251,191,36,.12);  color:#fcd34d; }
-[data-theme="dark"] .b-err { background:rgba(248,113,113,.12); color:#fca5a5; }
+[data-theme="dark"] .b-err { background:rgba(248,113,113,.20); color:#fca5a5; }
 [data-theme="dark"] .b-info{ background:rgba(96,165,250,.12);  color:#93c5fd; }
 [data-theme="dark"] .b-purple{ background:rgba(167,139,250,.12); color:#c4b5fd; }
 /* tags (rutinas asignadas) */
@@ -303,7 +305,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .pbar-fill{animation:progressFill .6s cubic-bezier(.22,1,.36,1) both;animation-delay:.2s;}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{margin:0;font-size:17px;}
-.modal-sticky-top{position:sticky;top:-24px;margin:-24px -24px 16px -24px;padding:24px 24px 12px 24px;background:var(--bg);z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
+.modal-sticky-top{position:sticky;top:calc(-1 * var(--modal-pad));margin:calc(-1 * var(--modal-pad)) calc(-1 * var(--modal-pad)) 16px calc(-1 * var(--modal-pad));padding:var(--modal-pad) var(--modal-pad) 12px var(--modal-pad);background:var(--bg);z-index:5;border-radius:14px 14px 0 0;box-shadow:0 4px 8px -6px rgba(0,0,0,.15);}
 .field{margin-bottom:12px;}
 .field label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
@@ -318,7 +320,7 @@ h3{font-size:15px;margin-bottom:10px;}
 .toggle-row:last-child{border-bottom:none;}
 .toggle{width:42px;height:24px;border-radius:14px;background:#DC2626;position:relative;flex-shrink:0;}
 .toggle.on{background:var(--green);}
-.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.15s;}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .15s ease;}
 .toggle.on::after{left:21px;}
 .toggle.locked{opacity:.5;cursor:not-allowed;}
 
@@ -377,14 +379,14 @@ h3{font-size:15px;margin-bottom:10px;}
 @media(max-width:760px){
   .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:120;transform:translateX(-100%);transition:transform .2s ease;box-shadow:2px 0 16px rgba(0,0,0,.15);}
   .sidebar.open{transform:translateX(0);}
-  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:110;}
-  .sidebar-overlay.open{display:block;}
+  .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:110;opacity:0;pointer-events:none;transition:opacity .22s ease;}
+  .sidebar-overlay.open{opacity:1;pointer-events:auto;}
   #staffMenuBtn{display:inline-flex;}
   #staff{flex-direction:column;}
   .topbar{padding:12px 14px;}
   .content{padding:14px;}
-  .modal-box{padding:16px;}
-  .modal-sticky-top{margin:-16px -16px 16px -16px;padding:16px 16px 12px 16px;}
+  .modal-box{padding:16px;--modal-pad:16px;}
+  .modal-sticky-top{margin:calc(-1 * var(--modal-pad)) calc(-1 * var(--modal-pad)) 16px calc(-1 * var(--modal-pad));padding:var(--modal-pad) var(--modal-pad) 12px var(--modal-pad);}
   .login-box{padding:24px;}
   .section-head{flex-wrap:wrap;gap:10px;}
   table{font-size:12.5px;}
@@ -401,12 +403,12 @@ h3{font-size:15px;margin-bottom:10px;}
 .cal-wrap{overflow-x:auto;}
 .cal-grid{display:grid;grid-auto-rows:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;width:100%;font-size:10px;}
 .cal-corner{grid-row:1;grid-column:1;border-bottom:1px solid var(--border);background:var(--bg2);min-width:0;}
-.cal-daylabel{grid-row:1;padding:3px 1px;text-align:center;font-weight:700;font-size:9.5px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);min-width:0;overflow:hidden;white-space:normal;word-break:break-word;line-height:1.15;}
+.cal-daylabel{grid-row:1;padding:3px 1px;text-align:center;font-weight:700;font-size:11px;border-bottom:1px solid var(--border);border-left:1px solid var(--border2);background:var(--bg2);min-width:0;overflow:hidden;white-space:normal;word-break:break-word;line-height:1.15;}
 .cal-hours{border-right:1px solid var(--border);min-width:0;}
-.cal-hour{font-size:8.5px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;overflow:hidden;white-space:nowrap;}
+.cal-hour{font-size:10px;color:var(--text2);padding:0 1px;border-top:1px solid var(--border2);box-sizing:border-box;overflow:hidden;white-space:nowrap;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;min-width:0;overflow:hidden;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
-.cal-event{position:absolute;left:1px;border-radius:3px;font-size:8.5px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
+.cal-event{position:absolute;left:1px;border-radius:3px;font-size:10px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
 </style>
 </head>
 <body>
@@ -435,12 +437,12 @@ h3{font-size:15px;margin-bottom:10px;}
 <div id="scan" class="hidden">
   <div class="scan-box">
     <div id="scanStep1">
-      <div class="scan-spinner">⏳</div>
+      <div class="scan-spinner"><i class="ti ti-loader-2" style="font-size:60px;"></i></div>
       <h2>Verificando código QR...</h2>
       <p style="color:#aaa;font-size:14px;">Por favor espera un momento</p>
     </div>
     <div id="scanStep2" class="hidden">
-      <div class="scan-spinner">✅</div>
+      <div class="scan-spinner"><i class="ti ti-circle-check" style="font-size:60px;color:#22c55e;"></i></div>
       <h2 id="scanName">Acceso registrado</h2>
       <p id="scanDetail" style="color:#aaa;font-size:14px;margin:8px 0 4px;"></p>
       <p id="scanTime" style="color:#fff;font-size:15px;font-weight:700;margin-bottom:20px;"></p>
@@ -463,7 +465,7 @@ h3{font-size:15px;margin-bottom:10px;}
         </div>
       </div>
       <div style="display:flex;gap:16px;align-items:center;">
-        <button class="bell" onclick="openBuscarSocioModal()" title="Buscar socio"><i class="ti ti-search"></i></button>
+        <button class="btn btn-outline btn-sm" onclick="openBuscarSocioModal()" title="Buscar socio" style="gap:6px;"><i class="ti ti-search" style="font-size:16px;"></i>Buscar</button>
         <div class="notif-wrap">
           <button class="bell" onclick="toggleNotif('staff')">🔔<span class="dot hidden" id="staffNotifDot"></span></button>
           <div class="notif-panel hidden" id="staffNotifPanel"></div>
@@ -2538,6 +2540,9 @@ function renderStaff(){
   else if(staffPage==='pagos') c.innerHTML = pagePagos();
   else if(staffPage==='movimientos') c.innerHTML = pageMovimientos();
   else if(staffPage==='elite') { c.innerHTML = pageElite(); bindEliteEvents(); }
+  c.classList.remove('page-fade');
+  void c.offsetWidth;
+  c.classList.add('page-fade');
   bindStaffEvents();
 }
 
@@ -2582,7 +2587,7 @@ function pagePanel(){
     `;
     const proximo = proximoTurnoProfesor(st);
     profesorIntro = `
-    <div class="card" style="margin-bottom:18px;background:#f4f6fb;border:1px solid #e3e8f3;display:flex;align-items:center;justify-content:space-between;gap:18px;">
+    <div class="card" style="margin-bottom:18px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:18px;">
       <div>
         <h3 style="margin:0 0 4px;color:var(--primary);font-size:16px;">Bienvenido, ${esc(st?st.n:'')} a la app de AFYS</h3>
         <p style="margin:0;color:var(--primary);font-size:13.5px;line-height:1.5;">Desde aquí podés ver tus turnos y clases, anotar observaciones de los alumnos en sus fichas, y asignarles rutinas. Cualquier duda que tengas o por consultas, habla con el director del gimnasio.</p>
@@ -8767,42 +8772,42 @@ function showDniSetupPopup(){
   overlay.innerHTML = `
     <div style="
       width:min(360px,100%);
-      background:#fff;
+      background:var(--bg);
       border-radius:24px;
       padding:32px 28px 28px;
       box-shadow:0 24px 64px rgba(0,0,0,0.28);
       animation:modalIn .35s cubic-bezier(.22,1,.36,1);
       position:relative;
-      color:#111;
+      color:var(--text);
     ">
-      <button onclick="closeDniPopup()" style="position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:#6b7280;font-size:20px;line-height:1;padding:4px;">✕</button>
+      <button onclick="closeDniPopup()" style="position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:20px;line-height:1;padding:4px;">✕</button>
 
       <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#6d28d9,#4f46e5);display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
         <i class="ti ti-id-badge-2" style="font-size:28px;color:#fff;"></i>
       </div>
 
-      <h2 style="font-size:19px;font-weight:700;margin-bottom:8px;color:#111;">
+      <h2 style="font-size:19px;font-weight:700;margin-bottom:8px;color:var(--text);">
         ${nombre ? `${esc(nombre)}, ` : ''}activá el acceso rápido
       </h2>
-      <p style="color:#6b7280;font-size:13.5px;line-height:1.55;margin-bottom:22px;">
+      <p style="color:var(--text2);font-size:13.5px;line-height:1.55;margin-bottom:22px;">
         Guardá tu número de DNI y la próxima vez que escanees el QR entrarás automáticamente, sin escribir nada.
       </p>
 
-      <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Número de DNI</label>
+      <label style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Número de DNI</label>
       <input
         id="dniPopupInput"
         type="number"
         placeholder="Ej: 38456123"
-        style="width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:12px;margin-bottom:16px;letter-spacing:1px;background:#f9fafb;border:1.5px solid #e5e7eb;color:#111;"
+        style="width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:12px;margin-bottom:16px;letter-spacing:1px;background:var(--bg2);border:1.5px solid var(--border);color:var(--text);"
         onkeydown="if(event.key==='Enter')saveDniFromPopup()"
         autofocus
       >
-      <div id="dniPopupError" style="color:#DC2626;font-size:12.5px;margin-top:-10px;margin-bottom:12px;display:none;"></div>
+      <div id="dniPopupError" style="color:var(--red);font-size:12.5px;margin-top:-10px;margin-bottom:12px;display:none;"></div>
 
       <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:15px;border-radius:12px;font-weight:600;" onclick="saveDniFromPopup()">
         Guardar y activar acceso rápido
       </button>
-      <button onclick="closeDniPopup()" style="width:100%;margin-top:10px;background:none;border:none;cursor:pointer;color:#6b7280;font-size:13px;padding:6px;">
+      <button onclick="closeDniPopup()" style="width:100%;margin-top:10px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;padding:6px;">
         Ahora no
       </button>
     </div>
@@ -8906,11 +8911,11 @@ function showCumpleSocioPopup(){
   const edad = getEdad(s);
   document.body.insertAdjacentHTML('beforeend',`
     <div id="cumplePopup" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="background:#fff;border-radius:18px;max-width:380px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25);animation:modalIn .35s ease;">
+      <div style="background:var(--bg);border-radius:18px;max-width:380px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25);animation:modalIn .35s ease;color:var(--text);">
         <div style="font-size:52px;margin-bottom:8px;">🎂</div>
-        <h2 style="margin:0 0 10px;font-size:22px;color:#111;">¡Feliz cumpleaños, ${esc(nombre)}!</h2>
+        <h2 style="margin:0 0 10px;font-size:22px;color:var(--text);">¡Feliz cumpleaños, ${esc(nombre)}!</h2>
         ${edad?`<p style="color:var(--primary);font-weight:700;margin:0 0 14px;font-size:16px;">${edad} años</p>`:''}
-        <p style="color:#555;font-size:14.5px;line-height:1.6;margin:0 0 22px;">El equipo de AFYS te manda un abrazo enorme. Sos parte de nuestra familia y estamos muy contentos de acompañarte en el día a día. ¡Que este nuevo año te traiga mucha salud, fuerza y alegría!</p>
+        <p style="color:var(--text2);font-size:14.5px;line-height:1.6;margin:0 0 22px;">El equipo de AFYS te manda un abrazo enorme. Sos parte de nuestra familia y estamos muy contentos de acompañarte en el día a día. ¡Que este nuevo año te traiga mucha salud, fuerza y alegría!</p>
         <button class="btn btn-primary" style="width:100%;font-size:16px;padding:14px;" onclick="document.getElementById('cumplePopup').remove()">¡Gracias! 🙌</button>
       </div>
     </div>
@@ -8948,7 +8953,7 @@ function socioInicio(){
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
   ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
-  <button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:#eaf1ff;color:var(--primary);" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
+  <button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:var(--primary-light);color:var(--primary);" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
   `;
 }
 
