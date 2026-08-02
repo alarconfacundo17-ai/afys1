@@ -3895,6 +3895,28 @@ function resetSocioRutinaEjs(si, rname){
   openSocioRutinasModal(si);
 }
 
+// --- Elite: rutinas asignadas (owner) ---
+function openEliteRutinasModal(id){
+  const d = eliteById(id);
+  if(!d) return;
+  const rs = Array.isArray(d.rs) ? d.rs : [];
+  const rows = rs.length ? rs.map(rname=>{
+    const hasOv = d.rsOverride && d.rsOverride[rname];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border2);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;">${esc(rname)}</div>
+        ${hasOv?`<div style="font-size:11px;color:var(--primary);margin-top:2px;"><i class="ti ti-pencil" style="font-size:11px;"></i> Personalizado</div>`:''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')"><i class="ti ti-edit"></i> Editar</button>
+    </div>`;
+  }).join('') : `<p style="font-size:13px;color:var(--text2);margin:8px 0;">Sin rutinas asignadas. Podés asignarle rutinas desde la ficha del deportista.</p>`;
+  openModal(`
+    <div class="modal-head"><h3><i class="ti ti-barbell" style="margin-right:6px;"></i>Rutinas — ${esc(d.n)}</h3><button onclick="openEliteDeportistaModal('${escQ(id)}')">✕</button></div>
+    <div>${rows}</div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="openEliteDeportistaModal('${escQ(id)}')">Volver</button></div>
+  `);
+}
+
 // --- Elite: edición de ejercicios de rutina asignada (owner) ---
 let eliteEjEditArr = null, eliteEjEditId = null, eliteEjEditRname = null;
 function openEliteEditRutinaOwnerModal(id, rname){
@@ -5783,28 +5805,12 @@ function _eliteDeportistaModalHTML(id){
         ${d.email?`<span style="background:var(--bg2);border-radius:8px;padding:5px 10px;font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(d.email)}</span>`:''}
       </div>
 
-      <!-- Plan mensual + Entrenamientos -->
+      <!-- Rutinas asignadas + Plan mensual + Entrenamientos -->
+      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="openEliteRutinasModal('${id}')"><i class="ti ti-barbell"></i> Rutinas asignadas</button>
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openElitePlanCalendarioModal('${id}')"><i class="ti ti-calendar-month"></i> Plan mensual</button>
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
       </div>
-
-      <!-- Rutinas asignadas -->
-      ${(()=>{
-        const rs = Array.isArray(d.rs) ? d.rs : [];
-        if(!rs.length) return `<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Rutinas asignadas</div><p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`;
-        const rows = rs.map(rname=>{
-          const hasOv = d.rsOverride && d.rsOverride[rname];
-          return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border2);">
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:600;">${esc(rname)}</div>
-              ${hasOv?`<div style="font-size:10px;color:var(--primary);margin-top:1px;"><i class="ti ti-pencil" style="font-size:10px;"></i> Personalizado</div>`:''}
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')"><i class="ti ti-edit"></i> Editar</button>
-          </div>`;
-        }).join('');
-        return `<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Rutinas asignadas</div>${rows}`;
-      })()}
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
