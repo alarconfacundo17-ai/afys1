@@ -3896,9 +3896,10 @@ function resetSocioRutinaEjs(si, rname){
 }
 
 // --- Elite: rutinas asignadas (owner) ---
-function openEliteRutinasModal(id){
+function openEliteRutinasModal(id, search){
   const d = eliteById(id);
   if(!d) return;
+  search = search||'';
   const rs = Array.isArray(d.rs) ? d.rs : [];
   const rows = rs.length ? rs.map(rname=>{
     const hasOv = d.rsOverride && d.rsOverride[rname];
@@ -3910,12 +3911,35 @@ function openEliteRutinasModal(id){
       <button class="btn btn-outline btn-sm" style="padding:6px 8px;" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')" title="Editar ejercicios"><i class="ti ti-pencil" style="font-size:15px;"></i></button>
       <button class="btn btn-outline btn-sm" style="padding:6px 8px;color:var(--red);border-color:var(--red);" onclick="confirmarQuitarRutinaElite('${escQ(id)}','${escQ(rname)}')" title="Quitar rutina"><i class="ti ti-x" style="font-size:15px;"></i></button>
     </div>`;
-  }).join('') : `<p style="font-size:13px;color:var(--text2);margin:8px 0;">Sin rutinas asignadas.</p>`;
+  }).join('') : `<p style="font-size:13px;color:var(--text2);margin:8px 0;">Sin rutinas asignadas aún.</p>`;
+
+  const disponibles = RUTINAS.filter(r=>!rs.includes(r.n)&&r.n.toLowerCase().includes(search.toLowerCase()));
+  const searchRows = disponibles.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border2);">
+    <div style="flex:1;min-width:0;font-size:13px;font-weight:600;">${esc(r.n)}${r.t?`<span style="font-size:11px;color:var(--text2);font-weight:400;margin-left:6px;">${esc(r.t)}</span>`:''}</div>
+    <button class="btn btn-primary btn-sm" onclick="asignarRutinaElite('${escQ(id)}','${escQ(r.n)}')"><i class="ti ti-plus"></i> Asignar</button>
+  </div>`).join('');
+
   openModal(`
     <div class="modal-head"><h3><i class="ti ti-barbell" style="margin-right:6px;"></i>Rutinas — ${esc(d.n)}</h3><button onclick="openEliteDeportistaModal('${escQ(id)}')">✕</button></div>
-    <div>${rows}</div>
+    <div style="padding:0 0 4px;">${rows}</div>
+    <div style="margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Agregar rutina</div>
+      <input id="eliteRsSearch" placeholder="Buscar rutina..." value="${esc(search)}" oninput="openEliteRutinasModal('${escQ(id)}',this.value)" style="margin-bottom:8px;">
+      <div style="max-height:220px;overflow-y:auto;">${searchRows||`<p style="font-size:13px;color:var(--text2);margin:4px 0;">${search?'Sin resultados.':'Todas las rutinas ya están asignadas.'}</p>`}</div>
+    </div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="openEliteDeportistaModal('${escQ(id)}')">Volver</button></div>
-  `);
+  `,'wide');
+  if(search){ const el=document.getElementById('eliteRsSearch'); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} }
+}
+function asignarRutinaElite(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  if(!d.rs) d.rs = [];
+  if(!d.rs.includes(rname)) d.rs.push(rname);
+  if(d.rsRemoved) d.rsRemoved = d.rsRemoved.filter(r=>r!==rname);
+  persist();
+  showToast('Rutina asignada');
+  openEliteRutinasModal(id);
 }
 function confirmarQuitarRutinaElite(id, rname){
   const d = eliteById(id);
@@ -6799,8 +6823,8 @@ function _guardarSeleccionRutinaParaDia(rname){
   openEliteAsignarDiaModal(id, fecha, ym);
 }
 
-// ── Editor de rutina por día: reordenar + modificar ejercicios ──────
-let _editDragOrder = []; // orden actual durante el drag
+// ── Editor de rutina por día: add/remove/reorder ejercicios ──────────
+let _eliteDiaEjArr = [], _eliteDiaEjId = null, _eliteDiaEjFecha = null, _eliteDiaEjRname = null, _eliteDiaEjYm = null;
 
 function _abrirEditorRutinaDelDia(id, fecha, wkMon, rname){
   _asignarDiaCtx = {id, fecha, ym: wkMon};
@@ -6815,146 +6839,85 @@ function _editarRutinaDelDia(rname){
   if(!r) return;
 
   const planNota = ((d.planNotas||{})[fecha]||{})[rname]||{};
-  const overrides = planNota.ejs||{};
-  const savedOrder = planNota.ejsOrder||[];
-  // Construir orden: primero los guardados, luego los nuevos
-  const baseEjs = r.ejs||[];
-  const ordered = [
-    ...savedOrder.map(n=>baseEjs.find(e=>e.n===n)).filter(Boolean),
-    ...baseEjs.filter(e=>!savedOrder.includes(e.n))
-  ];
-  _editDragOrder = ordered.map(e=>e.n);
+  // Si hay una lista completa guardada para este día, usarla; si no, usar el override global o la base
+  let baseArr;
+  if(Array.isArray(planNota.ejsFull) && planNota.ejsFull.length){
+    baseArr = planNota.ejsFull.map(e=>({n:e.n,s:e.s,r:e.r,modo:e.modo||'',tiempo:e.tiempo||'',kg:e.kg||''}));
+  } else {
+    const globalBase = (d.rsOverride&&d.rsOverride[rname]) ? d.rsOverride[rname] : (r.ejs||[]);
+    baseArr = globalBase.map(e=>({n:e.n,s:e.s,r:e.r,modo:e.modo||'',tiempo:e.tiempo||'',kg:e.kg||''}));
+  }
+  if(!baseArr.length) baseArr = [{n:'',s:3,r:'10',kg:''}];
 
-  _renderEditarRutinaDelDia(rname, ordered, overrides, planNota.nota||'');
+  _eliteDiaEjArr   = baseArr;
+  _eliteDiaEjId    = id;
+  _eliteDiaEjFecha = fecha;
+  _eliteDiaEjRname = rname;
+  _eliteDiaEjYm    = ym;
+
+  currentEjsArr      = _eliteDiaEjArr;
+  currentEjsRenderFn = _renderEliteDiaEjModal;
+  currentEjsShowKg   = true;
+  currentEjsDraggable= true;
+
+  _renderEliteDiaEjModal();
 }
 
-function _renderEditarRutinaDelDia(rname, ordered, overrides, nota){
-  const {id, fecha, ym} = _asignarDiaCtx;
-  const ejRows = ordered.map((e,i)=>{
-    const ov = overrides[e.n]||{};
-    const _s = ov.s || String(e.s||'');
-    const _r = ov.r || String(e.r||'');
-    const _kg = ov.kg || '';
-    return `<div id="editEjRow_${i}" data-ejname="${escQ(e.n)}" style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border2);touch-action:none;">
-      <div class="drag-handle" data-idx="${i}" style="padding:10px 6px;cursor:grab;color:var(--border);flex-shrink:0;touch-action:none;">
-        <i class="ti ti-grip-vertical" style="font-size:20px;pointer-events:none;"></i>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div class="ej-label" style="font-size:13px;font-weight:700;margin-bottom:8px;">${i+1}. ${esc(e.n)}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-          ${e.modo!=='tiempo'?`
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Series</label>
-            <input type="number" min="1" max="10" id="eds_${i}" value="${esc(_s)}" placeholder="${e.s||'—'}" style="width:56px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-          </div>
-          <span style="font-size:18px;color:var(--text2);padding-bottom:6px;">×</span>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Reps</label>
-            <input type="text" id="edr_${i}" value="${esc(_r)}" placeholder="${e.r||'—'}" style="width:64px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-          </div>`:''}
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Kg</label>
-            <input type="text" id="edk_${i}" value="${esc(_kg)}" placeholder="${e.kg||'—'}" style="width:72px;font-size:15px;font-weight:700;text-align:center;padding:7px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+function _renderEliteDiaEjModal(){
+  const id    = _eliteDiaEjId;
+  const fecha = _eliteDiaEjFecha;
+  const rname = _eliteDiaEjRname;
+  const ym    = _eliteDiaEjYm;
+  const d = eliteById(id);
+  if(!d) return;
+  const nota = ((d.planNotas||{})[fecha]||{})[rname]?.nota||'';
+  const hasFull = !!(((d.planNotas||{})[fecha]||{})[rname]?.ejsFull);
 
-  openModal(`<div class="modal-head">
-    <h3 style="font-size:14px;font-weight:700;">${esc(rname)}</h3>
-    <button onclick="openEliteAsignarDiaModal('${id}','${fecha}','${escQ(ym)}')">←</button>
-  </div>
-  <div style="padding:0 16px 16px;overflow-y:auto;max-height:78vh;">
-    <p style="font-size:11px;color:var(--text2);margin:0 0 12px;"><i class="ti ti-grip-vertical"></i> Arrastrá para reordenar · Editá series, reps y kg</p>
-    <div id="editEjContainer">${ejRows}</div>
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:14px;font-weight:700;">${esc(rname)} <span style="font-size:11px;font-weight:400;color:var(--text2);">· ${esc(fecha)}</span></h3>
+      <button onclick="openEliteEntrenamientosModal('${escQ(id)}')">✕</button>
+    </div>
+    <p style="color:var(--text2);font-size:12px;margin:0 0 10px;">Cambios solo para este día. La rutina base no se modifica.</p>
+    <div id="rtEjs">${_eliteDiaEjArr.map((e,i)=>ejRowHTML(i,e,true,true)).join('')}</div>
+    <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <div style="margin-top:14px;">
       <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Nota del día</label>
-      <textarea id="editNota" rows="2" style="width:100%;font-size:13px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);resize:none;box-sizing:border-box;">${esc(nota)}</textarea>
+      <textarea id="eliteDiaNota" rows="2" style="width:100%;font-size:13px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);resize:none;box-sizing:border-box;">${esc(nota)}</textarea>
     </div>
-    <button onclick="_guardarEdicionRutinaDelDia('${escQ(rname)}')" style="width:100%;margin-top:14px;background:var(--primary);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Guardar cambios</button>
-  </div>`,'wide');
-
-  setTimeout(()=>_initDragEjercicios(), 80);
+    <div class="modal-actions" style="justify-content:space-between;">
+      ${hasFull?`<button class="btn btn-outline" onclick="_resetEliteDiaEjs()">Restablecer base</button>`:'<span></span>'}
+      <span>
+        <button class="btn btn-outline" onclick="openEliteEntrenamientosModal('${escQ(id)}')">Cancelar</button>
+        <button class="btn btn-primary" onclick="_guardarEliteDiaEjs()">Guardar</button>
+      </span>
+    </div>
+  `,'wide');
 }
 
-function _initDragEjercicios(){
-  const container = document.getElementById('editEjContainer');
-  if(!container || container._dragBound) return;
-  container._dragBound = true; // evitar bind múltiple
+function _guardarEliteDiaEjs(){
+  const d = eliteById(_eliteDiaEjId);
+  if(!d) return;
+  const ejs = _eliteDiaEjArr.filter(e=>e.n).map(e=>
+    e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',kg:e.kg||''} : {n:e.n,s:parseInt(e.s)||3,r:e.r||'10',kg:e.kg||''}
+  );
+  const nota = (document.getElementById('eliteDiaNota')||{}).value||'';
+  if(!d.planNotas) d.planNotas={};
+  if(!d.planNotas[_eliteDiaEjFecha]) d.planNotas[_eliteDiaEjFecha]={};
+  d.planNotas[_eliteDiaEjFecha][_eliteDiaEjRname] = {ejsFull: ejs, nota: nota.trim()};
+  persist();
+  showToast('Guardado','ok');
+  openEliteEntrenamientosModal(_eliteDiaEjId);
+}
 
-  let dragEl=null, placeholder=null, savedCssText='', offsetY=0;
-
-  // Event delegation sobre el container — un solo set de listeners
-  container.addEventListener('touchstart', e=>{
-    const handle = e.target.closest('.drag-handle');
-    if(!handle) return;
-    const row = handle.closest('[id^="editEjRow_"]');
-    if(!row) return;
-    e.preventDefault();
-
-    dragEl = row;
-    const touch = e.touches[0];
-    const rect = row.getBoundingClientRect();
-    offsetY = touch.clientY - rect.top;
-    savedCssText = row.style.cssText; // guardar para restaurar limpio
-
-    // Placeholder
-    placeholder = document.createElement('div');
-    placeholder.style.cssText = `height:${rect.height}px;background:var(--primary-light);border:2px dashed var(--primary);border-radius:8px;flex-shrink:0;margin:0;`;
-    row.parentNode.insertBefore(placeholder, row.nextSibling);
-
-    // Fijar elemento con feedback visual
-    handle.style.color = 'var(--primary)';
-    row.style.cssText = savedCssText + `;position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:300;background:var(--bg);box-shadow:0 12px 32px rgba(0,0,0,.22);opacity:.97;transition:none;border:2px solid var(--primary);border-radius:12px;`;
-  },{passive:false});
-
-  container.addEventListener('touchmove', e=>{
-    if(!dragEl) return;
-    e.preventDefault();
-    const y = e.touches[0].clientY;
-    dragEl.style.top = (y - offsetY)+'px';
-
-    // Mover placeholder al lugar correcto
-    const rows = [...container.querySelectorAll('[id^="editEjRow_"]')].filter(r=>r!==dragEl);
-    let placed = false;
-    for(const r of rows){
-      const mid = r.getBoundingClientRect().top + r.getBoundingClientRect().height/2;
-      if(y < mid){ container.insertBefore(placeholder, r); placed=true; break; }
-    }
-    if(!placed && rows.length) container.appendChild(placeholder);
-  },{passive:false});
-
-  container.addEventListener('touchend', e=>{
-    if(!dragEl) return;
-
-    // Restaurar cssText original limpio
-    dragEl.style.cssText = savedCssText;
-    const handle = dragEl.querySelector('.drag-handle');
-    if(handle) handle.style.color = '';
-
-    // Colocar en la posición del placeholder
-    container.insertBefore(dragEl, placeholder);
-    placeholder.remove();
-    placeholder = null;
-
-    // Leer nuevo orden del DOM
-    const allRows = [...container.querySelectorAll('[id^="editEjRow_"]')];
-    _editDragOrder = allRows.map(r=>r.dataset.ejname);
-
-    // Re-numerar sin tocar los listeners (siguen adjuntos a los mismos elementos)
-    allRows.forEach((r,ni)=>{
-      r.id = 'editEjRow_'+ni;
-      const h = r.querySelector('.drag-handle'); if(h) h.dataset.idx=ni;
-      const lbl = r.querySelector('.ej-label');
-      if(lbl) lbl.textContent = (ni+1)+'. '+(_editDragOrder[ni]||'');
-      ['eds','edr','edk'].forEach(pfx=>{
-        const inp = r.querySelector(`[id^="${pfx}_"]`); if(inp) inp.id=pfx+'_'+ni;
-      });
-    });
-
-    dragEl = null;
-  },{passive:false});
+function _resetEliteDiaEjs(){
+  const d = eliteById(_eliteDiaEjId);
+  if(!d) return;
+  if(d.planNotas&&d.planNotas[_eliteDiaEjFecha]&&d.planNotas[_eliteDiaEjFecha][_eliteDiaEjRname]){
+    delete d.planNotas[_eliteDiaEjFecha][_eliteDiaEjRname].ejsFull;
+  }
+  persist();
+  _editarRutinaDelDia(_eliteDiaEjRname);
 }
 
 function _guardarEdicionRutinaDelDia(rname){
@@ -7013,8 +6976,13 @@ function quitarRutinaElite(id, rname){
   const d = eliteById(id);
   if(!d) return;
   d.rs = (d.rs||[]).filter(n=>n!==rname);
+  if(!d.rsRemoved) d.rsRemoved = [];
+  if(!d.rsRemoved.includes(rname)) d.rsRemoved.push(rname);
+  if(d.rsOverride) delete d.rsOverride[rname];
+  if(d.planSemanal) delete d.planSemanal[rname];
   persist();
-  refreshEliteDeportistaModal(id);
+  showToast('Rutina quitada');
+  openEliteRutinasModal(id);
 }
 
 function toggleActivoElite(id){
