@@ -5855,7 +5855,10 @@ function _eliteDeportistaModalHTML(id){
       </div>
 
       <!-- Rutinas asignadas + Plan mensual + Entrenamientos -->
-      <button class="btn btn-outline" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="openEliteRutinasModal('${id}')"><i class="ti ti-barbell"></i> Rutinas asignadas</button>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteRutinasModal('${id}')"><i class="ti ti-barbell"></i> Rutinas asignadas</button>
+        <button class="btn btn-outline" style="padding:0 14px;justify-content:center;white-space:nowrap;" onclick="openElitePseCalModal('${id}')" title="Ver PSE"><i class="ti ti-heart-rate-monitor" style="font-size:16px;"></i> PSE</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openElitePlanCalendarioModal('${id}')"><i class="ti ti-calendar-month"></i> Plan mensual</button>
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
@@ -5897,6 +5900,130 @@ function eliteToggleCompletadaHoy(id, rname){
   }
   persist();
   refreshEliteDeportistaModal(id);
+}
+
+function openElitePseCalModal(id, ym){
+  const d = eliteById(id);
+  if(!d) return;
+  const pse = Array.isArray(d.pse) ? d.pse : [];
+  const now = new Date();
+  ym = ym || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const [year, month] = ym.split('-').map(Number);
+  const firstDay = new Date(year, month-1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startDow = (firstDay.getDay()+6)%7;
+  const todayStr = todayISO();
+  const MESES_N = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_H = ['L','M','X','J','V','S','D'];
+  const prevYM = month===1?`${year-1}-12`:`${year}-${String(month-1).padStart(2,'0')}`;
+  const nextYM = month===12?`${year+1}-01`:`${year}-${String(month+1).padStart(2,'0')}`;
+
+  // Índice de días con PSE
+  const pseByDay = {};
+  pse.forEach(p=>{ if(!pseByDay[p.f]) pseByDay[p.f]={pre:false,post:false,rpe:null}; if(p.tipo==='pre') pseByDay[p.f].pre=true; if(p.tipo==='post'){ pseByDay[p.f].post=true; if(p.r&&p.r.rpe!=null) pseByDay[p.f].rpe=+p.r.rpe; } });
+
+  const headerCells = DIAS_H.map(h=>`<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:6px 0;">${h}</div>`).join('');
+
+  let cells = '';
+  for(let i=0;i<startDow;i++) cells+='<div></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const ds=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const p = pseByDay[ds];
+    const isToday = ds===todayStr;
+    const hasPse = !!p;
+    const rpe = p ? p.rpe : null;
+    const rpeColor = rpe!=null ? (rpe<=3?'var(--green)':rpe<=6?'#d97706':'var(--red)') : null;
+
+    let bg='transparent', border='1.5px solid transparent', numColor=isToday?'var(--primary)':'var(--text)';
+    if(isToday&&hasPse){ bg='var(--primary-light)'; border='2px solid var(--primary)'; }
+    else if(isToday){ bg='var(--primary-light)'; border='2px solid var(--primary)'; }
+    else if(hasPse){ bg='var(--bg2)'; border='1.5px solid var(--border2)'; }
+
+    const dot = p&&p.pre&&p.post ? `<div style="display:flex;gap:2px;margin-top:2px;justify-content:center;">${rpe!=null?`<span style="font-size:8px;font-weight:800;color:${rpeColor};">RPE${rpe}</span>`:`<span style="width:5px;height:5px;border-radius:50%;background:var(--primary);display:inline-block;"></span><span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;"></span>`}</div>`
+      : p&&p.pre ? `<div style="width:5px;height:5px;border-radius:50%;background:var(--primary);margin:2px auto 0;"></div>`
+      : p&&p.post ? `<div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin:2px auto 0;"></div>` : '';
+
+    cells+=`<div onclick="${hasPse?`openElitePseDiaOwner('${id}','${ds}')`:''}" style="min-height:52px;padding:5px 4px 4px;border-radius:9px;${hasPse?'cursor:pointer;':''}background:${bg};border:${border};box-sizing:border-box;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${numColor};line-height:1;">${day}</div>
+      ${dot}
+    </div>`;
+  }
+
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:15px;"><i class="ti ti-heart-rate-monitor"></i> PSE — ${esc(d.n)}</h3>
+      <button onclick="openEliteDeportistaModal('${escQ(id)}')">✕</button>
+    </div>
+    <div style="padding:0 16px 20px;overflow-y:auto;max-height:80vh;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button onclick="openElitePseCalModal('${escQ(id)}','${prevYM}')" style="all:unset;width:36px;height:36px;border-radius:12px;background:var(--bg2);border:1.5px solid var(--border2);font-size:20px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <span style="font-size:16px;font-weight:800;">${MESES_N[month-1]} ${year}</span>
+        <button onclick="openElitePseCalModal('${escQ(id)}','${nextYM}')" style="all:unset;width:36px;height:36px;border-radius:12px;background:var(--bg2);border:1.5px solid var(--border2);font-size:20px;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border2);border-radius:16px;padding:10px;">
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">${headerCells}${cells}</div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text2);">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;"></span>PRE</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;"></span>POST</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;font-weight:800;color:var(--red);">RPE8</span> cuando hay ambos muestra el RPE</span>
+      </div>
+      ${!pse.length?`<p style="text-align:center;color:var(--text2);font-size:13px;margin-top:24px;">Sin PSE registradas todavía.</p>`:''}
+    </div>`);
+}
+
+function openElitePseDiaOwner(id, fecha){
+  const d = eliteById(id);
+  if(!d) return;
+  const pse = (d.pse||[]).filter(p=>p.f===fecha);
+  const [yr,mo,dy] = fecha.split('-');
+  const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const fechaLeg = `${dy} ${MESES_C[+mo-1]} ${yr}`;
+
+  const PSE_LABELS = {energia:'Energía',sueno:'Sueño',dolor:'Dolor',animo:'Ánimo',nota_pre:'Nota',rpe:'RPE',carga:'Carga',recuperacion:'Recuperación',satisfaccion:'Conformidad',nota_post:'Nota post'};
+  const PSE_ICONS = {energia:'ti-bolt',sueno:'ti-moon',dolor:'ti-alert-triangle',animo:'ti-mood-smile',nota_pre:'ti-message',rpe:'ti-flame',carga:'ti-barbell',recuperacion:'ti-heart-rate-monitor',satisfaccion:'ti-thumb-up',nota_post:'ti-message'};
+
+  function renderBlock(p){
+    const isPre = p.tipo==='pre';
+    const resp = p.r||{};
+    const keys = isPre ? ['energia','sueno','dolor','animo','nota_pre'] : ['rpe','carga','recuperacion','satisfaccion','nota_post'];
+    const items = keys.map(k=>{
+      const v = resp[k];
+      if(v===undefined||v===null||v==='') return '';
+      const isRpe = k==='rpe';
+      const isText = k==='nota_pre'||k==='nota_post';
+      const color = isRpe?(+v<=3?'var(--green)':+v<=6?'#d97706':'var(--red)'):isText?'var(--text2)':'var(--primary)';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);">
+        <i class="ti ${PSE_ICONS[k]}" style="font-size:16px;color:var(--text2);flex-shrink:0;width:18px;text-align:center;"></i>
+        <span style="flex:1;font-size:13px;color:var(--text2);">${PSE_LABELS[k]}</span>
+        <span style="font-size:13px;font-weight:${isText?'400':'700'};color:${color};text-align:right;max-width:55%;${isText?'font-style:italic;':''}">${esc(String(v))}${isRpe?' / 10':''}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    return `<div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${isPre?'var(--primary)':'var(--green)'};margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${isPre?'var(--primary)':'var(--green)'};display:inline-block;"></span>
+        ${isPre?'Antes del entrenamiento':'Después del entrenamiento'}${p.rname?' · '+esc(p.rname):''}
+      </div>
+      ${items||'<p style="font-size:13px;color:var(--text2);margin:0;">Sin respuestas.</p>'}
+    </div>`;
+  }
+
+  const pre = pse.filter(p=>p.tipo==='pre');
+  const post = pse.filter(p=>p.tipo==='post');
+  const html = [...pre,...post].map(renderBlock).join('');
+
+  openModal(`
+    <div class="modal-head">
+      <button onclick="openElitePseCalModal('${escQ(id)}')">←</button>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:15px;font-weight:700;">${fechaLeg}</div>
+        <div style="font-size:12px;color:var(--text2);">${esc(d.n)}</div>
+      </div>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:75vh;">
+      ${html||`<p style="text-align:center;color:var(--text2);font-size:13px;padding:24px 0;">Sin datos para este día.</p>`}
+    </div>`);
 }
 
 function openElitePseFechasModal(id){
