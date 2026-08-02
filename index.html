@@ -409,6 +409,16 @@ h3{font-size:15px;margin-bottom:10px;}
 .cal-daycol{position:relative;border-left:1px solid var(--border2);box-sizing:border-box;min-width:0;overflow:hidden;}
 .cal-hourline{border-top:1px solid var(--border2);box-sizing:border-box;}
 .cal-event{position:absolute;left:1px;border-radius:3px;font-size:10px;font-weight:600;line-height:1.15;overflow:hidden;cursor:pointer;box-sizing:border-box;}
+
+/* ── QR PAGE ───────────────────────────────────────────────────────── */
+.qr-chip{padding:9px 18px;border-radius:24px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .18s ease,color .18s ease,border-color .18s ease,transform .14s cubic-bezier(.34,1.56,.64,1);}
+.qr-chip:active{transform:scale(.94);}
+.qr-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.qr-main-box{display:flex;justify-content:center;align-items:center;min-height:210px;transition:opacity .18s ease;}
+.qr-entradas-card{cursor:pointer;text-align:center;padding:24px 20px;transition:box-shadow .22s ease,transform .14s ease;}
+.qr-entradas-card:hover{box-shadow:0 4px 16px rgba(59,130,201,.15);}
+.qr-entradas-card:active{transform:scale(.985);}
+[data-theme="dark"] .qr-chip.active{box-shadow:0 0 0 3px rgba(95,168,245,.25);}
 </style>
 </head>
 <body>
@@ -5202,45 +5212,44 @@ function qrUrlFor(clase){
 function qrUrlForStaff(){
   return `${APP_URL}?staff=1`;
 }
+let _qrActiveUrl = '';
+let _qrActiveName = null;
+
 function pageQR(){
+  const hoy = todayISO();
+  const entradasHoy = REGS.filter(r=>r.f&&localDateISO(r.f)===hoy).length;
+  const claseChips = CLASES_HOY.map(c=>`<button class="qr-chip" data-qr-name="${escQ(c.n)}" onclick="switchQRClase('${escQ(c.n)}')">${esc(c.n)}<span style="opacity:.65;font-weight:400;margin-left:4px;">· ${esc(c.h)}</span></button>`).join('');
   return `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
-    <div class="card" style="text-align:center;">
-      <h3>QR del gimnasio</h3>
-      <div class="qr-box" id="qrGeneralBox"></div>
-      <p style="color:var(--text2);font-size:13px;margin:6px 0 10px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso.</p>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-        <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
-        <button class="btn btn-outline" onclick="copyLink('${jsAttr(qrUrlFor(null))}')"><i class="ti ti-link"></i> Copiar link para nuevo socio</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>QR por clase</h3>
-      ${CLASES_HOY.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);">
-        <span>${esc(c.n)} · ${c.h}</span>
-        <span style="display:flex;gap:6px;">
-          <button class="btn btn-outline btn-sm" onclick="openClaseQR('${jsAttr(c.n)}')">Ver QR</button>
-          <button class="btn btn-outline btn-sm" onclick="copyLink('${jsAttr(qrUrlFor(c.n))}')" title="Copiar link"><i class="ti ti-link"></i></button>
-        </span>
-      </div>`).join('')}
+  <div class="card" style="text-align:center;max-width:400px;margin:0 auto 20px;padding:28px 24px 24px;">
+    <div id="qrMainBox" class="qr-main-box"></div>
+    <div id="qrMainLabel" style="font-size:13px;font-weight:600;color:var(--text2);margin:10px 0 18px;letter-spacing:.2px;">Entrada general al gimnasio</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn btn-primary" style="gap:7px;" onclick="window.print()"><i class="ti ti-printer"></i> Imprimir</button>
+      <button class="btn btn-outline" style="gap:7px;" onclick="copyLink(_qrActiveUrl)"><i class="ti ti-link"></i> Copiar link</button>
     </div>
   </div>
-  ${(isSuperOwner()||hasPerm('cuentas'))?`
-  <div class="card" style="text-align:center;margin-bottom:18px;">
-    <h3>QR para el personal (profesores)</h3>
-    <div class="qr-box" id="qrStaffBox"></div>
-    <p style="color:var(--text2);font-size:13px;margin:6px 0 10px;">Imprimí este QR y pegalo en el gimnasio. Al escanearlo, el profesor llega directo a una pantalla para crear su cuenta o iniciar sesión como personal. Después podés ascenderlo a admin o dueño desde "Cuentas y permisos".</p>
-    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-      <button class="btn btn-outline" onclick="window.print()">Imprimir</button>
-      <button class="btn btn-outline" onclick="copyLink('${jsAttr(qrUrlForStaff())}')"><i class="ti ti-link"></i> Copiar link</button>
+
+  ${CLASES_HOY.length ? `
+  <div style="overflow-x:auto;padding-bottom:6px;margin-bottom:20px;-webkit-overflow-scrolling:touch;">
+    <div style="display:flex;gap:8px;padding:2px 2px 2px 2px;min-width:max-content;">
+      <button class="qr-chip active" data-qr-name="" onclick="switchQRClase(null)"><i class="ti ti-home" style="font-size:14px;margin-right:4px;"></i>General</button>
+      ${claseChips}
     </div>
   </div>` : ''}
+
   ${currentRole!=='profesor'?`
-  <div class="card">
-    <div class="section-head"><h3>Registro de entradas del día (${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length})</h3><button class="btn btn-outline btn-sm" onclick="exportarAsistenciasCSV()" title="Exportar asistencias a CSV"><i class="ti ti-download"></i> Exportar CSV</button></div>
-    <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Hora</th></tr></thead>
-    <tbody>${REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).map(r=>`<tr><td>${esc(r.n)}</td><td>${r.cl?`<span class="badge b-purple">${esc(r.cl)}</span>`:'Entrada general'}</td><td>${r.h}</td></tr>`).join('')}</tbody></table>
-  </div>`:''}`;
+  <div class="card qr-entradas-card" onclick="openEntradasModal()">
+    <div style="font-size:52px;font-weight:800;color:var(--primary);line-height:1;">${entradasHoy}</div>
+    <div style="font-size:15px;font-weight:600;color:var(--text);margin:6px 0 4px;">entradas hoy</div>
+    <div style="font-size:13px;color:var(--primary);font-weight:600;">Ver detalle <i class="ti ti-chevron-right" style="font-size:12px;"></i></div>
+  </div>`:''}
+
+  ${(isSuperOwner()||hasPerm('cuentas'))?`
+  <button class="btn btn-outline" style="width:100%;max-width:400px;display:flex;margin:14px auto 0;justify-content:center;gap:8px;padding:12px;" onclick="openStaffQRModal()">
+    <i class="ti ti-qrcode" style="font-size:17px;"></i> QR para profesores
+    <i class="ti ti-chevron-right" style="font-size:14px;opacity:.5;margin-left:auto;"></i>
+  </button>`:''}
+  `;
 }
 function renderQRInto(boxId, text, opts){
   const box = document.getElementById(boxId);
@@ -5252,20 +5261,74 @@ function renderQRInto(boxId, text, opts){
   QRCode.toCanvas(canvas, text, opts, (err)=>{ if(err){ console.error('Error generando QR:', err); box.innerHTML = '<p style="color:var(--red);font-size:13px;">No se pudo generar el QR.</p>'; } });
 }
 function mountQRCodes(){
-  renderQRInto('qrGeneralBox', qrUrlFor(null), {width:150, margin:1});
-  renderQRInto('qrStaffBox', qrUrlForStaff(), {width:150, margin:1, color:{dark:'#7c3aed'}});
+  _qrActiveUrl = qrUrlFor(null);
+  _qrActiveName = null;
+  renderQRInto('qrMainBox', _qrActiveUrl, {width:200, margin:1});
 }
-function openClaseQR(name){
+
+function switchQRClase(name){
+  _qrActiveName = name||null;
+  _qrActiveUrl = qrUrlFor(name||null);
+  // chips activos
+  document.querySelectorAll('.qr-chip').forEach(el=>{
+    el.classList.toggle('active', (el.dataset.qrName||'')===(name||''));
+  });
+  // label
+  const label = document.getElementById('qrMainLabel');
+  if(label) label.textContent = name ? `Clase: ${name}` : 'Entrada general al gimnasio';
+  // fade + re-render
+  const box = document.getElementById('qrMainBox');
+  if(!box) return;
+  box.style.opacity = '0';
+  setTimeout(()=>{
+    const color = name ? {dark:'#059669'} : undefined;
+    renderQRInto('qrMainBox', _qrActiveUrl, Object.assign({width:200,margin:1}, color?{color}:{}));
+    box.style.opacity = '1';
+  }, 180);
+}
+
+function openEntradasModal(){
+  const hoy = todayISO();
+  const regsHoy = REGS.filter(r=>r.f&&localDateISO(r.f)===hoy).sort((a,b)=>b.h.localeCompare(a.h));
+  const initials = n => (n||'?').split(' ').map(x=>x[0]||'').join('').slice(0,2).toUpperCase();
   openModal(`
-    <div class="modal-head"><h3>QR — ${esc(name)}</h3><button onclick="closeModal()">✕</button></div>
-    <div class="qr-box" id="qrClaseBox"></div>
-    <p style="color:var(--text2);font-size:13px;margin-top:6px;">Los socios lo escanean con la cámara de su celular para registrar el ingreso a esta clase.</p>
+    <div class="modal-sticky-top">
+      <div class="modal-head">
+        <h3><i class="ti ti-door-enter" style="color:var(--primary);margin-right:6px;"></i>Entradas de hoy · <span style="color:var(--primary);">${regsHoy.length}</span></h3>
+        <button onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    ${regsHoy.length===0
+      ? `<div class="empty-state"><i class="ti ti-door-off"></i><p>Nadie entró todavía hoy</p></div>`
+      : `<div style="display:flex;flex-direction:column;gap:8px;">
+          ${regsHoy.map(r=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${initials(r.n)}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.n)}</div>
+              <div style="font-size:12px;color:var(--text2);">${r.cl?`<span class="badge b-purple" style="font-size:10px;">${esc(r.cl)}</span>`:'Entrada general'}</div>
+            </div>
+            <div style="font-size:13px;color:var(--text2);font-weight:600;flex-shrink:0;">${r.h}</div>
+          </div>`).join('')}
+        </div>`}
+    ${currentRole!=='profesor'?`
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-outline btn-sm" onclick="exportarAsistenciasCSV()"><i class="ti ti-download"></i> Exportar CSV</button>
+    </div>`:''}
+  `);
+}
+
+function openStaffQRModal(){
+  openModal(`
+    <div class="modal-head"><h3><i class="ti ti-qrcode" style="color:#7c3aed;margin-right:6px;"></i>QR para profesores</h3><button onclick="closeModal()">✕</button></div>
+    <div class="qr-box" id="qrStaffModalBox" style="margin:16px 0 12px;"></div>
+    <p style="color:var(--text2);font-size:13px;line-height:1.6;margin-bottom:16px;">Imprimí este QR y pegalo en el gimnasio. Al escanearlo, el profesor llega directo a una pantalla para crear su cuenta o iniciar sesión como personal. Después podés ascenderlo desde <b>Cuentas y permisos</b>.</p>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="copyLink('${jsAttr(qrUrlFor(name))}')"><i class="ti ti-link"></i> Copiar link</button>
-      <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="closeModal()">Cerrar</button>
+      <button class="btn btn-outline" onclick="copyLink('${jsAttr(qrUrlForStaff())}')"><i class="ti ti-link"></i> Copiar link</button>
+      <button class="btn btn-primary" onclick="window.print()"><i class="ti ti-printer"></i> Imprimir</button>
     </div>
   `);
-  renderQRInto('qrClaseBox', qrUrlFor(name), {width:140, margin:1, color:{dark:'#059669'}});
+  renderQRInto('qrStaffModalBox', qrUrlForStaff(), {width:180, margin:1, color:{dark:'#7c3aed'}});
 }
 
 /* ---- PAGOS ---- */
