@@ -6629,6 +6629,18 @@ function getPlanItems(d, ds){
   if(Array.isArray(val)) return val;
   return [val]; // backward compat
 }
+// Como getPlanItems pero también incluye el plan semanal recurrente (planSemanal)
+function getAllPlanItems(d, ds){
+  const pf = d.planFechas||{};
+  if(ds in pf){
+    const val = pf[ds];
+    if(!val) return [];
+    return Array.isArray(val) ? val : [val];
+  }
+  const dow = new Date(ds+'T12:00:00').getDay();
+  const ps = d.planSemanal||{};
+  return Object.keys(ps).filter(rname=>Array.isArray(ps[rname])&&ps[rname].includes(dow));
+}
 
 function _togglePlanFechaItem(rname){
   const {id, fecha, ym} = _asignarDiaCtx;
@@ -7891,7 +7903,7 @@ function elitePageRutinas(d){
   for(let i=0;i<startDow;i++) cells+='<div></div>';
   for(let day=1;day<=daysInMonth;day++){
     const ds=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const planItems=getPlanItems({planFechas},ds);
+    const planItems=getAllPlanItems(d,ds);
     const hasPlan=planItems.length>0;
     const isToday=ds===todayStr;
     const isPast=ds<todayStr;
@@ -8177,7 +8189,7 @@ function elitePagePseHistorial(d){
 function eliteVerDiaSemana(ds){
   const d = eliteById(currentEliteId);
   if(!d) return;
-  const items = getPlanItems(d, ds);
+  const items = getAllPlanItems(d, ds);
   const comp = (d.competencias||[]).find(c=>c.f===ds);
   const dt = new Date(ds+'T12:00:00');
   const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -8220,41 +8232,58 @@ function eliteVerDiaSemana(ds){
     return;
   }
 
+  const esHoy = ds===todayStr;
+
   const rows = items.map(rname=>{
     const r = RUTINAS.find(x=>x.n===rname);
-    const rh = d.rsHechos?.[rname]||{};
-    const ejs = r ? r.ejs||[] : [];
-    const ejsHechos = ejs.filter(e=>rh[e.n]===ds).length;
+    const rhR = (d.rsHechos||{})[rname]||{};
+    // Ejercicios: prioridad ejsFull del día > rsOverride global > base
+    const planNota = ((d.planNotas||{})[ds]||{})[rname]||{};
+    const nota = planNota.nota||'';
+    let ejs;
+    if(Array.isArray(planNota.ejsFull)&&planNota.ejsFull.length) ejs = planNota.ejsFull;
+    else if(d.rsOverride&&d.rsOverride[rname]) ejs = d.rsOverride[rname];
+    else ejs = r ? r.ejs||[] : [];
+
+    const ejsHechos = ejs.filter(e=>rhR[e.n]===ds).length;
     const pct = ejs.length ? Math.round(ejsHechos/ejs.length*100) : 0;
     const completo = ejs.length>0 && ejsHechos===ejs.length;
-    const esHoy = ds===todayStr;
-    const planNota = ((d.planNotas||{})[ds]||{})[rname];
-    const nota = planNota&&planNota.nota ? planNota.nota : '';
+
+    const ejList = ejs.length ? `<div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">
+      ${ejs.map((e,i)=>{
+        const hecho = rhR[e.n]===ds;
+        const sr = e.modo==='tiempo' ? (e.tiempo||'') : `${e.s||''}×${e.r||''}${e.kg?' · '+e.kg+' kg':''}`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2);">
+          <span style="font-size:11px;color:var(--text2);flex:0 0 18px;text-align:right;">${i+1}</span>
+          <span style="flex:1;font-size:13px;font-weight:600;${hecho?'text-decoration:line-through;color:var(--text2);':''};">${esc(e.n)}</span>
+          <span style="font-size:11px;color:var(--text2);white-space:nowrap;">${esc(sr)}</span>
+          ${hecho?`<i class="ti ti-check" style="font-size:13px;color:var(--green);flex-shrink:0;"></i>`:''}
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
     return `<div class="card" style="padding:16px;border-radius:14px;margin-bottom:10px;${esHoy?'cursor:pointer;-webkit-tap-highlight-color:transparent;':''}" ${esHoy?`onclick="closeModal();eliteAbrirRutina('${escQ(rname)}')"`:''}>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:${ejs.length?'10px':'0'};">
+      <div style="display:flex;align-items:center;gap:12px;">
         <div style="background:${completo?'rgba(5,150,105,.12)':'var(--primary-light)'};border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <i class="ti ${completo?'ti-check':'ti-barbell'}" style="font-size:20px;color:${completo?'var(--green)':'var(--primary)'};"></i>
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(rname)}</div>
-          ${ejs.length ? `<div style="font-size:12px;color:var(--text2);">${ejs.length} ejercicios</div>` : ''}
-          ${nota ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;font-style:italic;">${esc(nota)}</div>` : ''}
+          <div style="font-size:12px;color:var(--text2);">${ejs.length} ejercicio${ejs.length!==1?'s':''}</div>
+          ${nota?`<div style="font-size:11px;color:var(--primary);margin-top:2px;font-style:italic;">${esc(nota)}</div>`:''}
         </div>
-        ${completo ? `<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓</span>` : esHoy ? `<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>` : ''}
+        ${completo?`<span style="background:rgba(5,150,105,.12);color:var(--green);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;flex-shrink:0;">✓</span>`:esHoy?`<i class="ti ti-chevron-right" style="color:var(--text2);font-size:18px;flex-shrink:0;"></i>`:''}
       </div>
-      ${ejs.length ? `
-      <div style="background:var(--border2);border-radius:6px;height:5px;overflow:hidden;">
-        <div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;"></div>
-      </div>
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">${ejsHechos}/${ejs.length} completados</div>` : ''}
+      ${ejs.length&&!esHoy ? `<div style="margin-top:8px;background:var(--border2);border-radius:6px;height:4px;overflow:hidden;"><div style="background:${completo?'var(--green)':'var(--primary)'};height:100%;width:${pct}%;border-radius:6px;"></div></div>` : ''}
+      ${!esHoy ? ejList : ''}
     </div>`;
   }).join('');
 
-  openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}</h3><button onclick="closeModal()">✕</button></div>
+  openModal(`<div class="modal-head"><h3 style="font-size:14px;">${fechaTxt}${esHoy?' <span style="color:var(--primary);font-size:12px;">· Hoy</span>':''}</h3><button onclick="closeModal()">✕</button></div>
   <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
     ${compHTML}
     ${rows}
-    ${ds===todayStr ? '<p style="font-size:12px;color:var(--text2);text-align:center;margin:0;">Tocá una rutina para ver los ejercicios</p>' : ''}
+    ${esHoy&&items.length ? '<p style="font-size:12px;color:var(--text2);text-align:center;margin:4px 0 0;">Tocá una rutina para entrenar</p>' : ''}
   </div>`);
 }
 
