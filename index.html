@@ -3895,6 +3895,61 @@ function resetSocioRutinaEjs(si, rname){
   openSocioRutinasModal(si);
 }
 
+// --- Elite: edición de ejercicios de rutina asignada (owner) ---
+let eliteEjEditArr = null, eliteEjEditId = null, eliteEjEditRname = null;
+function openEliteEditRutinaOwnerModal(id, rname){
+  const d = eliteById(id);
+  const r = RUTINAS.find(x=>x.n===rname);
+  if(!d||!r) return;
+  if(!d.rsOverride) d.rsOverride = {};
+  const base = d.rsOverride[rname] ? d.rsOverride[rname] : (r.ejs||[]);
+  eliteEjEditArr = base.length ? base.map(e=>({n:e.n,s:e.s,r:e.r,modo:e.modo||'',tiempo:e.tiempo||'',kg:e.kg||''})) : [{n:'',s:3,r:'10',kg:''}];
+  eliteEjEditId = id;
+  eliteEjEditRname = rname;
+  currentEjsArr = eliteEjEditArr;
+  currentEjsRenderFn = renderEliteEjOwnerModalBody;
+  currentEjsShowKg = true;
+  currentEjsDraggable = true;
+  renderEliteEjOwnerModalBody();
+}
+function renderEliteEjOwnerModalBody(){
+  const d = eliteById(eliteEjEditId);
+  const rname = eliteEjEditRname;
+  const hasOverride = !!(d.rsOverride && d.rsOverride[rname]);
+  openModal(`
+    <div class="modal-head"><h3>Ejercicios — ${esc(rname)}</h3><button onclick="openEliteDeportistaModal('${escQ(eliteEjEditId)}')">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:10px;">Estos cambios sólo afectan a <b>${esc(d.n)}</b>. La rutina original no se modifica para los demás deportistas.</p>
+    <div id="rtEjs">
+    ${eliteEjEditArr.map((e,i)=>ejRowHTML(i,e,true,true)).join('')}
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
+    <div class="modal-actions" style="justify-content:space-between;">
+      ${hasOverride?`<button class="btn btn-outline" onclick="resetEliteRutinaEjs('${escQ(eliteEjEditId)}','${escQ(eliteEjEditRname)}')">Restablecer original</button>`:'<span></span>'}
+      <span>
+        <button class="btn btn-outline" onclick="openEliteDeportistaModal('${escQ(eliteEjEditId)}')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEliteRutinaEjs()">Guardar</button>
+      </span>
+    </div>
+  `,'wide');
+}
+function saveEliteRutinaEjs(){
+  const d = eliteById(eliteEjEditId);
+  if(!d) return;
+  const ejs = eliteEjEditArr.filter(e=>e.n).map(e=> e.modo==='tiempo' ? {n:e.n,modo:'tiempo',tiempo:e.tiempo||'',kg:e.kg||'',v:''} : {n:e.n,s:parseInt(e.s)||3,r:e.r,kg:e.kg||'',v:''});
+  if(!d.rsOverride) d.rsOverride = {};
+  d.rsOverride[eliteEjEditRname] = ejs;
+  persist();
+  showToast('Guardado');
+  openEliteDeportistaModal(eliteEjEditId);
+}
+function resetEliteRutinaEjs(id, rname){
+  const d = eliteById(id);
+  if(!d) return;
+  if(d.rsOverride) delete d.rsOverride[rname];
+  persist();
+  openEliteDeportistaModal(id);
+}
+
 let editPagoIdx = null;
 let editPagoKey = null; // clave estable sid|f|m|mp para no depender de índice
 function pagoSocioResultsHTML(q){
@@ -5733,6 +5788,23 @@ function _eliteDeportistaModalHTML(id){
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openElitePlanCalendarioModal('${id}')"><i class="ti ti-calendar-month"></i> Plan mensual</button>
         <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="openEliteEntrenamientosModal('${id}')"><i class="ti ti-calendar-stats"></i> Entrenamientos</button>
       </div>
+
+      <!-- Rutinas asignadas -->
+      ${(()=>{
+        const rs = Array.isArray(d.rs) ? d.rs : [];
+        if(!rs.length) return `<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Rutinas asignadas</div><p style="font-size:13px;color:var(--text2);margin:0 0 4px;">Sin rutinas asignadas.</p>`;
+        const rows = rs.map(rname=>{
+          const hasOv = d.rsOverride && d.rsOverride[rname];
+          return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border2);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:600;">${esc(rname)}</div>
+              ${hasOv?`<div style="font-size:10px;color:var(--primary);margin-top:1px;"><i class="ti ti-pencil" style="font-size:10px;"></i> Personalizado</div>`:''}
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="openEliteEditRutinaOwnerModal('${escQ(id)}','${escQ(rname)}')"><i class="ti ti-edit"></i> Editar</button>
+          </div>`;
+        }).join('');
+        return `<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Rutinas asignadas</div>${rows}`;
+      })()}
 
       <!-- Competencias -->
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">Competencias</div>
