@@ -5581,12 +5581,17 @@ function _eliteDeportistaModalHTML(id){
 
   const competencias = Array.isArray(d.competencias) ? d.competencias.slice().sort((a,b)=>a.f.localeCompare(b.f)) : [];
   const compRows = competencias.map((c)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);">
-      <span style="font-size:12px;color:var(--text2);flex-shrink:0;">${esc(c.f)}</span>
-      <span style="font-size:13px;font-weight:600;flex:1;">${esc(c.n)}</span>
-      <span style="font-size:12px;color:var(--text2);">${esc(c.lugar||'')}</span>
-      ${c.resultado?`<span style="font-size:11px;background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 8px;">${esc(c.resultado)}</span>`:''}
-      <button class="btn btn-outline btn-sm" onclick="eliminarCompetenciaElite('${id}','${escQ(c.f+'|'+c.n)}')"><i class="ti ti-x"></i></button>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2);cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="verDetalleCompetenciaOwner('${id}','${escQ(c.f+'|'+c.n)}')">
+      <div style="background:rgba(251,191,36,.15);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-medal" style="font-size:16px;color:#d97706;"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        ${c.tipo?`<div style="font-size:10px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.4px;">${esc(c.tipo)}</div>`:''}
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.n)}</div>
+        <div style="font-size:11px;color:var(--text2);">${esc(c.f)}${c.hora?' · '+esc(c.hora)+' hs':''}${c.lugar?' · '+esc(c.lugar):''}</div>
+      </div>
+      ${c.resultado?`<span style="font-size:11px;background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 8px;flex-shrink:0;">${esc(c.resultado)}</span>`:''}
+      <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text2);flex-shrink:0;"></i>
     </div>`).join('');
 
   const pseCount = Array.isArray(d.pse) ? d.pse.length : 0;
@@ -7775,7 +7780,7 @@ function elitePageCompetencias(d){
   const pasadas = (d.competencias||[]).filter(c=>c.f<todayStr).sort((a,b)=>b.f.localeCompare(a.f));
   const MESES_N = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const fmtF = f=>{ const [y,m,dd]=f.split('-'); return `${dd} ${MESES_N[+m-1]} ${y}`; };
-  const renderComp = (c)=>`<div class="card" style="padding:14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;">
+  const renderComp = (c)=>`<div class="card" style="padding:14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;" onclick="eliteVerDetalleCompetencia('${escQ(c.f+'|'+c.n)}')">
     <div style="background:rgba(251,191,36,.15);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
       <i class="ti ti-medal" style="font-size:20px;color:#d97706;"></i>
     </div>
@@ -7785,6 +7790,7 @@ function elitePageCompetencias(d){
       <div style="font-size:12px;color:var(--text2);margin-top:2px;">${fmtF(c.f)}${c.hora?' · '+esc(c.hora)+' hs':''}${c.lugar?' · '+esc(c.lugar):''}</div>
       ${c.resultado?`<div style="margin-top:6px;"><span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:600;">${esc(c.resultado)}</span></div>`:''}
     </div>
+    <i class="ti ti-chevron-right" style="font-size:16px;color:var(--text2);flex-shrink:0;align-self:center;"></i>
   </div>`;
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -7800,6 +7806,71 @@ function elitePageCompetencias(d){
       <div style="font-size:14px;">Sin competencias cargadas todavía.</div>
       <div style="font-size:12px;margin-top:6px;">¡Agregá tu próxima competencia!</div>
     </div>`:''}`;
+}
+
+function _compDetalleModal(c, onEliminar){
+  const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const [y,m,dd] = c.f.split('-');
+  const fechaFmt = `${dd} de ${MESES_N[+m-1]} de ${y}`;
+  const filas = [
+    c.tipo    ? ['Tipo',     c.tipo]                     : null,
+    c.f       ? ['Fecha',    fechaFmt]                   : null,
+    c.hora    ? ['Hora',     c.hora + ' hs']             : null,
+    c.lugar   ? ['Lugar',    c.lugar]                    : null,
+    c.resultado?['Resultado',c.resultado]                : null,
+  ].filter(Boolean);
+  openModal(`
+    <div class="modal-head">
+      <h3 style="font-size:15px;">${esc(c.n)}</h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div style="padding:0 16px 20px;">
+      <div style="display:flex;align-items:center;justify-content:center;margin:12px 0 18px;">
+        <div style="background:rgba(251,191,36,.18);border-radius:16px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;">
+          <i class="ti ti-medal" style="font-size:28px;color:#d97706;"></i>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border-radius:14px;padding:4px 0;margin-bottom:16px;">
+        ${filas.map(([k,v],i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;${i<filas.length-1?'border-bottom:1px solid var(--border2);':''}">
+            <span style="font-size:12px;color:var(--text2);font-weight:600;">${esc(k)}</span>
+            <span style="font-size:13px;font-weight:700;text-align:right;max-width:60%;">${esc(v)}</span>
+          </div>`).join('')}
+      </div>
+      <button onclick="${onEliminar}" style="width:100%;padding:10px;background:none;border:1.5px solid var(--red);border-radius:12px;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <i class="ti ti-trash"></i> Eliminar competencia
+      </button>
+    </div>`);
+}
+
+function eliteVerDetalleCompetencia(key){
+  const d = eliteById(currentEliteId);
+  if(!d) return;
+  const c = (d.competencias||[]).find(x=>(x.f+'|'+x.n)===key);
+  if(!c) return;
+  _compDetalleModal(c, `eliminarCompetenciaDeportista('${escQ(key)}')`);
+}
+
+function eliminarCompetenciaDeportista(key){
+  const d = eliteById(currentEliteId);
+  if(!d||!Array.isArray(d.competencias)) return;
+  const idx = d.competencias.findIndex(c=>(c.f+'|'+c.n)===key);
+  if(idx<0) return;
+  if(!Array.isArray(d.competenciasRemoved)) d.competenciasRemoved=[];
+  if(!d.competenciasRemoved.includes(key)) d.competenciasRemoved.push(key);
+  d.competencias.splice(idx,1);
+  persist();
+  closeModal();
+  renderElitePanel();
+  showToast('Competencia eliminada','ok');
+}
+
+function verDetalleCompetenciaOwner(atlId, key){
+  const d = eliteById(atlId);
+  if(!d) return;
+  const c = (d.competencias||[]).find(x=>(x.f+'|'+x.n)===key);
+  if(!c) return;
+  _compDetalleModal(c, `eliminarCompetenciaElite('${escQ(atlId)}','${escQ(key)}')`);
 }
 
 function eliteAgregarCompetenciaModal(){
