@@ -1518,6 +1518,7 @@ function recalcEstados(opts){
   const today = new Date(); today.setHours(0,0,0,0);
   SOCIOS.forEach(s=>{
     if(s.activo===false){ if(s.es !== 'de') { s.es='de'; changed=true; } return; }
+    if(s.cortesia){ if(s.es !== 'ok'){ s.es='ok'; changed=true; } return; }
     if(!s.vence) return;
     const v = new Date(s.vence);
     if(isNaN(v)) return;
@@ -3082,7 +3083,7 @@ function socioRowHTML(s, idx){
   return `
     <tr style="${s.activo===false?'opacity:.55;':''}">
       <td>${esc(s.n)}</td>
-      ${showPay?`<td>${payBadge(s.es)}</td><td>${fmtFechaCorta(s.vence)}</td>`:''}
+      ${showPay?`<td>${s.cortesia?'<span class="badge b-purple">Cortesía</span>':payBadge(s.es)}</td><td>${s.cortesia?'—':fmtFechaCorta(s.vence)}</td>`:''}
       <td>${rutinasBadgeHTML(s,idx)}</td>
       <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
       <td style="white-space:nowrap;">
@@ -4112,6 +4113,19 @@ function openPagoModal(idx, payIdx){
       </div>
     </div>
     <div class="field"><label>Nota</label><input id="pg_n" placeholder="Opcional" value="${p?esc(p.nt||''):''}"></div>
+    <div style="border-top:1px solid var(--border2);margin-top:14px;padding-top:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;">Socio de cortesía</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">No paga ni vence nunca. Acceso completo sin cargo.</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer;">
+          <input type="checkbox" id="pg_cortesia" ${selSocio&&selSocio.cortesia?'checked':''} onchange="_toggleCortesia(this.checked)" style="opacity:0;width:0;height:0;">
+          <span id="pg_cortesia_track" style="position:absolute;inset:0;border-radius:12px;background:${selSocio&&selSocio.cortesia?'var(--primary)':'var(--border2)'};transition:background .2s;"></span>
+          <span id="pg_cortesia_thumb" style="position:absolute;top:3px;left:${selSocio&&selSocio.cortesia?'23px':'3px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>
+        </label>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
       ${p?`<button class="btn btn-outline" style="color:var(--red);" onclick="deletePago(${editPagoIdx})">Eliminar</button>`:''}
@@ -4152,20 +4166,45 @@ function savePagoAnterior(idx){
   showToast('Pago anterior guardado');
   closeModal(); renderStaff();
 }
+function _toggleCortesia(checked){
+  const track = document.getElementById('pg_cortesia_track');
+  const thumb  = document.getElementById('pg_cortesia_thumb');
+  if(track) track.style.background = checked ? 'var(--primary)' : 'var(--border2)';
+  if(thumb)  thumb.style.left = checked ? '23px' : '3px';
+}
+
 function savePago(){
   const s = SOCIOS.find(s=>s.id===$('#pg_s').value);
   if(!s){ showToast('Elegí un socio.', 'error'); return; }
+
+  // Aplicar/quitar cortesía antes de procesar el pago
+  const cortesiaCheck = document.getElementById('pg_cortesia');
+  const esCortesia = cortesiaCheck ? cortesiaCheck.checked : !!s.cortesia;
+  if(esCortesia){
+    s.cortesia = true;
+    s.vence = null;
+    s.es = 'ok';
+    logMovimiento('cortesia', `${s.n} designado como socio de cortesía`);
+    editPagoIdx = null; editPagoKey = null;
+    persist();
+    showToast('Socio de cortesía guardado');
+    closeModal(); renderStaff();
+    return;
+  } else if(s.cortesia){
+    delete s.cortesia;
+    logMovimiento('cortesia', `Cortesía dada de baja para ${s.n}`);
+  }
+
   const med = document.querySelector('input[name="pg_med"]:checked');
   const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, med:med?med.value:'Efectivo', nt:$('#pg_n').value};
   if(editPagoKey!==null){
     const realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
-    // Recalcular vencimiento desde el mes más reciente pagado por este socio
     const latestMp = PAGOS.filter(p=>p.sid===s.id).reduce((best,p)=>(!best||p.mp>best)?p.mp:best, null);
     if(latestMp){ s.vence = venceDesdeMp(latestMp); s.es='ok'; }
   } else {
     if(PAGOS.some(p=>p.sid===data.sid && p.f===data.f && p.m===data.m && p.mp===data.mp)){ showToast('Este pago ya existe.','error'); return; }
-    s.vence = venceDesdeMp(data.mp); // vence el día 10 del mes siguiente (partir del 10 = vencido)
+    s.vence = venceDesdeMp(data.mp);
     s.es='ok';
     PAGOS.unshift(data);
     if(currentRole==='profesor'){
@@ -9274,13 +9313,15 @@ function socioInicio(){
     </div>
   </div>` : '';
   showWelcomeBanner = false;
-  const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  const payClass = s.cortesia ? 'b-purple' : {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const venceFmt = s.vence ? fmtFechaCorta(s.vence) : null;
-  const payTxt = s.es==='ok'
-    ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
-    : s.es==='ve'
-      ? `Tu pago vence el ${venceFmt||'pronto'} — aboná antes para no quedar sin acceso`
-      : `Tu pago venció${venceFmt ? ` el ${venceFmt}` : ''} — contactá al gimnasio para regularizar`;
+  const payTxt = s.cortesia
+    ? 'Sos socio de cortesía — acceso completo sin cargo'
+    : s.es==='ok'
+      ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
+      : s.es==='ve'
+        ? `Tu pago vence el ${venceFmt||'pronto'} — aboná antes para no quedar sin acceso`
+        : `Tu pago venció${venceFmt ? ` el ${venceFmt}` : ''} — contactá al gimnasio para regularizar`;
   const edad = getEdad(s);
   return `
   ${welcomeHTML}
@@ -9742,13 +9783,15 @@ function setMiSREj(si, rname, ejName, field, val){
 }
 function socioCuenta(){
   const s = SOCIOS[currentSocioIdx];
-  const payClass = {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
+  const payClass = s.cortesia ? 'b-purple' : {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const venceFmt = s.vence ? fmtFechaCorta(s.vence) : null;
-  const payTxt = s.es==='ok'
-    ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
-    : s.es==='ve'
-      ? `Tu pago vence el ${venceFmt||'pronto'} — aboná antes para no quedar sin acceso`
-      : `Tu pago venció${venceFmt ? ` el ${venceFmt}` : ''} — contactá al gimnasio para regularizar`;
+  const payTxt = s.cortesia
+    ? 'Sos socio de cortesía — acceso completo sin cargo'
+    : s.es==='ok'
+      ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
+      : s.es==='ve'
+        ? `Tu pago vence el ${venceFmt||'pronto'} — aboná antes para no quedar sin acceso`
+        : `Tu pago venció${venceFmt ? ` el ${venceFmt}` : ''} — contactá al gimnasio para regularizar`;
   const edad = getEdad(s);
   return `
   <h2>Cuenta</h2>
