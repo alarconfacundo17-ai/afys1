@@ -2734,52 +2734,59 @@ function openResumenHoyModal(){
 function pageCuentas(){
   const duenos = STAFF.filter(s=>s.role==='dueno');
   const admins = STAFF.filter(s=>s.role==='admin');
-  const profs = STAFF.filter(s=>s.role==='profesor');
+  const profs  = STAFF.filter(s=>s.role==='profesor');
+
+  // Fila del dueño principal
+  const mainRow = `<tr>
+    <td>${esc(DUENO_EMAIL||'-')}</td>
+    <td><span class="badge b-purple">Dueño principal</span></td>
+    <td></td>
+  </tr>`;
+  // Filas de otros dueños (en STAFF con role==='dueno')
+  const duenoRows = duenos.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}">
+    <td>${esc(s.email)}</td>
+    <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
+      ${isSuperOwner()?staffBajaButtons(s):''}
+    </td>
+  </tr>`).join('');
+
   return `
-  ${isSuperOwner()?`
   <div class="card" style="margin-bottom:18px;">
-    <div class="section-head"><h3 style="margin:0;">Respaldo de datos</h3></div>
-    <p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;">Descargá una copia de tus socios y pagos en formato CSV (se abre en Excel/Google Sheets). Te recomendamos hacerlo cada tanto por las dudas.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-outline" onclick="descargarBackupSocios()"><i class="ti ti-download"></i> Descargar socios (CSV)</button>
-      <button class="btn btn-outline" onclick="descargarBackupPagos()"><i class="ti ti-download"></i> Descargar pagos (CSV)</button>
-    </div>
-  </div>`:''}
-  <div class="card" style="margin-bottom:18px;">
-    <div class="section-head"><h3 style="margin:0;">Dueño principal</h3></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
-    <tbody><tr><td>Dueño</td><td>${esc(DUENO_EMAIL||'-')}</td><td><span class="badge b-purple">Acceso total</span></td></tr></tbody></table>
-  </div>
-  <div class="card" style="margin-bottom:18px;">
-    <div class="section-head"><h3 style="margin:0;">Otros dueños</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('dueno')"><i class="ti ti-plus"></i>Nuevo dueño</button></div>
-    ${duenos.length?`<table><thead><tr><th>Nombre</th><th>Email</th><th>Estado</th><th></th></tr></thead>
-    <tbody>
-      ${duenos.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td>${esc(s.email)}</td><td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="openPermModal('${s.id}')">Editar permisos</button>
-        ${isSuperOwner()?staffBajaButtons(s):''}
-      </td></tr>`).join('')}
-    </tbody></table>`:`<p style="color:var(--text2);font-size:14px;">Aún no agregaste otros dueños.</p>`}
+    <div class="section-head"><h3 style="margin:0;">Dueños</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('dueno')"><i class="ti ti-plus"></i>Nuevo dueño</button></div>
+    <table><thead><tr><th>Email</th><th>Rol</th><th></th></tr></thead>
+    <tbody>${mainRow}${duenoRows}</tbody></table>
   </div>
   <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Administradores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('admin')"><i class="ti ti-plus"></i>Nuevo admin</button></div>
     <table><thead><tr><th>Nombre</th><th></th></tr></thead>
     <tbody>
-      ${admins.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${admins.length?admins.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" onclick="openStaffOpcionesModal('${s.id}')"><i class="ti ti-dots-vertical"></i></button>
         <button class="btn btn-outline btn-sm" title="Ver ficha" onclick="openStaffFichaModal('${s.id}')"><i class="ti ti-id-badge-2"></i></button>
-      </td></tr>`).join('')}
+      </td></tr>`).join(''):`<tr><td colspan="2"><span style="color:var(--text2);font-size:13px;">Sin administradores.</span></td></tr>`}
     </tbody></table>
   </div>
-  <div class="card">
+  <div class="card" style="margin-bottom:18px;">
     <div class="section-head"><h3 style="margin:0;">Profesores</h3><button class="btn btn-primary btn-sm" onclick="openNuevoStaffModal('profesor')"><i class="ti ti-plus"></i>Nuevo profesor</button></div>
     <table><thead><tr><th>Nombre</th><th></th></tr></thead>
     <tbody>
-      ${profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+      ${profs.length?profs.map(s=>`<tr style="${s.activo===false?'opacity:.55;':''}"><td>${esc(s.n)}</td><td style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
         <button class="btn btn-outline btn-sm" onclick="openStaffOpcionesModal('${s.id}')"><i class="ti ti-dots-vertical"></i></button>
         <button class="btn btn-outline btn-sm" title="Ver ficha" onclick="openStaffFichaModal('${s.id}')"><i class="ti ti-id-badge-2"></i></button>
-      </td></tr>`).join('')}
+      </td></tr>`).join(''):`<tr><td colspan="2"><span style="color:var(--text2);font-size:13px;">Sin profesores.</span></td></tr>`}
     </tbody></table>
-  </div>`;
+  </div>
+  ${isSuperOwner()?`
+  <div class="card">
+    <div class="section-head"><h3 style="margin:0;">Respaldo de datos</h3></div>
+    <p style="color:var(--text2);font-size:13.5px;margin-bottom:12px;">Descargá una copia de tus socios y pagos en formato CSV (se abre en Excel/Google Sheets).</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="descargarBackupSocios()"><i class="ti ti-download"></i> Descargar socios (CSV)</button>
+      <button class="btn btn-outline" onclick="descargarBackupPagos()"><i class="ti ti-download"></i> Descargar pagos (CSV)</button>
+    </div>
+  </div>`:''}`;
 }
 function csvCell(v){
   v = (v===null||v===undefined) ? '' : String(v);
