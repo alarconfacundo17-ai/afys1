@@ -8420,7 +8420,7 @@ function eliteAbrirRutina(rname){
   if(!d) return;
   // Si no hay PSE pre registrada hoy → mostrar cuestionario PRE primero
   const todayStr = todayISO();
-  const yaTienePre = (d.pse||[]).some(p=>p.tipo==='pre'&&p.rname===rname&&p.f===todayStr);
+  const yaTienePre = (d.pse||[]).some(p=>p.tipo==='pre'&&p.f===todayStr);
   if(!yaTienePre){
     _pseMode = 'pre'; _pseRutinaName = rname; _pseTemp = {};
     openPseModal();
@@ -8441,7 +8441,7 @@ function openEliteRutinaDetalleModal(rname){
   const miPeso = (d.rsMiPeso&&d.rsMiPeso[rname])||{};
   const miSR = (d.rsMiSR&&d.rsMiSR[rname])||{};
 
-  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.f===todayStr);
   const hechosCnt = ejs.filter(e=>rh[e.n]===todayStr).length;
 
   const ejRows = ejs.map((e, ei)=>{
@@ -8563,13 +8563,27 @@ function eliteToggleEjercicio(rname, ejName, ejIdx){
   if(prog) prog.textContent = `${hechos}/${ejs.length} ejercicios`;
   const btnFin = document.getElementById('eliteRutDetBtn');
   if(btnFin){
-    const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+    const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.f===todayStr);
     if(!yaHizoPost){
       btnFin.innerHTML = todosHechos
         ? `<i class="ti ti-player-stop-filled"></i> Finalizar y registrar`
         : `<i class="ti ti-check"></i> Completar entrenamiento`;
     }
   }
+}
+
+function _esUltimaRutinaHoy(d){
+  const todayStr = todayISO();
+  const items = getAllPlanItems(d, todayStr);
+  const rutinasHoy = items.filter(n=>RUTINAS.find(x=>x.n===n));
+  const pool = rutinasHoy.length ? rutinasHoy : (d.rs||[]);
+  if(!pool.length) return true;
+  const rh = d.rsHechos||{};
+  return pool.every(rn=>{
+    const r = RUTINAS.find(x=>x.n===rn);
+    if(!r||!r.ejs||!r.ejs.length) return true;
+    return r.ejs.every(e=>(rh[rn]||{})[e.n]===todayStr);
+  });
 }
 
 function eliteCompletarEntrenamiento(rname){
@@ -8586,14 +8600,16 @@ function eliteCompletarEntrenamiento(rname){
   d.ultimoEntreno = {r:rname, f:todayStr};
   persist();
   closeModal();
-  // Si ya respondió el PSE post hoy → toast y volver al panel
-  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.rname===rname&&p.f===todayStr);
+  const yaHizoPost = (d.pse||[]).some(p=>p.tipo==='post'&&p.f===todayStr);
   if(yaHizoPost){
     showToast('¡Entrenamiento registrado! Muy bien.', 'ok');
     renderElitePanel();
-  } else {
+  } else if(_esUltimaRutinaHoy(d)){
     _pseMode = 'post'; _pseRutinaName = rname; _pseTemp = {};
     setTimeout(()=>openPseModal(), 200);
+  } else {
+    showToast('¡Rutina completada! Muy bien.', 'ok');
+    renderElitePanel();
   }
 }
 
