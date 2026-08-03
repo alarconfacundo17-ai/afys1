@@ -6819,8 +6819,8 @@ function openEliteAsignarDiaModal(id, fecha, ym){
     ${currentItems.map(item=>{
       const isRutina = todasRutinas.includes(item);
       return `<div style="display:flex;align-items:center;gap:8px;background:var(--primary-light);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
-        <span onclick="${isRutina?`_editarRutinaDelDia('${escQ(item)}')`:'void 0'}" style="font-size:13px;font-weight:700;color:var(--primary);flex:1;cursor:${isRutina?'pointer':'default'};">${esc(item)}</span>
-        ${isRutina?`<button onclick="_editarRutinaDelDia('${escQ(item)}')" style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--text2);line-height:1;flex-shrink:0;" title="Editar ejercicios"><i class="ti ti-pencil" style="font-size:14px;pointer-events:none;"></i></button>`:''}
+        <span onclick="${isRutina?`_editarRutinaDelDiaDesdeAsignar('${escQ(item)}')`:'void 0'}" style="font-size:13px;font-weight:700;color:var(--primary);flex:1;cursor:${isRutina?'pointer':'default'};">${esc(item)}</span>
+        ${isRutina?`<button onclick="_editarRutinaDelDiaDesdeAsignar('${escQ(item)}')" style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--text2);line-height:1;flex-shrink:0;" title="Editar ejercicios"><i class="ti ti-pencil" style="font-size:14px;pointer-events:none;"></i></button>`:''}
         <button onclick="_togglePlanFechaItem('${escQ(item)}')" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);line-height:1;flex-shrink:0;"><i class="ti ti-x" style="font-size:15px;pointer-events:none;"></i></button>
       </div>`;
     }).join('')}
@@ -6889,48 +6889,15 @@ function _seleccionarRutinaParaDia(rname){
   const {id, fecha, ym} = _asignarDiaCtx;
   const d = eliteById(id);
   if(!d) return;
-  const r = RUTINAS.find(x=>x.n===rname);
-  if(!r) return;
-
-  // Abrir panel de nota + override por ejercicio
-  const planNotas = (d.planNotas||{})[fecha]||{};
-  const notaRutina = (planNotas[rname]||{}).nota||'';
-  const overrides = (planNotas[rname]||{}).ejs||{};
-
-  const ejRows = (r.ejs||[]).map((e,ei)=>{
-    const ov = overrides[e.n]||{};
-    return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">${esc(e.n)}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        ${e.modo!=='tiempo'?`<div style="display:flex;flex-direction:column;gap:2px;">
-          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Series</label>
-          <input type="text" id="planOvS_${ei}" value="${esc(ov.s||'')}" placeholder="${e.s||'-'}" style="width:56px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-        </div>
-        <span style="align-self:flex-end;padding-bottom:8px;color:var(--text2);">×</span>
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Reps</label>
-          <input type="text" id="planOvR_${ei}" value="${esc(ov.r||'')}" placeholder="${e.r||'-'}" style="width:64px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-        </div>`:''}
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <label style="font-size:9px;color:var(--text2);font-weight:700;text-transform:uppercase;">Kg</label>
-          <input type="text" id="planOvK_${ei}" value="${esc(ov.kg||'')}" placeholder="${e.kg||'—'}" style="width:72px;font-size:14px;font-weight:700;text-align:center;padding:6px 4px;border:1.5px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  openModal(`<div class="modal-head">
-    <h3 style="font-size:14px;font-weight:700;">${esc(rname)}</h3>
-    <button onclick="openEliteAsignarDiaModal('${id}','${fecha}','${escQ(ym)}')">←</button>
-  </div>
-  <div style="padding:0 16px 16px;overflow-y:auto;max-height:75vh;">
-    <div style="margin-bottom:14px;">
-      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Nota / indicación</div>
-      <textarea id="planNotaInput" rows="2" placeholder="Ej: Bajar peso, foco en técnica, ritmo suave..." style="width:100%;font-size:13px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);resize:none;box-sizing:border-box;">${esc(notaRutina)}</textarea>
-    </div>
-    ${r.ejs&&r.ejs.length?`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Modificar ejercicios (opcional)</div>${ejRows}`:'' }
-    <button onclick="_guardarSeleccionRutinaParaDia('${escQ(rname)}')" style="width:100%;margin-top:16px;background:var(--primary);border:none;color:#fff;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Guardar</button>
-  </div>`,'wide');
+  if(!RUTINAS.find(x=>x.n===rname)) return;
+  // Agregar al plan del día si no está
+  if(!d.planFechas) d.planFechas = {};
+  const arr = getPlanItems(d, fecha);
+  if(!arr.includes(rname)) arr.push(rname);
+  d.planFechas[fecha] = arr;
+  persist();
+  // Abrir editor completo (add/remove/reorder/drag)
+  _editarRutinaDelDiaDesdeAsignar(rname);
 }
 
 function _guardarSeleccionRutinaParaDia(rname){
@@ -6964,9 +6931,16 @@ function _guardarSeleccionRutinaParaDia(rname){
 
 // ── Editor de rutina por día: add/remove/reorder ejercicios ──────────
 let _eliteDiaEjArr = [], _eliteDiaEjId = null, _eliteDiaEjFecha = null, _eliteDiaEjRname = null, _eliteDiaEjYm = null;
+let _eliteDiaEjFrom = 'entrenamientos'; // 'entrenamientos' | 'asignarDia'
 
 function _abrirEditorRutinaDelDia(id, fecha, wkMon, rname){
   _asignarDiaCtx = {id, fecha, ym: wkMon};
+  _eliteDiaEjFrom = 'entrenamientos';
+  _editarRutinaDelDia(rname);
+}
+
+function _editarRutinaDelDiaDesdeAsignar(rname){
+  _eliteDiaEjFrom = 'asignarDia';
   _editarRutinaDelDia(rname);
 }
 
@@ -7011,11 +6985,14 @@ function _renderEliteDiaEjModal(){
   if(!d) return;
   const nota = ((d.planNotas||{})[fecha]||{})[rname]?.nota||'';
   const hasFull = !!(((d.planNotas||{})[fecha]||{})[rname]?.ejsFull);
+  const backFn = _eliteDiaEjFrom === 'asignarDia'
+    ? `openEliteAsignarDiaModal('${escQ(id)}','${fecha}','${escQ(ym)}')`
+    : `openEliteEntrenamientosModal('${escQ(id)}')`;
 
   openModal(`
     <div class="modal-head">
       <h3 style="font-size:14px;font-weight:700;">${esc(rname)} <span style="font-size:11px;font-weight:400;color:var(--text2);">· ${esc(fecha)}</span></h3>
-      <button onclick="openEliteEntrenamientosModal('${escQ(id)}')">✕</button>
+      <button onclick="${backFn}">✕</button>
     </div>
     <p style="color:var(--text2);font-size:12px;margin:0 0 10px;">Cambios solo para este día. La rutina base no se modifica.</p>
     <div id="rtEjs">${_eliteDiaEjArr.map((e,i)=>ejRowHTML(i,e,true,true)).join('')}</div>
@@ -7027,7 +7004,7 @@ function _renderEliteDiaEjModal(){
     <div class="modal-actions" style="justify-content:space-between;">
       ${hasFull?`<button class="btn btn-outline" onclick="_resetEliteDiaEjs()">Restablecer base</button>`:'<span></span>'}
       <span>
-        <button class="btn btn-outline" onclick="openEliteEntrenamientosModal('${escQ(id)}')">Cancelar</button>
+        <button class="btn btn-outline" onclick="${backFn}">Cancelar</button>
         <button class="btn btn-primary" onclick="_guardarEliteDiaEjs()">Guardar</button>
       </span>
     </div>
@@ -7046,7 +7023,11 @@ function _guardarEliteDiaEjs(){
   d.planNotas[_eliteDiaEjFecha][_eliteDiaEjRname] = {ejsFull: ejs, nota: nota.trim()};
   persist();
   showToast('Guardado','ok');
-  openEliteEntrenamientosModal(_eliteDiaEjId);
+  if(_eliteDiaEjFrom === 'asignarDia'){
+    openEliteAsignarDiaModal(_eliteDiaEjId, _eliteDiaEjFecha, _eliteDiaEjYm);
+  } else {
+    openEliteEntrenamientosModal(_eliteDiaEjId);
+  }
 }
 
 function _resetEliteDiaEjs(){
