@@ -3435,6 +3435,7 @@ function openEditSocioModal(idx){
     </div>` : '';
   openModal(`
     <div class="modal-head"><h3>Editar ficha — ${esc(s.n)}</h3><button onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nombre</label><input id="es_nombre" type="text" value="${esc(s.n||'')}"></div>
     <div class="field"><label>Email (Gmail)</label><input id="es_email" type="email" value="${esc(s.email||'')}"></div>
     <div class="field"><label>Teléfono</label><input id="es_tel" type="tel" value="${esc(s.tel||'')}"></div>
     <div class="field"><label>Peso (kg, opcional)</label><input id="es_pe" type="number" value="${s.pe||''}"></div>
@@ -3513,6 +3514,8 @@ function openSocioAsistenciaStaffModal(idx){
 }
 function saveEditSocio(idx){
   const s = SOCIOS[idx];
+  const nuevoNombre = $('#es_nombre').value.trim();
+  if(nuevoNombre) s.n = nuevoNombre;
   const oldEmail = s.email;
   const newEmail = $('#es_email').value.trim().toLowerCase();
   s.email = newEmail||null;
