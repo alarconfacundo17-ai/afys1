@@ -3515,7 +3515,11 @@ function openSocioAsistenciaStaffModal(idx){
 function saveEditSocio(idx){
   const s = SOCIOS[idx];
   const nuevoNombre = $('#es_nombre').value.trim();
-  if(nuevoNombre) s.n = nuevoNombre;
+  if(nuevoNombre && nuevoNombre !== s.n){
+    PAGOS.forEach(p=>{ if(p.sid===s.id) p.n=nuevoNombre; });
+    REGS.forEach(r=>{ if(r.sid===s.id){ r.n=nuevoNombre; r.i=(nuevoNombre.split(' ').map(w=>w[0]).join('').slice(0,2)||'?').toUpperCase(); } });
+    s.n = nuevoNombre;
+  }
   const oldEmail = s.email;
   const newEmail = $('#es_email').value.trim().toLowerCase();
   s.email = newEmail||null;
@@ -4196,6 +4200,7 @@ function savePago(){
   } else if(s.cortesia){
     delete s.cortesia;
     logMovimiento('cortesia', `Cortesía dada de baja para ${s.n}`);
+    persist(); showToast('Cortesía dada de baja'); closeModal(); renderStaff(); return;
   }
 
   const med = document.querySelector('input[name="pg_med"]:checked');
