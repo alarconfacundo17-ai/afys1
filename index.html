@@ -5734,22 +5734,28 @@ const MOVIMIENTO_TIPOS = {
 };
 let movFiltroTipo = '';
 let movFiltroQ = '';
+let movFiltroFecha = todayISO(); // por defecto: hoy
 let _pagosFiltroSocio = '';
 let _pagosFiltroMes = '';
 function movimientosFiltrados(){
   return movimientosLog.filter(m=>{
     if(movFiltroTipo && m.tipo!==movFiltroTipo) return false;
     if(movFiltroQ && !m.txt.toLowerCase().includes(movFiltroQ.toLowerCase())) return false;
+    if(movFiltroFecha && m.fecha.slice(0,10)!==movFiltroFecha) return false;
     return true;
   });
 }
 function movimientosTablaHTML(){
   const list = movimientosFiltrados();
+  if(!list.length){
+    const esHoy = movFiltroFecha===todayISO();
+    return emptyRow('ti-history', esHoy ? 'Sin movimientos hoy todavía' : 'Sin movimientos en esa fecha', 3);
+  }
   return list.map(m=>`<tr>
-    <td>${fmtFechaHora(m.fecha)}</td>
+    <td style="white-space:nowrap;">${fmtFechaHora(m.fecha)}</td>
     <td><span class="badge b-info">${esc(MOVIMIENTO_TIPOS[m.tipo]||m.tipo)}</span></td>
     <td>${esc(m.txt)}</td>
-  </tr>`).join('') || emptyRow('ti-history','Sin movimientos registrados todavía',3);
+  </tr>`).join('');
 }
 function fmtFechaHora(iso){
   const d = new Date(iso);
@@ -5758,9 +5764,17 @@ function fmtFechaHora(iso){
 }
 function filterMovimientosTipo(v){ movFiltroTipo = v; renderMovimientosTabla(); }
 function filterMovimientosQ(v){ movFiltroQ = v; renderMovimientosTabla(); }
+function filterMovimientosFecha(v){ movFiltroFecha = v||''; renderMovimientosTabla(); _actualizarLabelFecha(); }
+function _actualizarLabelFecha(){
+  const lbl = document.getElementById('movFechaLabel');
+  if(!lbl) return;
+  const hoy = todayISO();
+  lbl.textContent = !movFiltroFecha ? 'Todas las fechas' : movFiltroFecha===hoy ? 'Hoy' : movFiltroFecha;
+}
 function renderMovimientosTabla(){
   const body = document.getElementById('movimientosTableBody');
   if(body) body.innerHTML = movimientosTablaHTML();
+  _actualizarLabelFecha();
 }
 /* ============================================================
    AFYS ELITE — módulo de deportistas de alto rendimiento
@@ -9031,20 +9045,33 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
 }
 
 function pageMovimientos(){
+  movFiltroFecha = movFiltroFecha || todayISO();
+  const hoy = todayISO();
   const opciones = Object.keys(MOVIMIENTO_TIPOS).map(k=>`<option value="${k}" ${movFiltroTipo===k?'selected':''}>${esc(MOVIMIENTO_TIPOS[k])}</option>`).join('');
+  const labelFecha = !movFiltroFecha ? 'Todas las fechas' : movFiltroFecha===hoy ? 'Hoy' : movFiltroFecha;
   return `
-  <h2 style="margin-bottom:14px;">Movimientos</h2>
-  <p style="color:var(--text2);font-size:14px;margin-bottom:16px;">Historial de todas las acciones importantes del gimnasio: entradas de socios, altas y bajas de socios y de staff, pagos, etc.</p>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
-    <select id="movFiltroTipoSel" style="max-width:240px;" onchange="filterMovimientosTipo(this.value)">
+  <div class="section-head"><h2 style="margin:0;">Movimientos</h2>
+    <button class="btn btn-outline btn-sm" onclick="exportarMovimientosCSV()"><i class="ti ti-download"></i> Exportar</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+    <div style="display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;flex-shrink:0;">
+      <button onclick="filterMovimientosFecha('${hoy}')" style="all:unset;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;background:${movFiltroFecha===hoy?'var(--primary)':'var(--bg2)'};color:${movFiltroFecha===hoy?'#fff':'var(--text2)'};">Hoy</button>
+      <span style="width:1px;background:var(--border);align-self:stretch;"></span>
+      <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;background:${movFiltroFecha&&movFiltroFecha!==hoy?'var(--primary-light)':'var(--bg2)'};color:${movFiltroFecha&&movFiltroFecha!==hoy?'var(--primary)':'var(--text2)'};font-size:13px;font-weight:600;" title="Elegir fecha">
+        <i class="ti ti-calendar" style="font-size:15px;"></i>
+        <span id="movFechaLabel">${labelFecha}</span>
+        <input type="date" value="${movFiltroFecha||''}" onchange="filterMovimientosFecha(this.value)" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;" id="movFechaInput">
+      </label>
+      ${movFiltroFecha?`<span style="width:1px;background:var(--border);align-self:stretch;"></span><button onclick="filterMovimientosFecha('')" style="all:unset;padding:8px 10px;cursor:pointer;color:var(--text2);font-size:13px;" title="Ver todas">✕</button>`:''}
+    </div>
+    <select id="movFiltroTipoSel" style="max-width:200px;" onchange="filterMovimientosTipo(this.value)">
       <option value="">Todas las acciones</option>
       ${opciones}
     </select>
-    <input id="movFiltroQInput" placeholder="Buscar por nombre, email, etc..." style="flex:1;min-width:220px;" value="${esc(movFiltroQ)}" oninput="filterMovimientosQ(this.value)">
-    <button class="btn btn-outline btn-sm" onclick="exportarMovimientosCSV()"><i class="ti ti-download"></i> Exportar</button>
+    <input id="movFiltroQInput" placeholder="Buscar por nombre..." style="flex:1;min-width:180px;" value="${esc(movFiltroQ)}" oninput="filterMovimientosQ(this.value)">
   </div>
   <div class="card">
-  <table><thead><tr><th>Fecha</th><th>Acción</th><th>Detalle</th></tr></thead>
+  <table><thead><tr><th>Hora</th><th>Acción</th><th>Detalle</th></tr></thead>
   <tbody id="movimientosTableBody">${movimientosTablaHTML()}</tbody></table>
   </div>`;
 }
