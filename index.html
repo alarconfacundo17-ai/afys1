@@ -2616,7 +2616,7 @@ function pagePanel(){
   const diaHoy = DIAS_JS[new Date().getDay()];
   const clasesHoyCount = CLASES_HOY.filter(c=>c.d===diaHoy).length;
   let metrics = `
-    <div class="metric"><div class="num">${activos}</div><div class="lbl">Socios activos</div></div>
+    <div class="metric" style="cursor:pointer;" onclick="openSociosStatsModal()" title="Ver detalle de socios"><div class="num">${SOCIOS.length}</div><div class="lbl">Socios</div></div>
     ${verAsistencias?`<div class="metric"><div class="num">${asistenciasHoy}</div><div class="lbl">Asistieron hoy</div></div>`:''}
     <div class="metric"><div class="num">${clasesHoyCount}</div><div class="lbl">Clases hoy</div></div>
     <div class="metric"><div class="num">${vencidos}</div><div class="lbl">Pagos vencidos</div></div>
