@@ -9316,7 +9316,7 @@ function socioInicio(){
   const payClass = s.cortesia ? 'b-purple' : {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const venceFmt = s.vence ? fmtFechaCorta(s.vence) : null;
   const payTxt = s.cortesia
-    ? 'Sos socio de cortesía — acceso completo sin cargo'
+    ? 'Socio cortesía — Tenés acceso al gym'
     : s.es==='ok'
       ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
       : s.es==='ve'
@@ -9786,7 +9786,7 @@ function socioCuenta(){
   const payClass = s.cortesia ? 'b-purple' : {ok:'b-ok',ve:'b-warn',de:'b-err'}[s.es];
   const venceFmt = s.vence ? fmtFechaCorta(s.vence) : null;
   const payTxt = s.cortesia
-    ? 'Sos socio de cortesía — acceso completo sin cargo'
+    ? 'Socio cortesía — Tenés acceso al gym'
     : s.es==='ok'
       ? `Tu pago está al día${venceFmt ? ` — vence el ${venceFmt}` : ''}`
       : s.es==='ve'
