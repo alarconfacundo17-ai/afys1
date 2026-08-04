@@ -716,7 +716,7 @@ let darkMode = false;
 
 function logMovimiento(tipo, txt){
   movimientosLog.unshift({tipo, txt, fecha:new Date().toISOString()});
-  if(movimientosLog.length>1000) movimientosLog.length = 1000;
+  if(movimientosLog.length>500) movimientosLog.length = 500;
 }
 
 SOCIOS.forEach((s,idx)=>{ notifSocio[idx]=[]; });
@@ -1250,7 +1250,7 @@ async function mergeRemoteAntesDeGuardar(){
       if(nuevos.length){
         movimientosLog.push(...nuevos);
         movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-        if(movimientosLog.length>1000) movimientosLog.length = 1000;
+        if(movimientosLog.length>500) movimientosLog.length = 500;
       }
     }
 
@@ -3094,6 +3094,30 @@ function socioRowHTML(s, idx){
     </tr>
   `;
 }
+function _flashEntrada(nombre, socioId){
+  // Overlay central con confirmación visual de entrada
+  let el = document.getElementById('_flashEntradaEl');
+  if(!el){
+    el = document.createElement('div');
+    el.id = '_flashEntradaEl';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div style="background:var(--bg);border-radius:20px;padding:32px 40px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.22);transform:scale(.85);opacity:0;transition:transform .18s cubic-bezier(.34,1.56,.64,1),opacity .18s;pointer-events:auto;" id="_flashEntradaBox">
+    <div style="width:64px;height:64px;border-radius:50%;background:#e8fdf0;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;">✓</div>
+    <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px;">${esc(nombre)}</div>
+    <div style="font-size:14px;color:var(--text2);">Entrada registrada</div>
+    <button onclick="deshacerEntrada('${socioId}');document.getElementById('_flashEntradaEl').innerHTML=''" style="margin-top:16px;background:none;border:1px solid var(--border2);border-radius:8px;padding:6px 16px;font-size:13px;color:var(--text2);cursor:pointer;">Deshacer</button>
+  </div>`;
+  requestAnimationFrame(()=>{
+    const box = document.getElementById('_flashEntradaBox');
+    if(box){ box.style.transform='scale(1)'; box.style.opacity='1'; }
+    setTimeout(()=>{
+      if(box){ box.style.transform='scale(.9)'; box.style.opacity='0'; }
+      setTimeout(()=>{ el.innerHTML=''; },200);
+    },1800);
+  });
+}
 function entradaRapida(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
@@ -3122,8 +3146,7 @@ function _confirmarEntradaRapida(socioId){
   notifStaff.unshift({txt:`${s.n} — entrada manual registrada a las ${hora}`, new:true, tipo:'entrada'});
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
-  const _sid = s.id;
-  showToast(`Entrada de ${s.n} registrada ✓`, null, null, `function(){deshacerEntrada('${s.id}')}`);
+  _flashEntrada(s.n, s.id);
   const tbody = document.getElementById('sociosTableBody');
   if(tbody){
     const rows = sociosOrdenados();
@@ -3208,11 +3231,14 @@ function _sociosListaHTML(filtro, q){
   let lista = _sociosFiltro(filtro);
   if(q) lista = lista.filter(({s})=>s.n.toLowerCase().includes(q));
   if(!lista.length) return emptyState('ti-mood-empty', q ? `Sin resultados para "${esc(q)}"` : 'Sin socios en esta categoría');
-  return lista.sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).map(({s,i})=>`
-    <div onclick="closeModal();openSocioOpcionesModal(${i})" style="display:flex;align-items:center;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--border2);cursor:pointer;gap:8px;">
-      <span style="font-size:14px;font-weight:600;${s.activo===false?'opacity:.5;':''}">${esc(s.n)}</span>
+  return lista.sort((a,b)=>a.s.n.localeCompare(b.s.n,'es')).map(({s,i})=>{
+    const venceInfo = (filtro==='vencido' && s.vence)
+      ? `<span style="font-size:11px;color:#b45309;margin-left:6px;">vto. ${fmtFechaCorta(s.vence)}</span>` : '';
+    return `<div onclick="closeModal();openSocioOpcionesModal(${i})" style="display:flex;align-items:center;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--border2);cursor:pointer;gap:8px;">
+      <span style="font-size:14px;font-weight:600;${s.activo===false?'opacity:.5;':''}">${esc(s.n)}${venceInfo}</span>
       <span style="flex-shrink:0;">${s.cortesia?'<span class="badge b-purple">Cortesía</span>':payBadge(s.es)}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function openSociosListaModal(filtro){
   const titulos={total:'Todos los socios',aldia:'Al día',vencido:'Pago vencido',cortesia:'Cortesía',baja:'Dados de baja'};
@@ -3524,7 +3550,7 @@ function marcarEntradaManualSocio(socioId){
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
   closeModal();
-  showToast(`Entrada de ${s.n} registrada ✓`, null, null, `function(){deshacerEntrada('${s.id}')}`);
+  _flashEntrada(s.n, s.id);
   if(staffPage==='socios') renderStaff();
 }
 function confirmarEntradaManual(socioId){
@@ -10109,7 +10135,7 @@ function socioCuenta(){
       if(!gymHoursOk) GYM_HOURS = remote.GYM_HOURS;
     }
     if(Array.isArray(remote.notifStaff)){ const lk=new Set(notifStaff.map(n=>n.txt)); remote.notifStaff.forEach(n=>{ if(!lk.has(n.txt)){ notifStaff.unshift(n); lk.add(n.txt); } }); }
-    if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>1000) movimientosLog.length=1000; } }
+    if(Array.isArray(remote.movimientosLog)){ const lk=new Set(movimientosLog.map(m=>m.fecha)); const nv=remote.movimientosLog.filter(m=>!lk.has(m.fecha)); if(nv.length){ movimientosLog.push(...nv); movimientosLog.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)); if(movimientosLog.length>500) movimientosLog.length=500; } }
     if(Array.isArray(remote.CLASES_HOY)){ if(Array.isArray(remote.deletedClaseIds)){ remote.deletedClaseIds.forEach(id=>{if(!deletedClaseIds.includes(id)) deletedClaseIds.push(id);}); const delC=new Set(deletedClaseIds); for(let i=CLASES_HOY.length-1;i>=0;i--){ if(CLASES_HOY[i].cId&&delC.has(CLASES_HOY[i].cId)) CLASES_HOY.splice(i,1); } } const delC=new Set(deletedClaseIds); const modalOpen=!!document.querySelector('.modal-overlay'); const lk={}; CLASES_HOY.forEach(c=>{if(c.cId) lk[c.cId]=c;}); remote.CLASES_HOY.forEach(c=>{ if(!c.cId||delC.has(c.cId)) return; if(lk[c.cId]){if(!modalOpen) Object.assign(lk[c.cId],c);} else {CLASES_HOY.push(c); lk[c.cId]=c;} }); }
     if(Array.isArray(remote.PENDING_INVITES)){ const lk=new Set(PENDING_INVITES.map(i=>i.token)); remote.PENDING_INVITES.forEach(i=>{ if(!lk.has(i.token)){ PENDING_INVITES.push(i); lk.add(i.token); } }); }
     if(remote.notifSocio){ const _n2remap={}; if(Array.isArray(remote.SOCIOS)) remote.SOCIOS.forEach((rs,ri)=>{ const li=SOCIOS.findIndex(s=>socioMergeKey(s)===socioMergeKey(rs)); if(li>=0) _n2remap[ri]=li; }); Object.keys(remote.notifSocio).forEach(remIdx=>{ if(_n2remap[Number(remIdx)]===undefined) return; const li=_n2remap[Number(remIdx)]; if(!notifSocio[li]) notifSocio[li]=[]; const lk=new Set(notifSocio[li].map(n=>n.txt)); (remote.notifSocio[remIdx]||[]).forEach(n=>{ if(!lk.has(n.txt)){ notifSocio[li].unshift(n); lk.add(n.txt); } }); }); }
