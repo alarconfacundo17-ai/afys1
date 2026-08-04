@@ -834,8 +834,8 @@ function migrateSocioFields(){
   SOCIOS.forEach(s=>{
     if(!Array.isArray(s.rs)) s.rs=[];
     if(!Array.isArray(s.nt)) s.nt=[];
-    // Normalizar vencimientos a día 10
-    if(s.vence && s.vence.endsWith('-11')){ s.vence = s.vence.slice(0,-2)+'10'; changed=true; }
+    // Normalizar vencimientos a día 10 (sin importar qué día tengan)
+    if(s.vence && !/\d{4}-\d{2}-10$/.test(s.vence)){ s.vence = s.vence.slice(0,7)+'-10'; changed=true; }
   });
   if(autoActivateDni()) changed = true;
   if(changed) persistDirect();
@@ -3560,7 +3560,8 @@ function saveEditSocio(idx){
   s.pe = parseInt($('#es_pe').value)||null;
   s.ob = $('#es_ob').value.trim()||null;
   s.obs = $('#es_obs').value.trim()||null;
-  s.vence = $('#es_vence').value || null;
+  const rawVence = $('#es_vence').value || null;
+  s.vence = rawVence ? rawVence.slice(0,7)+'-10' : null;
   // Update SOCIOS_LOGIN BEFORE recalcEstados so any persist() it triggers sees correct state
   if(oldEmail && oldEmail!==newEmail){
     delete SOCIOS_LOGIN[oldEmail];
