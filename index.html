@@ -1062,11 +1062,12 @@ function deshacerEntrada(socioId){
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
   const hoy = todayISO();
-  const regIdx = REGS.findIndex(r=>r.sid===s.id && r.f && localDateISO(r.f)===hoy);
+  const regIdx = REGS.findIndex(r=>(r.sid ? r.sid===s.id : r.i===s.i) && r.f && localDateISO(r.f)===hoy);
   if(regIdx<0){ showToast('No se encontró la entrada para deshacer','error'); return; }
   REGS.splice(regIdx,1);
   if(notifSocio[idx]&&notifSocio[idx].length) notifSocio[idx].shift();
-  notifStaff.shift();
+  const nsIdx = notifStaff.findIndex(n=>n.tipo==='entrada'&&(n.txt||'').includes(s.n));
+  if(nsIdx>=0) notifStaff.splice(nsIdx,1); else if(notifStaff.length) notifStaff.shift();
   s.hoy = REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoy);
   if(!s.hoy) { s.entradaHora=undefined; entradasHoy=Math.max(0,entradasHoy-1); }
   persist();
@@ -3151,10 +3152,9 @@ function pageSocios(){
   const showPay = isSuperOwner() || hasPerm('verPagos');
   const ordered = sociosOrdenados();
   const totalS = SOCIOS.length;
-  const activosS = SOCIOS.filter(s=>s.es==='ok').length;
   const label = currentRole==='profesor'?'Alumnos':'Socios';
   return `
-  <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:8px;">${label}${isSuperOwner()?`<span style="font-size:14px;font-weight:600;color:var(--primary);opacity:.85;">${activosS}<span style="color:var(--text2);font-weight:400;opacity:.7;">/${totalS}</span></span>`:''}
+  <div class="section-head"><h2 style="margin:0;display:flex;align-items:center;gap:10px;">${label}${isSuperOwner()?`<button onclick="openSociosStatsModal()" style="display:inline-flex;align-items:center;gap:5px;background:var(--primary-light,#e8f4ff);border:1.5px solid var(--primary);color:var(--primary);border-radius:20px;padding:3px 13px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,transform .12s;line-height:1.4;" onmousedown="this.style.transform='scale(.95)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">${totalS}</button>`:''}
   </h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
   <button class="btn btn-outline btn-sm" onclick="exportarSociosCSV()" title="Exportar socios a CSV"><i class="ti ti-download"></i> Exportar CSV</button>
@@ -3170,6 +3170,35 @@ function pageSocios(){
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
   </div>`;
+}
+function openSociosStatsModal(){
+  const total = SOCIOS.length;
+  const activos = SOCIOS.filter(s=>s.activo!==false && s.es==='ok' && !s.cortesia).length;
+  const cortesia = SOCIOS.filter(s=>s.cortesia).length;
+  const inactivos = SOCIOS.filter(s=>s.activo===false).length;
+  const vencidos = SOCIOS.filter(s=>s.activo!==false && s.es!=='ok' && !s.cortesia).length;
+  openModal(`
+    <div class="modal-head"><h3>Socios</h3><button onclick="closeModal()">✕</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 0 8px;">
+      <div style="background:var(--bg2);border-radius:14px;padding:20px 16px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:var(--text);line-height:1.1;">${total}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Total</div>
+      </div>
+      <div style="background:var(--primary-light,#e8f4ff);border-radius:14px;padding:20px 16px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:var(--primary);line-height:1.1;">${activos}</div>
+        <div style="font-size:12px;color:var(--primary);margin-top:5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Activos</div>
+      </div>
+      <div style="background:#f3edff;border-radius:14px;padding:20px 16px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:#7c3aed;line-height:1.1;">${cortesia}</div>
+        <div style="font-size:12px;color:#7c3aed;margin-top:5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Cortesía</div>
+      </div>
+      <div style="background:#fff4f4;border-radius:14px;padding:20px 16px;text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:var(--red,#e53e3e);line-height:1.1;">${inactivos+vencidos}</div>
+        <div style="font-size:12px;color:var(--red,#e53e3e);margin-top:5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Inactivos / Vencidos</div>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">Cerrar</button></div>
+  `);
 }
 function openBuscarSocioModal(){
   openModal(`
@@ -3534,7 +3563,10 @@ function saveEditSocio(idx){
     delete SOCIOS_LOGIN[(oldEmail||'').toLowerCase()];
     if(s.dni) cacheDni(s.dni, newEmail);
   }
-  if(newEmail) SOCIOS_LOGIN[newEmail] = {...(SOCIOS_LOGIN[newEmail]||{pe:'ok',pm:''}), idx};
+  if(newEmail){
+    const existing = SOCIOS_LOGIN[newEmail];
+    if(!existing || existing.idx===idx) SOCIOS_LOGIN[newEmail] = {...(existing||{pe:'ok',pm:''}), idx};
+  }
   // Auto-activar acceso por DNI si tiene DNI cargado
   if(s.dni && !s.dniAccesoRapido){ s.dniAccesoRapido=true; if(s.email) cacheDni(s.dni,(s.email||'').toLowerCase()); }
   recalcEstados({notify:false});
@@ -4186,7 +4218,7 @@ function savePago(){
 
   // Aplicar/quitar cortesía antes de procesar el pago
   const cortesiaCheck = document.getElementById('pg_cortesia');
-  const esCortesia = cortesiaCheck ? cortesiaCheck.checked : !!s.cortesia;
+  const esCortesia = cortesiaCheck ? cortesiaCheck.checked : false;
   if(esCortesia){
     s.cortesia = true;
     s.vence = null;
@@ -6946,7 +6978,7 @@ function _seleccionarRutinaParaDia(rname){
   if(!RUTINAS.find(x=>x.n===rname)) return;
   // Agregar al plan del día si no está
   if(!d.planFechas) d.planFechas = {};
-  const arr = getPlanItems(d, fecha);
+  const arr = [...getPlanItems(d, fecha)];
   if(!arr.includes(rname)) arr.push(rname);
   d.planFechas[fecha] = arr;
   persist();
@@ -6962,7 +6994,7 @@ function _guardarSeleccionRutinaParaDia(rname){
 
   // Agregar rutina al plan del día
   if(!d.planFechas) d.planFechas = {};
-  const arr = getPlanItems(d, fecha);
+  const arr = [...getPlanItems(d, fecha)];
   if(!arr.includes(rname)) arr.push(rname);
   d.planFechas[fecha] = arr;
 
@@ -8585,7 +8617,7 @@ function eliteToggleEjercicio(rname, ejName, ejIdx){
   if(row) row.style.opacity = hecho ? '.7' : '1';
   if(btn){
     btn.className = 'btn btn-sm '+(hecho?'btn-primary':'btn-outline');
-    btn.querySelector('span').textContent = hecho ? 'Hecho' : 'Marcar hecho';
+    const sp = btn.querySelector('span'); if(sp) sp.textContent = hecho ? 'Hecho' : 'Marcar hecho';
     btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
   }
   // Update progress + button
