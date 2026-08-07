@@ -807,6 +807,7 @@ function applyState(s){
   migrateClaseIdsUnicos();
   migrateClasesTurnos();
   migrateSocioIds();
+  normalizeRegHoras();
   migrateDedupSocios();
   migrateDedupRegs();
   migrateBrazosGroup();
@@ -927,6 +928,18 @@ function migrateSocioIds(){
   if(socioSeq <= maxN) socioSeq = maxN+1;
   PAGOS.forEach(p=>{ if(!p.sid){ const s = SOCIOS.find(s=>s.n===p.n && (!p.email || s.email===p.email)) || SOCIOS.find(s=>s.n===p.n); if(s) p.sid = s.id; } });
   REGS.forEach(r=>{ if(!r.sid){ const s = SOCIOS.find(s=>s.n===r.n) || SOCIOS.find(s=>s.i===r.i); if(s) r.sid = s.id; } });
+}
+
+function normalizeRegHoras(){
+  // Corrige horas guardadas en UTC en lugar de hora local argentina.
+  // Usa el campo `f` (ISO UTC) para recalcular `h` con el timezone correcto.
+  REGS.forEach(r=>{
+    if(!r.f) return;
+    const d = new Date(r.f);
+    if(isNaN(d)) return;
+    const horaCorrecta = d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
+    r.h = horaCorrecta;
+  });
 }
 
 function normName(n){ return (n||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' '); }
@@ -1477,7 +1490,7 @@ function emptyState(icon, text){
 function emptyRow(icon, text, colspan){
   return `<tr><td colspan="${colspan}"><div class="empty-state" style="padding:18px 12px;"><i class="ti ${icon}" style="font-size:24px;"></i><p>${text}</p></div></td></tr>`;
 }
-function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});}
+function nowTime(){const d=new Date();return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});}
 // Selector de hora en formato 24hs (00-23), reemplaza al <input type="time"> nativo
 // que en algunos celulares muestra AM/PM segun la configuracion regional del equipo.
 function timeSelectHTML(id, value, onchange, small){
@@ -3138,7 +3151,7 @@ function _confirmarEntradaRapida(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
   notifSocio[idx] = notifSocio[idx]||[];
@@ -3531,7 +3544,7 @@ function marcarEntradaManualSocio(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
   const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO());
   if(yaEntroHoy){
     const sn_esc = s.n.replace(/'/g,"\\'");
@@ -3557,7 +3570,7 @@ function confirmarEntradaManual(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
   if(!s) return;
-  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
   s.hoy = true; s.entradaHora = hora; entradasHoy++;
   REGS.unshift({sid:s.id, i:s.i, n:s.n, h:hora, cl:null, f:new Date().toISOString()});
   notifSocio[idx] = notifSocio[idx]||[];
@@ -5761,7 +5774,7 @@ function movimientosTablaHTML(){
 function fmtFechaHora(iso){
   const d = new Date(iso);
   if(isNaN(d)) return '-';
-  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
 }
 function filterMovimientosTipo(v){ movFiltroTipo = v; renderMovimientosTabla(); }
 function filterMovimientosQ(v){ movFiltroQ = v; renderMovimientosTabla(); }
