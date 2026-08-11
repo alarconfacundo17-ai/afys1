@@ -3057,7 +3057,7 @@ function openRutinasBadgeModal(si){
     const hechos = (s.rsHechos&&s.rsHechos[r.n])||{};
     const hoy = todayISO();
     const doneCount = ejs.filter(e=>hechos[e.n]===hoy).length;
-    const resc = r.n.replace(/'/g,"\\'");
+    const renc = _enc(r.n);
     return `<div style="border:1.5px solid ${esHoy?'var(--primary)':'var(--border2)'};border-radius:14px;padding:14px 15px;display:flex;flex-direction:column;gap:10px;background:${esHoy?'var(--primary-light)':'var(--card)'};">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;min-width:0;">
@@ -3069,7 +3069,7 @@ function openRutinasBadgeModal(si){
         <span style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;flex-shrink:0;margin-top:2px;">${doneCount}/${ejs.length} hoy</span>
       </div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">${dias.length?dias.map(d=>`<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;background:${d===diaHoy?'var(--primary)':'var(--bg2)'};color:${d===diaHoy?'#fff':'var(--text2)'};">${d.slice(0,3).toUpperCase()}</span>`).join(''):'<span style="font-size:12px;color:var(--text2);">Sin días asignados</span>'}</div>
-      <button class="btn btn-primary" onclick="verRutinaComoSocio(${si},'${resc}')" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:11px;"><i class="ti ti-eye" style="font-size:17px;"></i> Ver rutina</button>
+      <button class="btn btn-primary" onclick="verRutinaComoSocio(${si},decodeURIComponent('${renc}'))" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:11px;"><i class="ti ti-eye" style="font-size:17px;"></i> Ver rutina</button>
     </div>`;
   }).join('') : emptyState('ti-barbell-off','No tiene rutinas asignadas');
   openModal(`
@@ -4633,8 +4633,8 @@ function asignarModalListHTML(idx, search){
             </span>`
                 :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" onclick="asignarRutina(${si},decodeURIComponent('${_enc(r.n)}'),${idx},decodeURIComponent('${_enc(search)}'))"><i class="ti ti-plus"></i></button>`}
         </div>
-        ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>refreshAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
-          ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
+        ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>refreshAsignarModal(${idx},decodeURIComponent('${_enc(search)}')))">
+          ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},decodeURIComponent('${_enc(t)}'),${idx},decodeURIComponent('${_enc(search)}'))">×</span></span>`).join('')}</div>`:''}
       </div>`;
     }).join('');
 }
@@ -4715,7 +4715,7 @@ function renderEjPickerList(i, search){
   const list = ejFlatList().filter(o=>o.n.toLowerCase().includes(q));
   const listEl = document.getElementById('rtEjList'+i);
   if(!listEl) return;
-  listEl.innerHTML = list.length ? list.map(o=>`<div class="ej-picker-item" onclick="selectEjAt(${i},'${o.n.replace(/'/g,"\\'")}')"><span class="badge" style="background:${EJC[o.g]}22;color:${EJC[o.g]}">${esc(o.g)}</span>${esc(o.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
+  listEl.innerHTML = list.length ? list.map(o=>`<div class="ej-picker-item" onclick="selectEjAt(${i},decodeURIComponent('${_enc(o.n)}'))"><span class="badge" style="background:${EJC[o.g]}22;color:${EJC[o.g]}">${esc(o.g)}</span>${esc(o.n)}</div>`).join('') : `<div class="ej-picker-item" style="color:var(--text2);cursor:default;">Sin resultados</div>`;
   listEl.classList.remove('hidden');
 }
 function hideEjPicker(i){
@@ -9768,7 +9768,7 @@ function socioRutina(){
       const hoy = todayISO();
       const doneCount = ejs.filter(e=>hechos[e.n]===hoy).length;
       const esHoy = rutinasHoy.includes(r);
-      return `<div class="card" style="cursor:pointer;margin-bottom:0;padding:16px 18px;${esHoy?'border:2px solid var(--primary);':''}" onclick="socioActiveRutinaIdx=${i};openSocioRutinaDetalleModal('${r.n.replace(/'/g,"\\'")}')">
+      return `<div class="card" style="cursor:pointer;margin-bottom:0;padding:16px 18px;${esHoy?'border:2px solid var(--primary);':''}" onclick="socioActiveRutinaIdx=${i};openSocioRutinaDetalleModal(decodeURIComponent('${_enc(r.n)}'))">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
           <div>
             ${esHoy?`<span class="badge" style="background:var(--primary);color:#fff;margin-bottom:6px;display:inline-block;">HOY TE TOCA</span>`:''}
