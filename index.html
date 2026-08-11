@@ -1169,6 +1169,8 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
         // aplicar activo solo si el remoto es más reciente (evita revertir reactivaciones locales)
         if(typeof rs.activo==='boolean' && (rs.activoTs||0) > (ls.activoTs||0)){ ls.activo = rs.activo; ls.activoTs = rs.activoTs; }
+        // propagar cortesía si el remoto la tiene (aditivo; solo se elimina por savePago explícito)
+        if(rs.cortesia && !ls.cortesia){ ls.cortesia = true; ls.es = 'ok'; }
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
         if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido = true; if(ls.email) cacheDni(ls.dni, (ls.email||'').toLowerCase()); }
@@ -10121,6 +10123,7 @@ function socioCuenta(){
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
+        if(rs.cortesia && !ls.cortesia){ ls.cortesia=true; ls.es='ok'; }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); const lrsSet=new Set(ls.rs||[]); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)&&!lrsSet.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
