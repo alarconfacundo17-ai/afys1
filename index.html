@@ -1160,7 +1160,7 @@ async function mergeRemoteAntesDeGuardar(){
             return;
           }
         }
-        if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
+        if(rs.rsHechos) mergeRsHechosAdditivo(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f > ls.ultimoEntreno.f)) ls.ultimoEntreno = rs.ultimoEntreno;
         if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
         if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en] || Object.keys(ls.rsMiSR[rn][en]).length===0) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
@@ -4296,6 +4296,7 @@ function savePago(){
     return;
   } else if(s.cortesia){
     delete s.cortesia;
+    s.es = 'de'; // sin vence → queda vencido hasta que se le cargue un pago
     logMovimiento('cortesia', `Cortesía dada de baja para ${s.n}`);
     persist(); showToast('Cortesía dada de baja'); closeModal(); renderStaff(); return;
   }
@@ -4303,7 +4304,9 @@ function savePago(){
   const med = document.querySelector('input[name="pg_med"]:checked');
   const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, med:med?med.value:'Efectivo', nt:$('#pg_n').value};
   if(editPagoKey!==null){
-    const realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
+    let realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
+    // fallback: si el key cambió (el usuario editó fecha/monto/mes), usar índice original verificando que sea del mismo socio
+    if(realIdx<0 && editPagoIdx>=0 && PAGOS[editPagoIdx] && PAGOS[editPagoIdx].sid===s.id) realIdx = editPagoIdx;
     if(realIdx>=0) PAGOS[realIdx] = data; else PAGOS.unshift(data);
     const latestMp = PAGOS.filter(p=>p.sid===s.id).reduce((best,p)=>(!best||p.mp>best)?p.mp:best, null);
     if(latestMp){ s.vence = venceDesdeMp(latestMp); s.es='ok'; }
@@ -4616,18 +4619,19 @@ function deleteRutina(idx){
 function asignarModalListHTML(idx, search){
   const r = RUTINAS[idx];
   search = search||'';
-  const list = SOCIOS.filter(s=>s.n.toLowerCase().includes(search.toLowerCase()));
+  const list = SOCIOS.filter(s=>s.activo!==false && s.n.toLowerCase().includes(search.toLowerCase()));
   return list.map(s=>{
       const si = s.id ? SOCIOS.findIndex(x=>x.id===s.id) : SOCIOS.indexOf(s);
+      if(!Array.isArray(s.rs)) s.rs = [];
       const has = s.rs.includes(r.n);
       return `<div style="padding:10px 0;border-bottom:1px solid var(--border2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:13.5px;">${esc(s.n)}</b>
           ${has?`<span style="display:flex;align-items:center;gap:8px;">
               <span class="badge b-ok" style="font-size:11px;">✓ Asignada</span>
-              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">Quitar</button>
+              <button class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;" onclick="quitarRutina(${si},decodeURIComponent('${_enc(r.n)}'),${idx},decodeURIComponent('${_enc(search)}'))">Quitar</button>
             </span>`
-                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" onclick="asignarRutina(${si},'${r.n.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus"></i></button>`}
+                :`<button class="btn btn-green btn-sm" style="padding:5px 10px;" onclick="asignarRutina(${si},decodeURIComponent('${_enc(r.n)}'),${idx},decodeURIComponent('${_enc(search)}'))"><i class="ti ti-plus"></i></button>`}
         </div>
         ${s.rs.length>1?`<div class="tag-list" style="margin-top:6px;">${s.rs.map((t,ti)=>`<span class="tag" draggable="true" style="cursor:grab;" ondragstart="dragSrcIdx=${ti}" ondragover="event.preventDefault()" ondrop="dragReorder(SOCIOS[${si}].rs,dragSrcIdx,${ti},()=>refreshAsignarModal(${idx},'${search.replace(/'/g,"\\'")}'))">
           ${esc(t)}<span class="x" draggable="false" onclick="quitarRutina(${si},'${t.replace(/'/g,"\\'")}',${idx},'${search.replace(/'/g,"\\'")}')">×</span></span>`).join('')}</div>`:''}
@@ -4864,6 +4868,9 @@ function saveRutina(){
         if(s.rsNombre && s.rsNombre[r.n]){ s.rsNombre[n] = s.rsNombre[r.n]; delete s.rsNombre[r.n]; }
         if(s.rsOverride && s.rsOverride[r.n]){ s.rsOverride[n] = s.rsOverride[r.n]; delete s.rsOverride[r.n]; }
         if(Array.isArray(s.rsRemoved)) s.rsRemoved = s.rsRemoved.map(x=>x===r.n?n:x);
+        if(s.rsHechos && s.rsHechos[r.n]){ s.rsHechos[n] = s.rsHechos[r.n]; delete s.rsHechos[r.n]; }
+        if(s.rsMiPeso && s.rsMiPeso[r.n]){ s.rsMiPeso[n] = s.rsMiPeso[r.n]; delete s.rsMiPeso[r.n]; }
+        if(s.rsMiSR && s.rsMiSR[r.n]){ s.rsMiSR[n] = s.rsMiSR[r.n]; delete s.rsMiSR[r.n]; }
       });
     }
     r.n=n; r.t=t; r.ob=ob; r.ejs=ejs; r.ts=Date.now();
@@ -10109,7 +10116,7 @@ function socioCuenta(){
         if(rs.id && _delSet.has(rs.id)) return;
         const key=socioMergeKey(rs); let ls=localByKey[key];
         if(!ls){ const nn=normName(rs.n); ls=nn?localByNormName[nn]:null; if(!ls){ if(!Array.isArray(rs.nt)) rs.nt=[]; if(!Array.isArray(rs.rs)) rs.rs=[]; const _ni4b=SOCIOS.length; SOCIOS.push(rs); if(!notifSocio[_ni4b]) notifSocio[_ni4b]=[]; localByKey[key]=rs; if(nn) localByNormName[nn]=rs; return; } }
-        if(rs.rsHechos) mergeRsHechos(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
+        if(rs.rsHechos) mergeRsHechosAdditivo(ls.rsHechos||(ls.rsHechos={}), rs.rsHechos);
         if(rs.ultimoEntreno && (!ls.ultimoEntreno || rs.ultimoEntreno.f>ls.ultimoEntreno.f)) ls.ultimoEntreno=rs.ultimoEntreno;
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
