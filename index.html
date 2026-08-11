@@ -1173,6 +1173,11 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.cortesia && !ls.cortesia){ ls.cortesia = true; ls.es = 'ok'; }
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
+        // propagar personalización de rutinas por socio (nombre, nota, días, ejercicios override)
+        if(rs.rsNombre && typeof rs.rsNombre==='object'){ if(!ls.rsNombre) ls.rsNombre={}; Object.keys(rs.rsNombre).forEach(k=>{ if(!ls.rsNombre[k]) ls.rsNombre[k]=rs.rsNombre[k]; }); }
+        if(rs.rsNotas && typeof rs.rsNotas==='object'){ if(!ls.rsNotas) ls.rsNotas={}; Object.keys(rs.rsNotas).forEach(k=>{ if(!ls.rsNotas[k]) ls.rsNotas[k]=rs.rsNotas[k]; }); }
+        if(rs.rsDias && typeof rs.rsDias==='object'){ if(!ls.rsDias) ls.rsDias={}; Object.keys(rs.rsDias).forEach(k=>{ if(!ls.rsDias[k]) ls.rsDias[k]=rs.rsDias[k]; }); }
+        if(rs.rsOverride && typeof rs.rsOverride==='object'){ if(!ls.rsOverride) ls.rsOverride={}; Object.keys(rs.rsOverride).forEach(k=>{ if(!ls.rsOverride[k]) ls.rsOverride[k]=rs.rsOverride[k]; }); }
         if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido = true; if(ls.email) cacheDni(ls.dni, (ls.email||'').toLowerCase()); }
         // merge de notas (nt) aditivo
         if(Array.isArray(rs.nt) && rs.nt.length){
@@ -1536,7 +1541,7 @@ function recalcEstados(opts){
   SOCIOS.forEach(s=>{
     if(s.activo===false){ if(s.es !== 'de') { s.es='de'; changed=true; } return; }
     if(s.cortesia){ if(s.es !== 'ok'){ s.es='ok'; changed=true; } return; }
-    if(!s.vence) return;
+    if(!s.vence){ if(s.es !== 'de'){ s.es='de'; changed=true; } return; }
     const v = new Date(s.vence);
     if(isNaN(v)) return;
     v.setHours(0,0,0,0);
@@ -4304,7 +4309,9 @@ function savePago(){
   }
 
   const med = document.querySelector('input[name="pg_med"]:checked');
-  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:$('#pg_f').value||'-', mp:$('#pg_mp').value, med:med?med.value:'Efectivo', nt:$('#pg_n').value};
+  const _pgf = $('#pg_f').value;
+  if(!_pgf){ showToast('Completá la fecha del pago.','error'); return; }
+  const data = {sid:s.id, n:s.n, m:$('#pg_m').value||'$0', f:_pgf, mp:$('#pg_mp').value, med:med?med.value:'Efectivo', nt:$('#pg_n').value};
   if(editPagoKey!==null){
     let realIdx = PAGOS.findIndex(p=>(p.sid+'|'+p.f+'|'+p.m+'|'+p.mp)===editPagoKey);
     // fallback: si el key cambió (el usuario editó fecha/monto/mes), usar índice original verificando que sea del mismo socio
@@ -9906,7 +9913,8 @@ function toggleEjercicioHecho(rname, ejName, ei){
   openSocioRutinaDetalleModal(rname);
 }
 function setMiPesoEj(si, rname, ejName, val){
-  const s = SOCIOS[si];
+  const s = SOCIOS[currentSocioIdx] || SOCIOS[si];
+  if(!s) return;
   if(!s.rsMiPeso) s.rsMiPeso = {};
   if(!s.rsMiPeso[rname]) s.rsMiPeso[rname] = {};
   if(val.trim()) s.rsMiPeso[rname][ejName] = val.trim();
@@ -9914,7 +9922,7 @@ function setMiPesoEj(si, rname, ejName, val){
   persist();
 }
 function setMiSREj(si, rname, ejName, field, val){
-  const s = SOCIOS[si];
+  const s = SOCIOS[currentSocioIdx] || SOCIOS[si];
   if(!s.rsMiSR) s.rsMiSR = {};
   if(!s.rsMiSR[rname]) s.rsMiSR[rname] = {};
   if(!s.rsMiSR[rname][ejName]) s.rsMiSR[rname][ejName] = {};
@@ -10125,6 +10133,12 @@ function socioCuenta(){
         if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
         if(rs.cortesia && !ls.cortesia){ ls.cortesia=true; ls.es='ok'; }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
+        if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
+        if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en]||Object.keys(ls.rsMiSR[rn][en]).length===0) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
+        if(rs.rsNombre && typeof rs.rsNombre==='object'){ if(!ls.rsNombre) ls.rsNombre={}; Object.keys(rs.rsNombre).forEach(k=>{ if(!ls.rsNombre[k]) ls.rsNombre[k]=rs.rsNombre[k]; }); }
+        if(rs.rsNotas && typeof rs.rsNotas==='object'){ if(!ls.rsNotas) ls.rsNotas={}; Object.keys(rs.rsNotas).forEach(k=>{ if(!ls.rsNotas[k]) ls.rsNotas[k]=rs.rsNotas[k]; }); }
+        if(rs.rsDias && typeof rs.rsDias==='object'){ if(!ls.rsDias) ls.rsDias={}; Object.keys(rs.rsDias).forEach(k=>{ if(!ls.rsDias[k]) ls.rsDias[k]=rs.rsDias[k]; }); }
+        if(rs.rsOverride && typeof rs.rsOverride==='object'){ if(!ls.rsOverride) ls.rsOverride={}; Object.keys(rs.rsOverride).forEach(k=>{ if(!ls.rsOverride[k]) ls.rsOverride[k]=rs.rsOverride[k]; }); }
         if(Array.isArray(rs.nt)&&rs.nt.length){ if(!Array.isArray(ls.nt)) ls.nt=[]; const lk=new Set(ls.nt); rs.nt.forEach(n=>{if(!lk.has(n)){ls.nt.push(n);lk.add(n);}}); }
         if(Array.isArray(rs.rsRemoved)&&rs.rsRemoved.length){ if(!Array.isArray(ls.rsRemoved)) ls.rsRemoved=[]; const lrr=new Set(ls.rsRemoved); const lrsSet=new Set(ls.rs||[]); rs.rsRemoved.forEach(n=>{if(!lrr.has(n)&&!lrsSet.has(n)){ls.rsRemoved.push(n);lrr.add(n);}}); const rm=new Set(ls.rsRemoved); ls.rs=ls.rs.filter(r=>!rm.has(r)); }
         if(Array.isArray(rs.rs)&&rs.rs.length){ if(!Array.isArray(ls.rs)) ls.rs=[]; const localRemoved=new Set(ls.rsRemoved||[]); const lk=new Set(ls.rs); rs.rs.forEach(r=>{if(!localRemoved.has(r)&&!lk.has(r)){ls.rs.push(r);lk.add(r);}}); }
