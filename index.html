@@ -3047,7 +3047,7 @@ function openRutinasBadgeModal(si){
   const rutinas = (s.rs||[]).map(n=>RUTINAS.find(r=>r.n===n)).filter(Boolean);
   const DIAS_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const diaHoy = DIAS_JS[new Date().getDay()];
-  const canEdit = isSuperOwner()||hasPerm('asignarRutinas')||currentRole==='dueno';
+  const canEdit = isSuperOwner()||hasPerm('asignarRutinas')||currentRole==='dueno'||currentRole==='profesor';
   const rows = rutinas.length ? rutinas.map(r=>{
     const nombre = (s.rsNombre&&s.rsNombre[r.n])||r.n;
     const dias = (s.rsDias&&s.rsDias[r.n])||[];
@@ -3306,7 +3306,7 @@ function openSocioOpcionesModal(idx){
       <button class="btn btn-outline" style="${optSt}" onclick="closeModal();openNotasModal(${idx})"><i class="ti ti-notes" style="font-size:20px;"></i>Notas</button>
       ${canEdit?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-edit" style="font-size:20px;"></i>Editar ficha</button>`:''}
       ${isSuperOwner()?`<button class="btn btn-outline" style="${optSt}" onclick="openEditSocioModal(${idx})"><i class="ti ti-fingerprint" style="font-size:20px;color:${s.dniAccesoRapido?'var(--green)':'var(--text2)'};"></i>Acceso por DNI${s.dniAccesoRapido?' <span style=\'font-size:11px;color:var(--green);\'>● Activo</span>':''}</button>`:''}
-      ${(canEdit||hasPerm('asignarRutinas'))?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
+      ${(canEdit||hasPerm('asignarRutinas')||currentRole==='profesor')?`<button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinasModal(${idx})"><i class="ti ti-barbell" style="font-size:20px;"></i>Rutinas${s.rs&&s.rs.length?` (${s.rs.length})`:''}</button>`:''}
       ${(canEdit||currentRole==='profesor'||currentRole==='dueno')?`<button class="btn btn-outline" style="${optSt}" onclick="closeModal();openSocioAsistenciaStaffModal(${idx})"><i class="ti ti-history" style="font-size:20px;"></i>Sesiones</button>`:''}
       ${(currentRole==='profesor'||currentRole==='dueno'||canEdit)?`<button class="btn btn-outline" style="${optSt}" onclick="marcarEntradaManualSocio('${s.id}')"><i class="ti ti-login" style="font-size:20px;color:var(--green);"></i>Marcar entrada</button>`:''}
       ${canRemove?(s.activo===false
@@ -3897,7 +3897,7 @@ function copiarRutinaDeSOcio(si, rname){
   const s = SOCIOS[si];
   const r = RUTINAS.find(x=>x.n===rname);
   if(!s||!r) return;
-  const ejs = (s.rsOverride&&s.rsOverride[rname]) ? JSON.parse(JSON.stringify(s.rsOverride[rname])) : JSON.parse(JSON.stringify(r.ejs));
+  const ejs = (s.rsOverride&&s.rsOverride[rname]) ? JSON.parse(JSON.stringify(s.rsOverride[rname])) : JSON.parse(JSON.stringify(r.ejs||[]));
   _rutinaCopied = {
     rname,
     ejs,
@@ -3952,13 +3952,13 @@ function updateDiaPillsUI(si, rname){
   const dias = (s.rsDias && s.rsDias[rname]) || [];
   $all('.day-pill', box).forEach((btn,idx)=>btn.classList.toggle('active', dias.includes(DIAS_SEMANA[idx])));
 }
-let socioEjEditArr = null, socioEjEditSi = null, socioEjEditRname = null;
+let socioEjEditArr = null, socioEjEditSi = null, socioEjEditRname = null, socioEjEditMiPeso = {};
 function openSocioRutinaEjsModal(si, rname){
   const s = SOCIOS[si];
   const r = RUTINAS.find(x=>x.n===rname);
   if(!r) return;
   if(!s.rsOverride) s.rsOverride = {};
-  const base = s.rsOverride[rname] ? s.rsOverride[rname] : r.ejs;
+  const base = s.rsOverride[rname] ? s.rsOverride[rname] : (r.ejs||[]);
   socioEjEditArr = base.length ? base.map(e=>({n:e.n,s:e.s,r:e.r,modo:e.modo||'',tiempo:e.tiempo||'',kg:e.kg||''})) : [{n:'',s:3,r:'10',kg:''}];
   socioEjEditSi = si;
   socioEjEditRname = rname;
@@ -3973,6 +3973,7 @@ function renderSocioEjModalBody(){
   const rname = socioEjEditRname;
   const hasOverride = !!(s.rsOverride && s.rsOverride[rname]);
   const miPesoAlumno = (s.rsMiPeso && s.rsMiPeso[rname]) || {};
+  socioEjEditMiPeso = miPesoAlumno;
   openModal(`
     <div class="modal-head"><h3>Ejercicios — ${esc(rname)}</h3><button onclick="closeModal()">✕</button></div>
     <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:10px;">Estos cambios sólo afectan a <b>${esc(s.n)}</b>. La rutina original no se modifica para los demás socios.</p>
@@ -4768,7 +4769,7 @@ let currentEjsShowKg = false, currentEjsDraggable = false;
 function renderEjsRows(){
   const c = document.getElementById('rtEjs');
   if(!c){ currentEjsRenderFn(); return; }
-  c.innerHTML = currentEjsArr.map((e,i)=>ejRowHTML(i,e,currentEjsShowKg,currentEjsDraggable)).join('');
+  c.innerHTML = currentEjsArr.map((e,i)=>ejRowHTML(i,e,currentEjsShowKg,currentEjsDraggable,socioEjEditMiPeso[e.n]||'')).join('');
 }
 function addEjRow(){
   currentEjsArr.push({n:'',s:3,r:'10',kg:''});
