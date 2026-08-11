@@ -3692,7 +3692,7 @@ function diasRutinaButtonHTML(si, rname, search){
   search = search||'';
   const dias = (s.rsDias&&s.rsDias[rname])||[];
   const label = dias.length ? `${dias.length} día${dias.length>1?'s':''}/sem` : 'Elegir días';
-  return `<button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="openDiasRutinaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-calendar"></i> ${label}</button>`;
+  return `<button class="btn btn-outline btn-sm" style="font-size:11.5px;" onclick="openDiasRutinaModal(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-calendar"></i> ${label}</button>`;
 }
 function openDiasRutinaModal(si, rname, search){
   const s = SOCIOS[si];
@@ -3700,18 +3700,18 @@ function openDiasRutinaModal(si, rname, search){
   const dias = (s.rsDias&&s.rsDias[rname])||[];
   const nombre = (s.rsNombre&&s.rsNombre[rname])||rname;
   openModal(`
-    <div class="modal-head"><h3>Días — ${esc(nombre)}</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <div class="modal-head"><h3>Días — ${esc(nombre)}</h3><button onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">✕</button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <p style="color:var(--text2);font-size:13px;margin:0;">¿Qué días la hace ${esc(s.n)}? (opcional)</p>
       <span>
-        <button class="day-pill-quick" onclick="setRutinaDias(${si},'${rname.replace(/'/g,"\\'")}',['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],'${search.replace(/'/g,"\\'")}')">Todos</button>
-        · <button class="day-pill-quick" onclick="setRutinaDias(${si},'${rname.replace(/'/g,"\\'")}',[],'${search.replace(/'/g,"\\'")}')">Ninguno</button>
+        <button class="day-pill-quick" onclick="setRutinaDias(${si},decodeURIComponent('${encodeURIComponent(rname)}'),['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],decodeURIComponent('${encodeURIComponent(search)}'))">Todos</button>
+        · <button class="day-pill-quick" onclick="setRutinaDias(${si},decodeURIComponent('${encodeURIComponent(rname)}'),[],decodeURIComponent('${encodeURIComponent(search)}'))">Ninguno</button>
       </span>
     </div>
     <div class="day-pills" id="diaPills_${si}_${slugRutina(rname)}">
-      ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDiaSocio(${si},'${rname.replace(/'/g,"\\'")}','${d}','${search.replace(/'/g,"\\'")}')">${d.slice(0,3)}</button>`).join('')}
+      ${DIAS_SEMANA.map(d=>`<button class="day-pill ${dias.includes(d)?'active':''}" onclick="toggleRutinaDiaSocio(${si},decodeURIComponent('${encodeURIComponent(rname)}'),'${d}',decodeURIComponent('${encodeURIComponent(search)}'))">${d.slice(0,3)}</button>`).join('')}
     </div>
-    <div class="modal-actions"><button class="btn btn-primary" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Listo</button></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">Listo</button></div>
   `);
 }
 function openSocioRutinaOpciones(si, rname, search){
@@ -3724,31 +3724,31 @@ function openSocioRutinaOpciones(si, rname, search){
   const hasOverride = s.rsOverride&&s.rsOverride[rname];
   const optSt = 'width:100%;justify-content:flex-start;margin-bottom:8px;gap:12px;';
   openModal(`
-    <div class="modal-head"><h3>${esc(nombre||rname)}</h3><button onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <div class="modal-head"><h3>${esc(nombre||rname)}</h3><button onclick="openSocioRutinasModal(${si},decodeURIComponent('${encodeURIComponent(search)}'))">✕</button></div>
     ${has?`<span class="badge b-ok" style="font-size:11px;margin-bottom:14px;display:inline-block;">✓ Asignada</span>`:''}
     <div style="display:flex;flex-direction:column;">
       ${has?`
-      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaEjsModal(${si},'${rname.replace(/'/g,"\\'")}')"><i class="ti ti-edit" style="font-size:18px;"></i>${hasOverride?'Ver/editar ejercicios personalizados':'Personalizar ejercicios'}</button>
-      <button class="btn btn-outline" style="${optSt}" onclick="openDiasRutinaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-calendar" style="font-size:18px;"></i>Elegir días</button>
-      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNombreModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-tag" style="font-size:18px;"></i>Nombre personalizado</button>
-      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNotaModal(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-notes" style="font-size:18px;"></i>Nota para el socio</button>
-      <button class="btn btn-outline" style="${optSt}" onclick="copiarRutinaDeSOcio(${si},'${rname.replace(/'/g,"\\'")}')"><i class="ti ti-copy" style="font-size:18px;"></i>Copiar rutina</button>
-      <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="quitarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-x" style="font-size:18px;"></i>Quitar rutina</button>
-      `:`<button class="btn btn-green" style="${optSt}" onclick="asignarRutinaSocio(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-plus" style="font-size:18px;"></i>Asignar esta rutina</button>`}
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaEjsModal(${si},decodeURIComponent('${encodeURIComponent(rname)}'))"><i class="ti ti-edit" style="font-size:18px;"></i>${hasOverride?'Ver/editar ejercicios personalizados':'Personalizar ejercicios'}</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openDiasRutinaModal(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-calendar" style="font-size:18px;"></i>Elegir días</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNombreModal(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-tag" style="font-size:18px;"></i>Nombre personalizado</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="openSocioRutinaNotaModal(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-notes" style="font-size:18px;"></i>Nota para el socio</button>
+      <button class="btn btn-outline" style="${optSt}" onclick="copiarRutinaDeSOcio(${si},decodeURIComponent('${encodeURIComponent(rname)}'))"><i class="ti ti-copy" style="font-size:18px;"></i>Copiar rutina</button>
+      <button class="btn btn-outline" style="${optSt}color:var(--red);" onclick="quitarRutinaSocio(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-x" style="font-size:18px;"></i>Quitar rutina</button>
+      `:`<button class="btn btn-green" style="${optSt}" onclick="asignarRutinaSocio(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-plus" style="font-size:18px;"></i>Asignar esta rutina</button>`}
     </div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="openSocioRutinasModal(${si},'${search.replace(/'/g,"\\'")}')">Volver</button></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="openSocioRutinasModal(${si},decodeURIComponent('${encodeURIComponent(search)}'))">Volver</button></div>
   `);
 }
 function openSocioRutinaNombreModal(si, rname, search){
   const s = SOCIOS[si];
   const nombre = (s.rsNombre&&s.rsNombre[rname])||'';
   openModal(`
-    <div class="modal-head"><h3>Nombre personalizado</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <div class="modal-head"><h3>Nombre personalizado</h3><button onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">✕</button></div>
     <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Este nombre solo lo ve ${esc(s.n)}, no afecta a otros socios.</p>
     <input id="srm_nombre_input" value="${esc(nombre)}" placeholder="${esc(rname)}" style="margin-bottom:16px;font-size:13.5px;">
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveSocioRutinaNombre(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Guardar</button>
+      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSocioRutinaNombre(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">Guardar</button>
     </div>
   `);
 }
@@ -3764,11 +3764,11 @@ function openSocioRutinaNotaModal(si, rname, search){
   const s = SOCIOS[si];
   const nota = (s.rsNotas&&s.rsNotas[rname])||'';
   openModal(`
-    <div class="modal-head"><h3>Nota para el socio</h3><button onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">✕</button></div>
+    <div class="modal-head"><h3>Nota para el socio</h3><button onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">✕</button></div>
     <textarea id="srm_nota_input" placeholder="Ej: hacer 3 veces por semana, cuidado con la rodilla..." style="width:100%;min-height:80px;font-size:13px;margin-bottom:16px;">${esc(nota)}</textarea>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveSocioRutinaNota(${si},'${rname.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')">Guardar</button>
+      <button class="btn btn-outline" onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSocioRutinaNota(${si},decodeURIComponent('${encodeURIComponent(rname)}'),decodeURIComponent('${encodeURIComponent(search)}'))">Guardar</button>
     </div>
   `);
 }
@@ -3787,7 +3787,7 @@ function socioRutinaRowHTML(si, r, search){
   const nombre = (s.rsNombre&&s.rsNombre[r.n])||'';
   return `<div id="rutinaRow_${si}_${slugRutina(r.n)}" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border2);">
     <span style="font-size:13.5px;${has?'font-weight:600;':''}">${esc(nombre||r.n)}${has?` <span class="badge b-ok" style="font-size:10px;margin-left:6px;">✓</span>`:''}</span>
-    <button class="btn btn-outline btn-sm" style="padding:4px 8px;" onclick="openSocioRutinaOpciones(${si},'${r.n.replace(/'/g,"\\'")}','${search.replace(/'/g,"\\'")}')"><i class="ti ti-dots-vertical"></i></button>
+    <button class="btn btn-outline btn-sm" style="padding:4px 8px;" onclick="openSocioRutinaOpciones(${si},decodeURIComponent('${encodeURIComponent(r.n)}'),decodeURIComponent('${encodeURIComponent(search)}'))"><i class="ti ti-dots-vertical"></i></button>
   </div>`;
 }
 function socioRutinasListHTML(si, search){
@@ -3981,7 +3981,7 @@ function renderSocioEjModalBody(){
     </div>
     <button class="btn btn-outline btn-sm" onclick="addEjRow()">+ Agregar ejercicio</button>
     <div class="modal-actions" style="justify-content:space-between;">
-      ${hasOverride?`<button class="btn btn-outline" onclick="resetSocioRutinaEjs(${socioEjEditSi},'${rname.replace(/'/g,"\\'")}')">Restablecer original</button>`:'<span></span>'}
+      ${hasOverride?`<button class="btn btn-outline" onclick="resetSocioRutinaEjs(${socioEjEditSi},decodeURIComponent('${encodeURIComponent(rname)}'))">Restablecer original</button>`:'<span></span>'}
       <span>
         <button class="btn btn-outline" onclick="openSocioRutinasModal(${socioEjEditSi})">Cancelar</button>
         <button class="btn btn-primary" onclick="saveSocioRutinaEjs()">Guardar</button>
@@ -8591,8 +8591,8 @@ function openEliteRutinaDetalleModal(rname){
 
   const ejRows = ejs.map((e, ei)=>{
     const hecho = rh[e.n]===todayStr;
-    const rn_esc = rname.replace(/'/g,"\\'");
-    const en_esc = e.n.replace(/'/g,"\\'");
+    const rn_esc = encodeURIComponent(rname);
+    const en_esc = encodeURIComponent(e.n);
     const _s = (miSR[e.n]&&miSR[e.n].s) ? String(miSR[e.n].s) : String(e.s||'');
     const _r = (miSR[e.n]&&miSR[e.n].r) ? String(miSR[e.n].r) : String(e.r||'');
     const _p = miPeso[e.n] ? String(miPeso[e.n]) : '';
@@ -8609,11 +8609,11 @@ function openEliteRutinaDetalleModal(rname){
         <p id="eliteEjSum${ei}" style="font-size:14px;font-weight:700;margin:0 0 8px;color:var(--text);">${esc(summaryText)}</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
-          <button id="eliteEjBtn${ei}" class="btn btn-sm ${hecho?'btn-primary':'btn-outline'}" style="margin-left:auto;height:38px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="eliteToggleEjercicio('${rn_esc}','${en_esc}',${ei})"><i class="ti ti-check" style="font-size:18px;"></i><span>${hecho?'Hecho':'Marcar hecho'}</span></button>
+          <button id="eliteEjBtn${ei}" class="btn btn-sm ${hecho?'btn-primary':'btn-outline'}" style="margin-left:auto;height:38px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="eliteToggleEjercicio(decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'),${ei})"><i class="ti ti-check" style="font-size:18px;"></i><span>${hecho?'Hecho':'Marcar hecho'}</span></button>
         </div>
         <div id="eliteEjEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
-          ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="eliteSetMiSREj(\''+rn_esc+'\',\''+en_esc+'\',\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="eliteSetMiSREj(\''+rn_esc+'\',\''+en_esc+'\',\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(_p)}" oninput="eliteSetMiPesoEj('${rn_esc}','${en_esc}',this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
-          <button onclick="eliteGuardarEjEdit(${ei},'${rn_esc}','${en_esc}')" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
+          ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="eliteSetMiSREj(decodeURIComponent(\''+rn_esc+'\'),decodeURIComponent(\''+en_esc+'\'),\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="eliteSetMiSREj(decodeURIComponent(\''+rn_esc+'\'),decodeURIComponent(\''+en_esc+'\'),\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(_p)}" oninput="eliteSetMiPesoEj(decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'),this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
+          <button onclick="eliteGuardarEjEdit(${ei},decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'))" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
         </div>
       </div>
     </div>`;
@@ -9798,8 +9798,8 @@ function openSocioRutinaDetalleModal(rname){
       const _r = (miSR[e.n]&&miSR[e.n].r) ? String(miSR[e.n].r) : String(e.r||'');
       const _p = miPeso[e.n] ? String(miPeso[e.n]) : '';
       const summaryText = e.modo==='tiempo' ? ('Tiempo: '+(e.tiempo||'')) : (_s+'×'+_r+(_p?' | '+_p+' kg':''));
-      const rn_esc = rname.replace(/'/g,"\\'");
-      const en_esc = e.n.replace(/'/g,"\\'");
+      const rn_esc = encodeURIComponent(rname);
+      const en_esc = encodeURIComponent(e.n);
       const selectOpts = '<option value="">-</option>'+[1,2,3,4].map(n=>'<option value="'+n+'"'+(_s==String(n)?' selected':'')+'>'+n+'</option>').join('');
       return `<div id="ejRow${ei}" class="ej-row-card${done?' ej-row-done':''}" style="display:flex;gap:12px;padding:12px;border:1px solid var(--border2);border-radius:12px;">
         ${img?`<img src="${esc(img)}" style="width:70px;height:70px;border-radius:10px;object-fit:cover;flex:0 0 auto;" onerror="this.style.display='none'">`:''}
@@ -9812,11 +9812,11 @@ function openSocioRutinaDetalleModal(rname){
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${e.kg?`<span style="font-size:12px;font-weight:600;color:var(--primary);background:rgba(59,130,201,0.1);padding:4px 9px;border-radius:6px;">Ref: ${esc(e.kg)} kg</span>`:''}
             ${EJ_VIDEOS[e.n]?`<button class="btn btn-outline btn-sm" onclick="openVideoModal('${jsAttr(e.n)}')" title="Ver video"><i class="ti ti-video" style="color:var(--primary);font-size:17px;"></i></button>`:''}
-            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho('${rn_esc}','${en_esc}',${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
+            <button id="ejBtn${ei}" class="btn btn-sm ej-done-btn ${done?'btn-primary':'btn-outline'}" style="margin-left:auto;height:40px;min-width:110px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:600;" onclick="toggleEjercicioHecho(decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'),${ei})"><i class="ti ti-check" style="font-size:19px;"></i><span>${done?'Hecho':'Marcar hecho'}</span></button>
           </div>
           <div id="ejEdit${ei}" style="display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:var(--bg2);border-radius:10px;">
-            ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="setMiSREj('+currentSocioIdx+',\''+rn_esc+'\',\''+en_esc+'\',\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},'${rn_esc}','${en_esc}',this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
-            <button onclick="guardarEjEdit(${ei},'${rn_esc}','${en_esc}')" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
+            ${e.modo!=='tiempo'?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">SERIES</label><select onchange="setMiSREj('+currentSocioIdx+',decodeURIComponent(\''+rn_esc+'\'),decodeURIComponent(\''+en_esc+'\'),\'s\',this.value)" style="width:64px;font-size:15px;padding:7px 4px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);">'+selectOpts+'</select></div><span style="font-size:18px;color:var(--text2);font-weight:300;align-self:flex-end;padding-bottom:6px;">×</span><div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">REPS</label><input type="text" placeholder="'+esc(e.r)+'" value="'+esc((miSR[e.n]&&miSR[e.n].r)||'')+'" oninput="setMiSREj('+currentSocioIdx+',decodeURIComponent(\''+rn_esc+'\'),decodeURIComponent(\''+en_esc+'\'),\'r\',this.value)" style="width:72px;font-size:15px;padding:7px 6px;font-weight:700;text-align:center;border:1px solid var(--border2);border-radius:8px;"></div></div>':''}<div style="display:flex;flex-direction:column;gap:3px;"><label style="font-size:10px;color:var(--text2);font-weight:600;">MI PESO (kg)</label><input type="text" placeholder="ej: 15" value="${esc(miPeso[e.n]||'')}" oninput="setMiPesoEj(${currentSocioIdx},decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'),this.value)" style="width:110px;font-size:15px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;"></div>
+            <button onclick="guardarEjEdit(${ei},decodeURIComponent('${rn_esc}'),decodeURIComponent('${en_esc}'))" style="align-self:flex-end;height:38px;padding:0 18px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;">Guardar</button>
           </div>
         </div>
       </div>`;
@@ -9825,10 +9825,10 @@ function openSocioRutinaDetalleModal(rname){
     <div id="completarEntrenamientoBar" style="padding:14px 0 0;">
       ${(()=>{
         const todosHechos = (ejs||[]).length>0 && (ejs||[]).every(e=>(s.rsHechos&&s.rsHechos[rname]&&s.rsHechos[rname][e.n])===hoy);
-        const rn_esc = rname.replace(/'/g,"\\'");
+        const rn_esc = encodeURIComponent(rname);
         return todosHechos
-          ? `<button class="btn btn-outline" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--green);border-color:var(--green);" onclick="completarEntrenamiento('${rn_esc}')"><i class="ti ti-check" style="font-size:18px;"></i> Entrenamiento completado</button>`
-          : `<button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;" onclick="completarEntrenamiento('${rn_esc}')"><i class="ti ti-player-play" style="font-size:18px;"></i> Completar entrenamiento</button>`;
+          ? `<button class="btn btn-outline" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;color:var(--green);border-color:var(--green);" onclick="completarEntrenamiento(decodeURIComponent('${rn_esc}'))"><i class="ti ti-check" style="font-size:18px;"></i> Entrenamiento completado</button>`
+          : `<button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;" onclick="completarEntrenamiento(decodeURIComponent('${rn_esc}'))"><i class="ti ti-player-play" style="font-size:18px;"></i> Completar entrenamiento</button>`;
       })()}
     </div>
     <div class="modal-actions" style="margin-top:10px;"><button class="btn btn-outline" style="width:100%;justify-content:center;font-size:14px;padding:10px 0;border-radius:12px;" onclick="closeModal();renderSocio();">Cerrar</button></div>
