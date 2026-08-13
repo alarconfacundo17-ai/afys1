@@ -1171,6 +1171,16 @@ async function mergeRemoteAntesDeGuardar(){
         if(typeof rs.activo==='boolean' && (rs.activoTs||0) > (ls.activoTs||0)){ ls.activo = rs.activo; ls.activoTs = rs.activoTs; }
         // propagar cortesía si el remoto la tiene (aditivo; solo se elimina por savePago explícito)
         if(rs.cortesia && !ls.cortesia){ ls.cortesia = true; ls.es = 'ok'; }
+        // propagar campos de perfil (último en guardar gana, via profileTs)
+        if(rs.profileTs && rs.profileTs > (ls.profileTs||0)){
+          if(rs.n) ls.n = rs.n;
+          ls.email = rs.email ?? ls.email;
+          ls.tel = rs.tel ?? ls.tel;
+          ls.pe = rs.pe ?? ls.pe;
+          ls.ob = rs.ob ?? ls.ob;
+          ls.obs = rs.obs ?? ls.obs;
+          ls.profileTs = rs.profileTs;
+        }
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
         // propagar personalización de rutinas por socio (nombre, nota, días, ejercicios override)
@@ -3640,6 +3650,7 @@ function saveEditSocio(idx){
   }
   // Auto-activar acceso por DNI si tiene DNI cargado
   if(s.dni && !s.dniAccesoRapido){ s.dniAccesoRapido=true; if(s.email) cacheDni(s.dni,(s.email||'').toLowerCase()); }
+  s.profileTs = Date.now();
   recalcEstados({notify:false});
   persist();
   showToast('Guardado');
@@ -10132,6 +10143,16 @@ function socioCuenta(){
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
         if(rs.cortesia && !ls.cortesia){ ls.cortesia=true; ls.es='ok'; }
+        // propagar campos de perfil (último en guardar gana, via profileTs)
+        if(rs.profileTs && rs.profileTs > (ls.profileTs||0)){
+          if(rs.n) ls.n = rs.n;
+          ls.email = rs.email ?? ls.email;
+          ls.tel = rs.tel ?? ls.tel;
+          ls.pe = rs.pe ?? ls.pe;
+          ls.ob = rs.ob ?? ls.ob;
+          ls.obs = rs.obs ?? ls.obs;
+          ls.profileTs = rs.profileTs;
+        }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
         if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
         if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en]||Object.keys(ls.rsMiSR[rn][en]).length===0) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
