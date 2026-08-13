@@ -1941,6 +1941,8 @@ function logout(){
   $('#socio').classList.add('hidden');
   $('#scan').classList.add('hidden');
   _dniPopupShown = false;
+  _cumpleStaffNotified = false;
+  _cumplePopupShown = false;
   loginView='login'; loginError='';
   $('#login').classList.remove('hidden');
   renderLogin();
@@ -9429,6 +9431,7 @@ function fmtCumpleLabel(cumple){
 function checkCumpleaniosStaff(){
   if(_cumpleStaffNotified) return;
   _cumpleStaffNotified = true;
+  if(currentRole !== 'dueno' && currentRole !== 'profesor' && currentRole !== 'admin') return;
   const cumpleros = SOCIOS.filter(s=>s.activo!==false && esCumpleHoy(s));
   if(!cumpleros.length) return;
   // Mostrar un toast por cada cumpleaniero
