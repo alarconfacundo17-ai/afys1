@@ -1169,8 +1169,12 @@ async function mergeRemoteAntesDeGuardar(){
         if(rs.vence && (!ls.vence || rs.vence > ls.vence)) ls.vence = rs.vence;
         // aplicar activo solo si el remoto es más reciente (evita revertir reactivaciones locales)
         if(typeof rs.activo==='boolean' && (rs.activoTs||0) > (ls.activoTs||0)){ ls.activo = rs.activo; ls.activoTs = rs.activoTs; }
-        // propagar cortesía si el remoto la tiene (aditivo; solo se elimina por savePago explícito)
-        if(rs.cortesia && !ls.cortesia){ ls.cortesia = true; ls.es = 'ok'; }
+        // propagar cortesía con last-write-wins via cortesiaTs
+        if((rs.cortesiaTs||0) > (ls.cortesiaTs||0)){
+          if(rs.cortesia){ ls.cortesia = true; ls.es = 'ok'; }
+          else { delete ls.cortesia; if(!ls.vence) ls.es = 'de'; }
+          ls.cortesiaTs = rs.cortesiaTs;
+        } else if(rs.cortesia && !ls.cortesia && !(ls.cortesiaTs)){ ls.cortesia = true; ls.es = 'ok'; }
         // propagar campos de perfil (último en guardar gana, via profileTs)
         if(rs.profileTs && rs.profileTs > (ls.profileTs||0)){
           if(rs.n) ls.n = rs.n;
@@ -1179,6 +1183,7 @@ async function mergeRemoteAntesDeGuardar(){
           ls.pe = rs.pe ?? ls.pe;
           ls.ob = rs.ob ?? ls.ob;
           ls.obs = rs.obs ?? ls.obs;
+          ls.vence = rs.vence ?? ls.vence;
           ls.profileTs = rs.profileTs;
         }
         // propagar DNI si el local no lo tiene aún
@@ -4304,6 +4309,7 @@ function savePago(){
   const esCortesia = cortesiaCheck ? cortesiaCheck.checked : false;
   if(esCortesia){
     s.cortesia = true;
+    s.cortesiaTs = Date.now();
     s.vence = null;
     s.es = 'ok';
     logMovimiento('cortesia', `${s.n} designado como socio de cortesía`);
@@ -4314,6 +4320,7 @@ function savePago(){
     return;
   } else if(s.cortesia){
     delete s.cortesia;
+    s.cortesiaTs = Date.now();
     s.es = 'de'; // sin vence → queda vencido hasta que se le cargue un pago
     logMovimiento('cortesia', `Cortesía dada de baja para ${s.n}`);
     persist(); showToast('Cortesía dada de baja'); closeModal(); renderStaff(); return;
@@ -10142,7 +10149,12 @@ function socioCuenta(){
         if(rs.hoy && !ls.hoy){ ls.hoy=true; ls.entradaHora=rs.entradaHora||ls.entradaHora; }
         if(rs.vence && (!ls.vence || rs.vence>ls.vence)) ls.vence=rs.vence;
         if(typeof rs.activo==='boolean' && (rs.activoTs||0)>(ls.activoTs||0)){ ls.activo=rs.activo; ls.activoTs=rs.activoTs; }
-        if(rs.cortesia && !ls.cortesia){ ls.cortesia=true; ls.es='ok'; }
+        // propagar cortesía con last-write-wins via cortesiaTs
+        if((rs.cortesiaTs||0) > (ls.cortesiaTs||0)){
+          if(rs.cortesia){ ls.cortesia=true; ls.es='ok'; }
+          else { delete ls.cortesia; if(!ls.vence) ls.es='de'; }
+          ls.cortesiaTs=rs.cortesiaTs;
+        } else if(rs.cortesia && !ls.cortesia && !ls.cortesiaTs){ ls.cortesia=true; ls.es='ok'; }
         // propagar campos de perfil (último en guardar gana, via profileTs)
         if(rs.profileTs && rs.profileTs > (ls.profileTs||0)){
           if(rs.n) ls.n = rs.n;
@@ -10151,6 +10163,7 @@ function socioCuenta(){
           ls.pe = rs.pe ?? ls.pe;
           ls.ob = rs.ob ?? ls.ob;
           ls.obs = rs.obs ?? ls.obs;
+          ls.vence = rs.vence ?? ls.vence;
           ls.profileTs = rs.profileTs;
         }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
