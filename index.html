@@ -837,6 +837,8 @@ function migrateSocioFields(){
     if(!Array.isArray(s.nt)) s.nt=[];
     // Normalizar vencimientos a día 10 (sin importar qué día tengan)
     if(s.vence && !/\d{4}-\d{2}-10$/.test(s.vence)){ s.vence = s.vence.slice(0,7)+'-10'; changed=true; }
+    // Backfill cortesiaTs para socios cortesía cargados antes del fix de last-write-wins
+    if(s.cortesia && !s.cortesiaTs){ s.cortesiaTs = Date.now(); changed=true; }
   });
   if(autoActivateDni()) changed = true;
   if(changed) persistDirect();
@@ -955,6 +957,10 @@ function mergeDupSocio(keepIdx, dupIdx, toRemove){
   if((!keep.nt || !keep.nt.length) && dup.nt) keep.nt = dup.nt;
 
   if(!keep.vence && dup.vence) keep.vence = dup.vence;
+  if(dup.cortesia && !keep.cortesia){ keep.cortesia = true; keep.es = 'ok'; }
+  if(dup.cortesiaTs && (!keep.cortesiaTs || dup.cortesiaTs > keep.cortesiaTs)) keep.cortesiaTs = dup.cortesiaTs;
+  if(dup.profileTs && (!keep.profileTs || dup.profileTs > keep.profileTs)) keep.profileTs = dup.profileTs;
+  if(dup.activoTs && (!keep.activoTs || dup.activoTs > keep.activoTs)){ keep.activoTs = dup.activoTs; keep.activo = dup.activo; }
   // merge rs: additive union, respetando rsRemoved de ambos
   if(!Array.isArray(keep.rs)) keep.rs = [];
   if(Array.isArray(dup.rs)) dup.rs.forEach(r=>{ if(!keep.rs.includes(r)) keep.rs.push(r); });
