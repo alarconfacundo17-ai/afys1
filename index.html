@@ -4322,7 +4322,7 @@ function savePago(){
     s.es = 'ok';
     logMovimiento('cortesia', `${s.n} designado como socio de cortesía`);
     editPagoIdx = null; editPagoKey = null;
-    persist();
+    persistDirect(); // escritura inmediata: evita carrera con guardado de otro dueño
     showToast('Socio de cortesía guardado');
     closeModal(); renderStaff();
     return;
@@ -4331,7 +4331,7 @@ function savePago(){
     s.cortesiaTs = Date.now();
     s.es = 'de'; // sin vence → queda vencido hasta que se le cargue un pago
     logMovimiento('cortesia', `Cortesía dada de baja para ${s.n}`);
-    persist(); showToast('Cortesía dada de baja'); closeModal(); renderStaff(); return;
+    persistDirect(); showToast('Cortesía dada de baja'); closeModal(); renderStaff(); return;
   }
 
   const med = document.querySelector('input[name="pg_med"]:checked');
