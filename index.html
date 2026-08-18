@@ -1076,6 +1076,24 @@ function showToast(msg, type, duration, undoFn){
   const ms = duration || (undoFn?5000:type==='error'?4000:2000);
   toastTimer = setTimeout(()=>t.classList.remove('show'), ms);
 }
+function eliminarEntradaHistorial(socioId, regIndex){
+  const s = SOCIOS.find(x=>x.id===socioId);
+  if(!s) return;
+  const misRegs = REGS.filter(r=>regBelongsTo(r,s));
+  const r = misRegs[regIndex];
+  if(!r) return;
+  const globalIdx = REGS.indexOf(r);
+  if(globalIdx<0) return;
+  REGS.splice(globalIdx,1);
+  const hoy = todayISO();
+  s.hoy = REGS.some(r=>r.sid===s.id&&r.f&&localDateISO(r.f)===hoy);
+  if(!s.hoy){ s.entradaHora=undefined; entradasHoy=Math.max(0,entradasHoy-1); }
+  logMovimiento('entrada_eliminada', `Entrada eliminada del historial de ${s.n} (${r.f?fmtFechaCorta(localDateISO(r.f)):'-'})`);
+  persist();
+  showToast(`Entrada eliminada`);
+  const si = SOCIOS.findIndex(x=>x.id===socioId);
+  if(si>=0) openSocioAsistenciaStaffModal(si);
+}
 function deshacerEntrada(socioId){
   const idx = SOCIOS.findIndex(s=>s.id===socioId);
   const s = idx>=0 ? SOCIOS[idx] : null;
@@ -3629,7 +3647,11 @@ function openSocioAsistenciaStaffModal(idx){
     </div>
     <div class="card">
       <h3>Historial</h3>
-      ${misRegs.map(r=>`<div class="day-row"><span>${r.f?fmtFechaCorta(localDateISO(r.f)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span>${r.h||''}</span></div>`).join('')||emptyState('ti-clock-off','Sin registros aún')}
+      ${misRegs.map((r,ri)=>{
+        const canDel = isSuperOwner()||hasPerm('removerSocios');
+        const delBtn = canDel ? `<button onclick="eliminarEntradaHistorial('${s.id}',${ri})" style="background:none;border:none;color:var(--red,#e53e3e);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;" title="Eliminar entrada">×</button>` : '';
+        return `<div class="day-row" style="align-items:center;"><span>${r.f?fmtFechaCorta(localDateISO(r.f)):'-'}</span><span>${r.cl?esc(r.cl):'Entrada general'}</span><span style="display:flex;align-items:center;gap:6px;">${r.h||''}${delBtn}</span></div>`;
+      }).join('')||emptyState('ti-clock-off','Sin registros aún')}
     </div>
     <div class="modal-actions"><button class="btn btn-outline" style="font-size:15px;padding:12px 20px;" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" style="font-size:15px;padding:12px 20px;" onclick="marcarEntradaManualSocio('${s.id}')"><i class="ti ti-login"></i> Marcar entrada</button></div>
   `);
@@ -5787,7 +5809,7 @@ function filterUltimosPagos(){
 }
 const MOVIMIENTO_TIPOS = {
   alta_socio:'Alta de socio', baja_socio:'Baja de socio', reactivacion_socio:'Reactivación de socio', eliminacion_socio:'Eliminación de socio',
-  entrada_socio:'Entrada al gimnasio', alta_staff:'Alta de cuenta de staff', baja_staff:'Baja de cuenta de staff',
+  entrada_socio:'Entrada al gimnasio', entrada_eliminada:'Entrada eliminada del historial', alta_staff:'Alta de cuenta de staff', baja_staff:'Baja de cuenta de staff',
   reactivacion_staff:'Reactivación de staff', eliminacion_staff:'Eliminación de staff', pago:'Pago registrado', eliminacion_pago:'Eliminación de pago',
 };
 let movFiltroTipo = '';
