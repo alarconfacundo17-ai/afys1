@@ -6963,6 +6963,8 @@ function _guardarPlanFechaCustom(){
   const current = getPlanItems(d, fecha);
   if(!current.includes(val)){
     d.planFechas[fecha] = [...current, val];
+    if(!d.planFechasTs) d.planFechasTs = {};
+    d.planFechasTs[fecha] = Date.now();
     persist();
   }
   openEliteAsignarDiaModal(id, fecha, ym);
@@ -6975,6 +6977,8 @@ function _quitarPlanFechaCalendario(){
   if(!d) return;
   if(!d.planFechas) d.planFechas = {};
   d.planFechas[fecha] = null;
+  if(!d.planFechasTs) d.planFechasTs = {};
+  d.planFechasTs[fecha] = Date.now();
   persist();
   if(ym && ym.length===10) openEliteEntrenamientosModal(id);
   else openElitePlanCalendarioModal(id, ym);
@@ -7013,6 +7017,8 @@ function _togglePlanFechaItem(rname){
   } else {
     d.planFechas[fecha] = [...current, rname];
   }
+  if(!d.planFechasTs) d.planFechasTs = {};
+  d.planFechasTs[fecha] = Date.now();
   persist();
   openEliteAsignarDiaModal(id, fecha, ym);
 }
@@ -7024,6 +7030,8 @@ function quitarPlanFechaItem(id, ds, rname){
   const current = getPlanItems(d, ds);
   const next = current.filter(x=>x!==rname);
   d.planFechas[ds] = next.length ? next : null;
+  if(!d.planFechasTs) d.planFechasTs = {};
+  d.planFechasTs[ds] = Date.now();
   persist();
   openEliteEntrenamientoDiaModal(id, ds);
 }
@@ -7125,6 +7133,8 @@ function _seleccionarRutinaParaDia(rname){
   const arr = [...getPlanItems(d, fecha)];
   if(!arr.includes(rname)) arr.push(rname);
   d.planFechas[fecha] = arr;
+  if(!d.planFechasTs) d.planFechasTs = {};
+  d.planFechasTs[fecha] = Date.now();
   persist();
   // Abrir editor completo (add/remove/reorder/drag)
   _editarRutinaDelDiaDesdeAsignar(rname);
@@ -7141,6 +7151,8 @@ function _guardarSeleccionRutinaParaDia(rname){
   const arr = [...getPlanItems(d, fecha)];
   if(!arr.includes(rname)) arr.push(rname);
   d.planFechas[fecha] = arr;
+  if(!d.planFechasTs) d.planFechasTs = {};
+  d.planFechasTs[fecha] = Date.now();
 
   // Guardar nota y overrides
   const nota = (document.getElementById('planNotaInput')||{}).value||'';
@@ -9112,10 +9124,25 @@ function mergeEliteRemote(remoteElite, remoteDeletedEliteIds){
         if(!ld.planSemanal) ld.planSemanal = {};
         Object.keys(rd.planSemanal).forEach(rname=>{ ld.planSemanal[rname] = rd.planSemanal[rname]; });
       }
-      // planFechas: merge por fecha (remoto gana si local no tiene ese día)
+      // planFechas: merge con timestamp (last write wins por fecha)
+      if(rd.planFechasTs && typeof rd.planFechasTs==='object'){
+        if(!ld.planFechasTs) ld.planFechasTs = {};
+        if(!ld.planFechas) ld.planFechas = {};
+        Object.keys(rd.planFechasTs).forEach(fecha=>{
+          const remTs = rd.planFechasTs[fecha]||0;
+          const locTs = ld.planFechasTs[fecha]||0;
+          if(remTs > locTs && rd.planFechas && fecha in rd.planFechas){
+            ld.planFechasTs[fecha] = remTs;
+            ld.planFechas[fecha] = rd.planFechas[fecha];
+          }
+        });
+      }
+      // planFechas: fallback merge por fecha para datos sin timestamp (remoto gana si local no tiene ese día)
       if(rd.planFechas && typeof rd.planFechas==='object'){
         if(!ld.planFechas) ld.planFechas = {};
-        Object.keys(rd.planFechas).forEach(fecha=>{ if(ld.planFechas[fecha]===undefined) ld.planFechas[fecha]=rd.planFechas[fecha]; });
+        Object.keys(rd.planFechas).forEach(fecha=>{
+          if(ld.planFechas[fecha]===undefined && !(ld.planFechasTs||{})[fecha]) ld.planFechas[fecha]=rd.planFechas[fecha];
+        });
       }
     } else {
       ELITE_DEPORTISTAS.push(rd);
