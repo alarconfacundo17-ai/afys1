@@ -2106,6 +2106,11 @@ async function openQRGate(){
     } else {
       renderQRGateLoginDni(null); // pantalla de login sin usuario recordado
     }
+  } else if(savedEmail){
+    // Hay email guardado en este dispositivo pero SOCIOS_LOGIN está desactualizado
+    // (ej: idx desfasado por re-indexación). Ir directo al login con ese email
+    // para no mostrar "Crear cuenta" a alguien que ya tiene cuenta.
+    renderQRGateLoginDni(savedEmail);
   } else {
     renderQRGateLanding();
   }
