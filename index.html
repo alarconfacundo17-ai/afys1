@@ -2087,7 +2087,7 @@ async function openQRGate(){
   $('#qrGate').classList.remove('hidden');
   const savedEmail = localStorage.getItem(QR_DEVICE_KEY);
   const savedInfo = savedEmail ? lookupSocioLogin(savedEmail) : null;
-  if(savedEmail && savedInfo && Number.isInteger(savedInfo.idx) && SOCIOS[savedInfo.idx]){
+  if(savedEmail && savedInfo && Number.isInteger(savedInfo.idx) && SOCIOS[savedInfo.idx] && (SOCIOS[savedInfo.idx].email||'').toLowerCase()===savedEmail.toLowerCase()){
     // Sesión activa en este dispositivo → entrar directo sin pedir nada
     try{
       const {data:{session}} = await sb.auth.getSession();
