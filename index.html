@@ -8156,7 +8156,7 @@ function elitePageInicio(d){
       let _semPlan=0, _semCompletas=0;
       const semCells = Array.from({length:7},(_,i)=>{
         const dd = new Date(lunes); dd.setDate(lunes.getDate()+i);
-        const ds = dd.toISOString().slice(0,10);
+        const ds = dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0');
         const isHoy = ds===todayStr;
         const isPast = ds<todayStr;
         const items = getPlanItems(d, ds);
