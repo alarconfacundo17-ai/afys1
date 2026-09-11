@@ -2208,7 +2208,7 @@ async function qrGateCreateSocio(){
 // ── Iniciar sesión con DNI (+ fallback email+contraseña) ───────────────────
 function renderQRGateLoginDni(savedEmail, dniError){
   const info = savedEmail ? lookupSocioLogin(savedEmail) : null;
-  const socio = info && Number.isInteger(info.idx) && SOCIOS[info.idx];
+  const socio = info && Number.isInteger(info.idx) && SOCIOS[info.idx] && (SOCIOS[info.idx].email||'').toLowerCase()===(savedEmail||'').toLowerCase() ? SOCIOS[info.idx] : null;
   $('#qrGateContent').innerHTML = `
     <div class="modal-head" style="margin-bottom:16px;">
       <h2 style="font-size:18px;font-weight:700;">${socio ? `👋 Hola, ${esc(socio.n.split(' ')[0])}` : 'Iniciar sesión'}</h2>
@@ -9576,7 +9576,7 @@ function socioInicio(){
         <span>Entrada registrada${regHoy&&regHoy.h ? ` a las ${regHoy.h}` : ' hoy'}</span>
       </div>`;
     }
-    return `<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="pendingQR=pendingQR||{tipo:'general'};startScan();">
+    return `<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="$('#socio').classList.add('hidden');pendingQR=pendingQR||{tipo:'general'};startScan();">
       <i class="ti ti-door-enter" style="font-size:30px;"></i>Registrar mi entrada
     </button>`;
   })()}
