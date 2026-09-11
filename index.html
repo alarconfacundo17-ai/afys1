@@ -9567,8 +9567,21 @@ function socioInicio(){
     </div>
   </div>
   <div class="pay-banner ${payClass}">${payTxt}</div>
-  ${s.rs.length?`<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
-  <button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:var(--primary-light);color:var(--primary);" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
+  ${(()=>{
+    const yaEntroHoy = REGS.some(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO());
+    const regHoy = yaEntroHoy ? REGS.find(r=>r.sid===s.id && r.f && localDateISO(r.f)===todayISO()) : null;
+    if(yaEntroHoy){
+      return `<div style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:700;padding:20px 0;margin-bottom:14px;border-radius:14px;background:rgba(5,150,105,.1);color:var(--green);border:2px solid rgba(5,150,105,.25);box-sizing:border-box;">
+        <i class="ti ti-circle-check-filled" style="font-size:26px;"></i>
+        <span>Entrada registrada${regHoy&&regHoy.h ? ` a las ${regHoy.h}` : ' hoy'}</span>
+      </div>`;
+    }
+    return `<button class="btn btn-primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;" onclick="pendingQR=pendingQR||{tipo:'general'};startScan();">
+      <i class="ti ti-door-enter" style="font-size:30px;"></i>Registrar mi entrada
+    </button>`;
+  })()}
+  ${s.rs.length?`<button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:var(--primary-light);color:var(--primary);" onclick="socioPage='rutina';$all('.bn-item').forEach(x=>x.classList.remove('active'));$('[data-tab=rutina]').classList.add('active');renderSocio();"><i class="ti ti-barbell" style="font-size:30px;"></i>Rutina</button>`:''}
+  <button class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:18px;font-weight:700;padding:22px 0;margin-bottom:14px;border-radius:14px;background:var(--bg2);color:var(--text2);" onclick="openHorariosGimModal()"><i class="ti ti-clock" style="font-size:30px;"></i>Horarios del gimnasio</button>
   `;
 }
 
