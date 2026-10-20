@@ -1110,7 +1110,7 @@ function deshacerEntrada(socioId){
   persist();
   showToast(`Entrada de ${s.n} eliminada`);
   const tbody = document.getElementById('sociosTableBody');
-  if(tbody){ const rows=sociosOrdenados(); const showPay=isSuperOwner()||hasPerm('verPagos'); const cols=showPay?6:4; tbody.innerHTML=rows.length?rows.map(({s,idx})=>socioRowHTML(s,idx)).join(''):`<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`; }
+  if(tbody){ const rows=sociosOrdenados(); const showPay=isSuperOwner()||hasPerm('verPagos'); const cols=showPay?7:5; tbody.innerHTML=rows.length?rows.map(({s,idx})=>socioRowHTML(s,idx)).join(''):`<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`; }
 }
 function socioMergeKey(s){ return s.id || (s.email||'').trim().toLowerCase() || s.n; }
 function mergeRsHechos(local, remote){
@@ -3154,7 +3154,8 @@ function socioRowHTML(s, idx){
       <td>${esc(s.n)}</td>
       ${showPay?`<td>${s.cortesia?'<span class="badge b-purple">Cortesía</span>':payBadge(s.es)}</td><td>${s.cortesia?'—':fmtFechaCorta(s.vence)}</td>`:''}
       <td>${rutinasBadgeHTML(s,idx)}</td>
-      <td>${s.activo===false?'<span class="badge b-err">Inactivo</span>':'<span class="badge b-ok">Activo</span>'}</td>
+      <td style="font-variant-numeric:tabular-nums;">${REGS.filter(r=>r.sid===s.id).length}</td>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.activo===false?'var(--red)':'var(--green)'};" title="${s.activo===false?'Inactivo':'Activo'}"></span></td>
       <td style="white-space:nowrap;">
         ${canEntrada?`<button class="btn btn-outline" style="padding:8px 10px;margin-right:4px;${yaHoy?'color:var(--green);border-color:var(--green);':''}" title="${yaHoy?'Ya entró hoy':'Marcar entrada'}" onclick="${yaHoy?`marcarEntradaManualSocio('${s.id}')`:`entradaRapida('${s.id}')`}"><i class="ti ti-${yaHoy?'check':'login'}" style="font-size:17px;"></i></button>`:''}
         <button class="btn btn-outline" style="padding:8px 10px;" title="Más opciones" onclick="openSocioOpcionesModal(${idx})"><i class="ti ti-dots-vertical" style="font-size:18px;"></i></button>
@@ -3219,7 +3220,7 @@ function _confirmarEntradaRapida(socioId){
   if(tbody){
     const rows = sociosOrdenados();
     const showPay = isSuperOwner()||hasPerm('verPagos');
-    const cols = showPay ? 6 : 4;
+    const cols = showPay ? 7 : 5;
     tbody.innerHTML = rows.length ? rows.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`;
   }
 }
@@ -3236,7 +3237,7 @@ function filterSociosTable(q){
   if(!tbody) return;
   const list = sociosOrdenados().filter(({s})=>s.n.toLowerCase().includes(q));
   const showPay = isSuperOwner() || hasPerm('verPagos');
-  const cols = showPay ? 6 : 4;
+  const cols = showPay ? 7 : 5;
   tbody.innerHTML = list.length ? list.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados para "${esc(q)}"</td></tr>`;
 }
 function pageSocios(){
@@ -3256,7 +3257,7 @@ function pageSocios(){
     <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th style="white-space:nowrap;"><i class="ti ti-barbell" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Rutinas</th><th>Estado</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th style="white-space:nowrap;"><i class="ti ti-barbell" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Rutinas</th><th>Clases</th><th></th></tr></thead>
   <tbody id="sociosTableBody">
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
