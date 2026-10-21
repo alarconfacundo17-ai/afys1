@@ -3154,7 +3154,7 @@ function socioRowHTML(s, idx){
       <td>${esc(s.n)}</td>
       ${showPay?`<td>${s.cortesia?'<span class="badge b-purple">Cortesía</span>':payBadge(s.es)}</td><td>${s.cortesia?'—':fmtFechaCorta(s.vence)}</td>`:''}
       <td>${rutinasBadgeHTML(s,idx)}</td>
-      <td style="font-variant-numeric:tabular-nums;">${totalClasesSocio(s)}</td>
+      <td style="font-variant-numeric:tabular-nums;">${(isSuperOwner()||hasPerm('verPagos'))?`<button onclick="openClasesPreviasModal(${idx},true)" style="background:none;border:none;padding:0;cursor:pointer;font-variant-numeric:tabular-nums;font-size:inherit;color:var(--primary);font-weight:600;text-decoration:underline dotted;text-underline-offset:3px;" title="Ver/editar clases previas">${totalClasesSocio(s)}</button>`:totalClasesSocio(s)}</td>
       <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.activo===false?'var(--red)':'var(--green)'};" title="${s.activo===false?'Inactivo':'Activo'}"></span></td>
       <td style="white-space:nowrap;">
         ${canEntrada?`<button class="btn btn-outline" style="padding:8px 10px;margin-right:4px;${yaHoy?'color:var(--green);border-color:var(--green);':''}" title="${yaHoy?'Ya entró hoy':'Marcar entrada'}" onclick="${yaHoy?`marcarEntradaManualSocio('${s.id}')`:`entradaRapida('${s.id}')`}"><i class="ti ti-${yaHoy?'check':'login'}" style="font-size:17px;"></i></button>`:''}
@@ -3882,25 +3882,33 @@ function contadorClasesHTML(si){
     <button class="btn btn-outline btn-sm" onclick="openClasesPreviasModal(${si})"><i class="ti ti-edit"></i> Ajustar</button>
   </div>`;
 }
-function openClasesPreviasModal(si){
+function openClasesPreviasModal(si, fromLista){
   const s = SOCIOS[si];
   const enApp = REGS.filter(r=>regBelongsTo(r,s)).length;
+  const onCancel = fromLista ? 'closeModal();renderStaff()' : `openSocioRutinasModal(${si})`;
   openModal(`
-    <div class="modal-head"><h3>Clases previas — ${esc(s.n)}</h3><button onclick="openSocioRutinasModal(${si})">✕</button></div>
-    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:12px;">Si ${esc(s.n)} venía al gimnasio antes de usar la app, poné acá cuántas clases ya tenía hechas. Se suman a las ${enApp} registradas automáticamente desde que usa la app.</p>
-    <div class="field"><label>Clases previas a la app</label><input id="cp_input" type="number" min="0" value="${s.clasesPrevias||0}"></div>
+    <div class="modal-head"><h3>Clases — ${esc(s.n)}</h3><button onclick="${onCancel}">✕</button></div>
+    <div style="display:flex;align-items:center;gap:18px;background:var(--bg2);border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+      <div style="text-align:center;"><div style="font-size:26px;font-weight:800;color:var(--primary);">${enApp}</div><div style="font-size:11px;color:var(--text2);">desde la app</div></div>
+      <div style="font-size:22px;color:var(--text2);">+</div>
+      <div style="text-align:center;" id="cp_previas_preview"><div style="font-size:26px;font-weight:800;">${s.clasesPrevias||0}</div><div style="font-size:11px;color:var(--text2);">previas</div></div>
+      <div style="font-size:22px;color:var(--text2);">=</div>
+      <div style="text-align:center;"><div style="font-size:26px;font-weight:800;color:var(--green);" id="cp_total_preview">${enApp+(s.clasesPrevias||0)}</div><div style="font-size:11px;color:var(--text2);">total</div></div>
+    </div>
+    <div class="field"><label>Clases antes de la app</label><input id="cp_input" type="number" min="0" value="${s.clasesPrevias||0}" oninput="document.getElementById('cp_previas_preview').querySelector('div').textContent=this.value||0;document.getElementById('cp_total_preview').textContent=${enApp}+(parseInt(this.value)||0)"></div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="openSocioRutinasModal(${si})">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveClasesPrevias(${si})">Guardar</button>
+      <button class="btn btn-outline" onclick="${onCancel}">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveClasesPrevias(${si},${fromLista?1:0})">Guardar</button>
     </div>
   `);
 }
-function saveClasesPrevias(si){
+function saveClasesPrevias(si, fromLista){
   const s = SOCIOS[si];
   const v = parseInt($('#cp_input').value, 10);
   s.clasesPrevias = isNaN(v) || v<0 ? 0 : v;
   persist();
-  openSocioRutinasModal(si);
+  if(fromLista){ closeModal(); renderStaff(); }
+  else openSocioRutinasModal(si);
 }
 function openHistorialClasesModal(){
   const rows = SOCIOS.map((s,idx)=>{
