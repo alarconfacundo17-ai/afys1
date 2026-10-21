@@ -3154,7 +3154,7 @@ function socioRowHTML(s, idx){
       <td>${esc(s.n)}</td>
       ${showPay?`<td>${s.cortesia?'<span class="badge b-purple">Cortesía</span>':payBadge(s.es)}</td><td>${s.cortesia?'—':fmtFechaCorta(s.vence)}</td>`:''}
       <td>${rutinasBadgeHTML(s,idx)}</td>
-      <td style="font-variant-numeric:tabular-nums;">${REGS.filter(r=>r.sid===s.id).length}</td>
+      <td style="font-variant-numeric:tabular-nums;">${totalClasesSocio(s)}</td>
       <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.activo===false?'var(--red)':'var(--green)'};" title="${s.activo===false?'Inactivo':'Activo'}"></span></td>
       <td style="white-space:nowrap;">
         ${canEntrada?`<button class="btn btn-outline" style="padding:8px 10px;margin-right:4px;${yaHoy?'color:var(--green);border-color:var(--green);':''}" title="${yaHoy?'Ya entró hoy':'Marcar entrada'}" onclick="${yaHoy?`marcarEntradaManualSocio('${s.id}')`:`entradaRapida('${s.id}')`}"><i class="ti ti-${yaHoy?'check':'login'}" style="font-size:17px;"></i></button>`:''}
@@ -3250,6 +3250,7 @@ function pageSocios(){
   </h2>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
   <button class="btn btn-outline btn-sm" onclick="exportarSociosCSV()" title="Exportar socios a CSV"><i class="ti ti-download"></i> Exportar CSV</button>
+  ${isSuperOwner()||hasPerm('verPagos')?`<button class="btn btn-outline btn-sm" onclick="openHistorialClasesModal()" title="Cargar clases anteriores a la app"><i class="ti ti-history"></i> Historial de clases</button>`:''}
   ${hasPermSocios()?`<button class="btn btn-primary" onclick="openSocioModal()"><i class="ti ti-plus"></i>Nuevo socio</button>`:''}
   </div>
   </div>
@@ -3257,7 +3258,7 @@ function pageSocios(){
     <input id="socioSearchInput" type="text" autocomplete="off" placeholder="🔍 Buscar por nombre..." style="font-size:14.5px;padding:11px 14px;" oninput="filterSociosTable(this.value)">
   </div>
   <div class="card">
-  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th style="white-space:nowrap;"><i class="ti ti-barbell" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Rutinas</th><th>Clases</th><th></th></tr></thead>
+  <table><thead><tr><th>Nombre</th>${showPay?'<th>Pago</th><th>Vence</th>':''}<th style="white-space:nowrap;"><i class="ti ti-barbell" style="font-size:13px;vertical-align:middle;margin-right:4px;"></i>Rutinas</th><th>Clases</th><th></th><th></th></tr></thead>
   <tbody id="sociosTableBody">
   ${ordered.map(({s,idx})=>socioRowHTML(s,idx)).join('')}
   </tbody></table>
@@ -3900,6 +3901,60 @@ function saveClasesPrevias(si){
   s.clasesPrevias = isNaN(v) || v<0 ? 0 : v;
   persist();
   openSocioRutinasModal(si);
+}
+function openHistorialClasesModal(){
+  const rows = SOCIOS.map((s,idx)=>{
+    const enApp = REGS.filter(r=>regBelongsTo(r,s)).length;
+    const previas = s.clasesPrevias||0;
+    return `<tr>
+      <td style="padding:8px 10px;font-weight:500;">${esc(s.n)}</td>
+      <td style="padding:8px 10px;color:var(--text2);font-size:12.5px;text-align:center;">${enApp}</td>
+      <td style="padding:8px 6px;">
+        <input type="number" min="0" value="${previas}" data-idx="${idx}"
+          style="width:80px;padding:5px 8px;border:1.5px solid var(--border2);border-radius:7px;background:var(--bg);color:var(--text);font-size:13px;text-align:center;"
+          onchange="hcm_preview(this,${idx})">
+      </td>
+      <td style="padding:8px 10px;font-weight:700;text-align:center;" id="hcm_total_${idx}">${enApp+previas}</td>
+    </tr>`;
+  }).join('');
+  openModal(`
+    <div class="modal-head"><h3><i class="ti ti-history" style="margin-right:6px;"></i>Historial de clases</h3><button onclick="closeModal()">✕</button></div>
+    <p style="color:var(--text2);font-size:13px;margin-top:-6px;margin-bottom:14px;">Cargá cuántas clases tenía cada socio <b>antes de usar la app</b>. Se suman automáticamente a las registradas desde la app en la columna "Clases".</p>
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:var(--bg2);">
+          <th style="padding:8px 10px;text-align:left;font-size:12px;color:var(--text2);font-weight:600;">Socio</th>
+          <th style="padding:8px 10px;text-align:center;font-size:12px;color:var(--text2);font-weight:600;">En app</th>
+          <th style="padding:8px 10px;text-align:center;font-size:12px;color:var(--text2);font-weight:600;">Previas (editable)</th>
+          <th style="padding:8px 10px;text-align:center;font-size:12px;color:var(--text2);font-weight:600;">Total</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveHistorialClases()"><i class="ti ti-device-floppy"></i> Guardar todo</button>
+    </div>
+  `,'wide');
+}
+function hcm_preview(input, idx){
+  const enApp = REGS.filter(r=>regBelongsTo(r,SOCIOS[idx])).length;
+  const v = parseInt(input.value,10);
+  const previas = isNaN(v)||v<0 ? 0 : v;
+  const totalEl = document.getElementById('hcm_total_'+idx);
+  if(totalEl) totalEl.textContent = enApp + previas;
+}
+function saveHistorialClases(){
+  const inputs = document.querySelectorAll('[data-idx]');
+  inputs.forEach(inp=>{
+    const idx = parseInt(inp.dataset.idx,10);
+    if(isNaN(idx)||!SOCIOS[idx]) return;
+    const v = parseInt(inp.value,10);
+    SOCIOS[idx].clasesPrevias = isNaN(v)||v<0 ? 0 : v;
+  });
+  persist();
+  closeModal();
+  renderStaff();
 }
 function openSocioRutinasModal(si, search){
   const s = SOCIOS[si];
