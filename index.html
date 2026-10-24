@@ -3216,13 +3216,7 @@ function _confirmarEntradaRapida(socioId){
   logMovimiento('entrada_socio', `${s.n} — entrada manual registrada a las ${hora}`);
   persist();
   _flashEntrada(s.n, s.id);
-  const tbody = document.getElementById('sociosTableBody');
-  if(tbody){
-    const rows = sociosOrdenados();
-    const showPay = isSuperOwner()||hasPerm('verPagos');
-    const cols = showPay ? 7 : 5;
-    tbody.innerHTML = rows.length ? rows.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`;
-  }
+  refreshSociosTable();
 }
 function sociosOrdenados(){
   const withIdx = SOCIOS.map((s,idx)=>({s,idx}));
@@ -9331,6 +9325,7 @@ function toggleHistorialEntreno(idx, year, m){
   REGS.sort((a,b)=>new Date(b.f)-new Date(a.f));
   entradasHoy = REGS.filter(r=>r.f&&localDateISO(r.f)===todayISO()).length;
   persist();
+  refreshSociosTable();
   openHistorialAnualModal(idx, year, _histEditMode);
 }
 function toggleHistorialPago(idx, year, m, mpKey){
@@ -9382,6 +9377,14 @@ function openModal(html, size){
     }
   }
 }
+function refreshSociosTable(){
+  const tbody = document.getElementById('sociosTableBody');
+  if(!tbody) return;
+  const rows = sociosOrdenados();
+  const showPay = isSuperOwner()||hasPerm('verPagos');
+  const cols = showPay ? 7 : 5;
+  tbody.innerHTML = rows.length ? rows.map(({s,idx})=>socioRowHTML(s,idx)).join('') : `<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:20px;">Sin resultados</td></tr>`;
+}
 function closeModal(){
   const overlay = document.querySelector('.modal-overlay');
   const box = document.querySelector('.modal-box');
@@ -9393,6 +9396,7 @@ function closeModal(){
     $('#modalHost').innerHTML='';
   }
   editNotaIdx=null; _editingRutinaName=null; _editingTurnoId=null;
+  refreshSociosTable();
 }
 
 /* ============ SOCIO APP ============ */
