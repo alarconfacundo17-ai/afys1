@@ -9380,6 +9380,8 @@ function openModal(html, size){
 function refreshSociosTable(){
   const tbody = document.getElementById('sociosTableBody');
   if(!tbody) return;
+  const q = (document.getElementById('socioSearchInput')||{}).value||'';
+  if(q){ filterSociosTable(q); return; }
   const rows = sociosOrdenados();
   const showPay = isSuperOwner()||hasPerm('verPagos');
   const cols = showPay ? 7 : 5;
