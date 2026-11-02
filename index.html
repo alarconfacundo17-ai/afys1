@@ -1212,6 +1212,10 @@ async function mergeRemoteAntesDeGuardar(){
         }
         // propagar DNI si el local no lo tiene aún
         if(rs.dni && !ls.dni){ ls.dni = rs.dni; }
+        // clasesPrevias: last-write-wins via clasesPreviasTs; si el remoto tiene ts mayor o el local no tiene ts, tomar el remoto
+        if(typeof rs.clasesPrevias==='number'){
+          if((rs.clasesPreviasTs||0) > (ls.clasesPreviasTs||0) || (!ls.clasesPreviasTs && rs.clasesPreviasTs)){ ls.clasesPrevias = rs.clasesPrevias; ls.clasesPreviasTs = rs.clasesPreviasTs||0; }
+        }
         // propagar personalización de rutinas por socio (nombre, nota, días, ejercicios override)
         if(rs.rsNombre && typeof rs.rsNombre==='object'){ if(!ls.rsNombre) ls.rsNombre={}; Object.keys(rs.rsNombre).forEach(k=>{ if(!ls.rsNombre[k]) ls.rsNombre[k]=rs.rsNombre[k]; }); }
         if(rs.rsNotas && typeof rs.rsNotas==='object'){ if(!ls.rsNotas) ls.rsNotas={}; Object.keys(rs.rsNotas).forEach(k=>{ if(!ls.rsNotas[k]) ls.rsNotas[k]=rs.rsNotas[k]; }); }
@@ -3900,6 +3904,7 @@ function saveClasesPrevias(si, fromLista){
   const s = SOCIOS[si];
   const v = parseInt($('#cp_input').value, 10);
   s.clasesPrevias = isNaN(v) || v<0 ? 0 : v;
+  s.clasesPreviasTs = Date.now();
   persist();
   if(fromLista){ closeModal(); renderStaff(); }
   else openSocioRutinasModal(si);
@@ -3953,6 +3958,7 @@ function saveHistorialClases(){
     if(isNaN(idx)||!SOCIOS[idx]) return;
     const v = parseInt(inp.value,10);
     SOCIOS[idx].clasesPrevias = isNaN(v)||v<0 ? 0 : v;
+    SOCIOS[idx].clasesPreviasTs = Date.now();
   });
   persist();
   closeModal();
@@ -10314,6 +10320,7 @@ function socioCuenta(){
           ls.profileTs = rs.profileTs;
         }
         if(rs.dni && !ls.dni){ ls.dni=rs.dni; } if(rs.dniAccesoRapido && !ls.dniAccesoRapido){ ls.dniAccesoRapido=true; if(ls.email) cacheDni(ls.dni,(ls.email||'').toLowerCase()); }
+        if(typeof rs.clasesPrevias==='number'){ if((rs.clasesPreviasTs||0)>(ls.clasesPreviasTs||0)||(!ls.clasesPreviasTs&&rs.clasesPreviasTs)){ ls.clasesPrevias=rs.clasesPrevias; ls.clasesPreviasTs=rs.clasesPreviasTs||0; } }
         if(rs.rsMiPeso && typeof rs.rsMiPeso==='object'){ if(!ls.rsMiPeso) ls.rsMiPeso={}; Object.keys(rs.rsMiPeso).forEach(rn=>{ if(!ls.rsMiPeso[rn]) ls.rsMiPeso[rn]={}; Object.keys(rs.rsMiPeso[rn]).forEach(en=>{ if(!ls.rsMiPeso[rn][en]) ls.rsMiPeso[rn][en]=rs.rsMiPeso[rn][en]; }); }); }
         if(rs.rsMiSR && typeof rs.rsMiSR==='object'){ if(!ls.rsMiSR) ls.rsMiSR={}; Object.keys(rs.rsMiSR).forEach(rn=>{ if(!ls.rsMiSR[rn]) ls.rsMiSR[rn]={}; Object.keys(rs.rsMiSR[rn]).forEach(en=>{ if(!ls.rsMiSR[rn][en]||Object.keys(ls.rsMiSR[rn][en]).length===0) ls.rsMiSR[rn][en]=rs.rsMiSR[rn][en]; }); }); }
         if(rs.rsNombre && typeof rs.rsNombre==='object'){ if(!ls.rsNombre) ls.rsNombre={}; Object.keys(rs.rsNombre).forEach(k=>{ if(!ls.rsNombre[k]) ls.rsNombre[k]=rs.rsNombre[k]; }); }
